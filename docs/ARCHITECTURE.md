@@ -1,0 +1,64 @@
+# Architecture
+
+## Stack
+| Layer | Choice | Why |
+|---|---|---|
+| App | Next.js (App Router), TypeScript | One deployable for UI + API |
+| DB | PostgreSQL 16 | JSONB for field values, built-in full-text search |
+| ORM | Drizzle | Typed, SQL-first, easy migrations. `db/schema.sql` is the reference model |
+| Auth | Better Auth | Local accounts + OIDC (Entra, Google, Authentik) |
+| Editor | TipTap | Rich text and markdown input in one component |
+| Drag and drop | dnd-kit | Field reordering |
+| UI | Tailwind + shadcn/ui | Fast, accessible, easy for contributors |
+| Validation | Zod | Shared between UI, API, and OpenAPI generation |
+| Search | Postgres tsvector | No extra service. Meilisearch optional later |
+| Files | Local volume or S3-compatible | Driver set via env |
+
+Single container plus Postgres, with an optional bw-serve sidecar for Bitwarden/Vaultwarden. No Redis, no queue service. Webhook retries run from a lightweight in-process worker polling `webhook_deliveries`.
+
+## Core concepts
+- **Company** > **Location** > **Document**. A doc type's `scope` decides whether its documents attach to a company or a location.
+- **Doc type** = template. Owns an ordered set of fields.
+- **Field** belongs to a doc type (template field) OR a single document (local field). Never both.
+- **Promote**: moving a local field onto its doc type. One UPDATE. Existing docs of that type get the new empty field.
+- **Option list**: shared dropdown source. Any dropdown field references one. The "+" button inserts an item inline.
+- **Values** live in `documents.field_values` keyed by field UUID. Labels can change freely.
+
+## Field value storage
+| field_type | Stored as |
+|---|---|
+| text, url, ip | string |
+| markdown | markdown source string |
+| richtext | sanitized HTML string (sanitize server-side on write) |
+| number | number |
+| date | ISO date string |
+| boolean | boolean |
+| dropdown | option_item UUID |
+| multi_dropdown | array of option_item UUIDs |
+| doc_link | document UUID (also written to `document_links`) |
+| secret_ref | object with vault item/collection ids plus cached non-secret metadata. See VAULT_INTEGRATION.md |
+
+API responses return resolved values (option labels, linked doc titles, rendered HTML for markdown) alongside raw IDs.
+
+## Inline editing rules (the whole point of the project)
+1. Edit mode shows every field of the document, template fields first, then local fields, respecting `field_order` if set.
+2. "Add field" in edit mode creates a local field on that document.
+3. Each local field has "Add to template" (admin/tech permission). Promoting prompts once: confirm label, type, and option list.
+4. Dropdowns show a "+" next to the select. Adding an option writes to the shared list and selects it.
+5. Drag handle on each field. Reordering a template field in a doc asks: "this doc only" or "update template."
+6. Archiving a field hides it everywhere; values stay in JSONB so revisions still render.
+7. Every save writes a `document_revisions` row and an `audit_log` row, and queues webhooks.
+
+## Permissions (v1)
+- admin: everything, including deleting doc types and managing API keys/webhooks
+- tech: create/edit docs, add local fields, promote fields, add dropdown options
+- readonly: view only
+
+Per-company access control is a later phase.
+
+## Security baseline
+- Argon2id for local passwords
+- API keys: random 32 bytes, shown once, stored as SHA-256 hash, looked up by prefix
+- Webhooks signed with HMAC-SHA256 in `X-Strata-Signature`
+- Server-side HTML sanitization for richtext (DOMPurify via jsdom or sanitize-html)
+- CSRF protection on session routes, rate limiting on auth and API

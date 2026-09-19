@@ -1,0 +1,61 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      # Set true to load the starter doc types on boot (see scripts/seed.ts).
+      SEED_ON_START: ${SEED_ON_START:-false}
+    # Host port only. The container always listens on 3000.
+    ports: ["${APP_PORT:-3080}:3000"]
+    volumes: ["uploads:/data/uploads"]
+    networks: [public, internal]
+    depends_on:
+      db: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: strata
+      POSTGRES_DB: strata
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U strata"]
+      interval: 5s
+      retries: 10
+
+  # Optional: enable with `docker compose --profile vault up -d`
+  # Never add a ports: entry here. bw serve has no authentication.
+  bw-serve:
+    profiles: ["vault"]
+    build: ./docker/bw-serve
+    restart: unless-stopped
+    environment:
+      BW_SERVER_URL: ${BW_SERVER_URL}
+      BW_CLIENTID: ${BW_CLIENTID}
+      BW_CLIENTSECRET: ${BW_CLIENTSECRET}
+    secrets: [bw_master_password]
+    networks: [internal]
+
+networks:
+  public:
+  internal:
+    internal: true
+
+secrets:
+  bw_master_password:
+    file: ./secrets/bw_master_password.txt
+
+volumes:
+  pgdata:
+  uploads:
