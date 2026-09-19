@@ -47,24 +47,45 @@ export class ForbiddenError extends Error {
   }
 }
 
-/** admin and tech may create and edit. readonly may not. */
-export function canWrite(role: Role): boolean {
-  return role === "admin" || role === "tech";
-}
+/*
+ * Permissions v1, straight from docs/ARCHITECTURE.md:
+ *   admin    everything, including deleting doc types and managing API keys/webhooks
+ *   tech     create/edit docs, add local fields, promote fields, add dropdown options
+ *   readonly view only
+ * Anything the spec does not grant tech is admin-only.
+ */
 
-/** Archiving hides a record everywhere, so it is admin-only. */
-export function canArchive(role: Role): boolean {
+/** Companies and locations: not among tech's granted powers, so admin-only. */
+export function canManageHierarchy(role: Role): boolean {
   return role === "admin";
 }
 
-export async function requireWriter(): Promise<CurrentUser> {
+/** Doc types, template fields, and option lists themselves. */
+export function canManageDocTypes(role: Role): boolean {
+  return role === "admin";
+}
+
+/** Create and edit documents, add local fields, promote fields. */
+export function canEditDocuments(role: Role): boolean {
+  return role === "admin" || role === "tech";
+}
+
+/** The inline "+" on a dropdown, which appends to a shared option list. */
+export function canAddOptionItems(role: Role): boolean {
+  return role === "admin" || role === "tech";
+}
+
+export function canManageIntegrations(role: Role): boolean {
+  return role === "admin";
+}
+
+async function require(check: (role: Role) => boolean): Promise<CurrentUser> {
   const user = await requireUser();
-  if (!canWrite(user.role)) throw new ForbiddenError();
+  if (!check(user.role)) throw new ForbiddenError();
   return user;
 }
 
-export async function requireAdmin(): Promise<CurrentUser> {
-  const user = await requireUser();
-  if (user.role !== "admin") throw new ForbiddenError();
-  return user;
-}
+export const requireHierarchyManager = () => require(canManageHierarchy);
+export const requireDocTypeManager = () => require(canManageDocTypes);
+export const requireDocumentEditor = () => require(canEditDocuments);
+export const requireAdmin = () => require((role) => role === "admin");

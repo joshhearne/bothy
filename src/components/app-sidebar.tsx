@@ -9,10 +9,10 @@ export type SidebarCompany = { id: string; name: string; isInternal: boolean };
 
 export function AppSidebar({
   companies,
-  canWrite,
+  canCreateCompanies,
 }: {
   companies: SidebarCompany[];
-  canWrite: boolean;
+  canCreateCompanies: boolean;
 }) {
   const pathname = usePathname();
 
@@ -22,7 +22,7 @@ export function AppSidebar({
         <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
           Companies
         </span>
-        {canWrite && (
+        {canCreateCompanies && (
           <Link
             href="/companies/new"
             aria-label="New company"

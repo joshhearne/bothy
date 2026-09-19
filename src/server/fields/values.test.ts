@@ -1,0 +1,192 @@
+import { describe, expect, it } from "vitest";
+import {
+  flattenForSearch,
+  mergeFieldValues,
+  validateFieldValue,
+  validateFieldValues,
+  type OptionIndex,
+} from "./values";
+import type { FieldDefinition, FieldType } from "./types";
+
+const LIST = "11111111-1111-4111-8111-111111111111";
+const OPTION_A = "22222222-2222-4222-8222-222222222222";
+const OPTION_B = "33333333-3333-4333-8333-333333333333";
+const OTHER = "44444444-4444-4444-8444-444444444444";
+
+const options: OptionIndex = new Map([
+  [LIST, [{ id: OPTION_A, label: "Fibre" }, { id: OPTION_B, label: "DSL" }]],
+]);
+
+function field(fieldType: FieldType, overrides: Partial<FieldDefinition> = {}): FieldDefinition {
+  return {
+    id: "field-1",
+    label: "Field",
+    fieldType,
+    optionListId: fieldType.includes("dropdown") ? LIST : null,
+    required: false,
+    sortOrder: 0,
+    archivedAt: null,
+    docTypeId: "type-1",
+    documentId: null,
+    ...overrides,
+  };
+}
+
+function value(type: FieldType, raw: unknown, overrides?: Partial<FieldDefinition>) {
+  return validateFieldValue(field(type, overrides), raw, options);
+}
+
+describe("validateFieldValue", () => {
+  it("stores text trimmed", () => {
+    expect(value("text", "  Acme  ")).toEqual({ ok: true, value: "Acme" });
+  });
+
+  it("treats blank as null when the field is optional", () => {
+    expect(value("text", "   ")).toEqual({ ok: true, value: null });
+    expect(value("multi_dropdown", [])).toEqual({ ok: true, value: null });
+  });
+
+  it("rejects blank when the field is required", () => {
+    const result = value("text", "", { required: true, label: "Circuit ID" });
+    expect(result).toEqual({ ok: false, message: "Circuit ID is required" });
+  });
+
+  it("accepts a number and rejects a string", () => {
+    expect(value("number", 42)).toEqual({ ok: true, value: 42 });
+    expect(value("number", "forty").ok).toBe(false);
+  });
+
+  it("accepts an ISO date and rejects other formats", () => {
+    expect(value("date", "2026-03-01")).toEqual({ ok: true, value: "2026-03-01" });
+    expect(value("date", "01/03/2026").ok).toBe(false);
+  });
+
+  it("accepts http URLs and rejects other schemes", () => {
+    expect(value("url", "https://example.com").ok).toBe(true);
+    expect(value("url", "javascript:alert(1)").ok).toBe(false);
+    expect(value("url", "not a url").ok).toBe(false);
+  });
+
+  it("accepts IPv4 and IPv6 and rejects nonsense", () => {
+    expect(value("ip", "192.168.1.1").ok).toBe(true);
+    expect(value("ip", "2001:db8::1").ok).toBe(true);
+    expect(value("ip", "999.1.1.1").ok).toBe(false);
+  });
+
+  it("stores booleans", () => {
+    expect(value("boolean", true)).toEqual({ ok: true, value: true });
+    // false is a real answer, not a blank
+    expect(value("boolean", false)).toEqual({ ok: true, value: false });
+  });
+
+  it("accepts a dropdown option from its own list only", () => {
+    expect(value("dropdown", OPTION_A)).toEqual({ ok: true, value: OPTION_A });
+    expect(value("dropdown", OTHER).ok).toBe(false);
+  });
+
+  it("accepts multi-select options and rejects duplicates", () => {
+    expect(value("multi_dropdown", [OPTION_A, OPTION_B]).ok).toBe(true);
+    expect(value("multi_dropdown", [OPTION_A, OPTION_A]).ok).toBe(false);
+    expect(value("multi_dropdown", [OPTION_A, OTHER]).ok).toBe(false);
+  });
+
+  it("sanitizes richtext on write", () => {
+    const result = value("richtext", '<p>ok</p><script>alert(1)</script>');
+    expect(result).toEqual({ ok: true, value: "<p>ok</p>" });
+  });
+
+  it("treats richtext that sanitizes to nothing as blank", () => {
+    expect(value("richtext", "<script>alert(1)</script>")).toEqual({ ok: true, value: null });
+  });
+
+  it("keeps markdown source untouched", () => {
+    expect(value("markdown", "# Title\n\n- a")).toEqual({ ok: true, value: "# Title\n\n- a" });
+  });
+
+  it("refuses field types that are not implemented yet", () => {
+    expect(value("doc_link", "22222222-2222-4222-8222-222222222222").ok).toBe(false);
+    expect(value("secret_ref", { itemId: "x" }).ok).toBe(false);
+  });
+});
+
+describe("validateFieldValues", () => {
+  const fields = [
+    field("text", { id: "f-name", label: "Name", required: true }),
+    field("number", { id: "f-port", label: "Port" }),
+    field("dropdown", { id: "f-type", label: "Type" }),
+  ];
+
+  it("ignores fields that were not submitted", () => {
+    const result = validateFieldValues(fields, { "f-port": 443 }, options);
+    expect(result.values).toEqual({ "f-port": 443 });
+    expect(result.errors).toEqual({});
+  });
+
+  it("collects one error per field", () => {
+    const result = validateFieldValues(
+      fields,
+      { "f-name": "", "f-port": "nope", "f-type": OTHER },
+      options,
+    );
+    expect(Object.keys(result.errors).sort()).toEqual(["f-name", "f-port", "f-type"]);
+    expect(result.errors["f-name"]).toBe("Name is required");
+  });
+
+  it("skips archived fields so their stored values survive", () => {
+    const archived = [field("text", { id: "f-old", archivedAt: new Date() })];
+    const result = validateFieldValues(archived, { "f-old": "x" }, options);
+    expect(result.values).toEqual({});
+  });
+});
+
+describe("mergeFieldValues", () => {
+  it("overlays new values on stored ones", () => {
+    expect(mergeFieldValues({ a: 1, b: 2 }, { b: 3 })).toEqual({ a: 1, b: 3 });
+  });
+
+  it("removes a field that was cleared", () => {
+    expect(mergeFieldValues({ a: 1, b: 2 }, { b: null })).toEqual({ a: 1 });
+  });
+
+  it("leaves untouched fields alone", () => {
+    expect(mergeFieldValues({ a: 1 }, {})).toEqual({ a: 1 });
+  });
+});
+
+describe("flattenForSearch", () => {
+  it("indexes text, numbers, and dates", () => {
+    const fields = [
+      field("text", { id: "a" }),
+      field("number", { id: "b" }),
+      field("date", { id: "c" }),
+    ];
+    const text = flattenForSearch(fields, { a: "Acme", b: 443, c: "2026-03-01" }, options);
+    expect(text).toBe("Acme 443 2026-03-01");
+  });
+
+  it("indexes dropdown labels rather than their ids", () => {
+    const fields = [
+      field("dropdown", { id: "a" }),
+      field("multi_dropdown", { id: "b" }),
+    ];
+    const text = flattenForSearch(fields, { a: OPTION_A, b: [OPTION_B] }, options);
+    expect(text).toBe("Fibre DSL");
+  });
+
+  it("indexes the readable text of richtext, not its markup", () => {
+    const fields = [field("richtext", { id: "a" })];
+    expect(flattenForSearch(fields, { a: "<p>Hello <b>world</b></p>" }, options)).toBe(
+      "Hello world",
+    );
+  });
+
+  it("never indexes secrets", () => {
+    const fields = [field("secret_ref", { id: "a" })];
+    expect(flattenForSearch(fields, { a: { itemId: "abc" } }, options)).toBe("");
+  });
+
+  it("skips blanks", () => {
+    const fields = [field("text", { id: "a" }), field("text", { id: "b" })];
+    expect(flattenForSearch(fields, { a: "", b: "kept" }, options)).toBe("kept");
+  });
+});

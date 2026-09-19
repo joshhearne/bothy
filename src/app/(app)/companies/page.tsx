@@ -3,7 +3,7 @@ import { Building2, Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { plural } from "@/lib/utils";
-import { canWrite, requireUser } from "@/server/auth/session";
+import { canManageHierarchy, requireUser } from "@/server/auth/session";
 import { listCompanies } from "@/server/services/companies";
 import { unarchiveCompanyAction } from "./actions";
 
@@ -18,7 +18,7 @@ export default async function CompaniesPage({
   const { archived } = await searchParams;
   const showArchived = archived === "1";
   const companies = await listCompanies({ includeArchived: showArchived });
-  const writer = canWrite(user.role);
+  const writer = canManageHierarchy(user.role);
 
   return (
     <div className="flex flex-col gap-6">
@@ -95,7 +95,7 @@ export default async function CompaniesPage({
                         <span className="rounded-full border px-2 py-0.5 text-xs text-[var(--muted-foreground)]">
                           Archived
                         </span>
-                        {user.role === "admin" && (
+                        {canManageHierarchy(user.role) && (
                           <form action={unarchiveCompanyAction}>
                             <input type="hidden" name="id" value={company.id} />
                             <Button type="submit" variant="ghost" size="sm">

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { checkbox, text, toFieldErrors, type FormState } from "@/lib/form";
-import { ForbiddenError, requireAdmin, requireWriter } from "@/server/auth/session";
+import { ForbiddenError, requireHierarchyManager } from "@/server/auth/session";
 import {
   archiveCompany,
   createCompany,
@@ -30,7 +30,7 @@ function toFormState(err: unknown): FormState {
 export async function createCompanyAction(_prev: FormState, formData: FormData): Promise<FormState> {
   let id: string;
   try {
-    const user = await requireWriter();
+    const user = await requireHierarchyManager();
     ({ id } = await createCompany(
       {
         name: text(formData, "name") ?? "",
@@ -52,7 +52,7 @@ export async function updateCompanyAction(_prev: FormState, formData: FormData):
   if (!id) return { error: "Missing company" };
 
   try {
-    const user = await requireWriter();
+    const user = await requireHierarchyManager();
     await updateCompany(
       id,
       {
@@ -75,7 +75,7 @@ export async function archiveCompanyAction(formData: FormData): Promise<void> {
   const id = text(formData, "id");
   if (!id) return;
 
-  const user = await requireAdmin();
+  const user = await requireHierarchyManager();
   await archiveCompany(id, user.id);
 
   revalidatePath("/companies");
@@ -87,7 +87,7 @@ export async function unarchiveCompanyAction(formData: FormData): Promise<void> 
   const id = text(formData, "id");
   if (!id) return;
 
-  const user = await requireAdmin();
+  const user = await requireHierarchyManager();
   await unarchiveCompany(id, user.id);
 
   revalidatePath("/companies");
@@ -102,7 +102,7 @@ export async function createLocationAction(
   if (!companyId) return { error: "Missing company" };
 
   try {
-    const user = await requireWriter();
+    const user = await requireHierarchyManager();
     await createLocation(
       companyId,
       { name: text(formData, "name") ?? "", address: text(formData, "address") ?? null },
@@ -125,7 +125,7 @@ export async function updateLocationAction(
   if (!id || !companyId) return { error: "Missing location" };
 
   try {
-    const user = await requireWriter();
+    const user = await requireHierarchyManager();
     await updateLocation(
       id,
       { name: text(formData, "name") ?? "", address: text(formData, "address") ?? null },
@@ -144,7 +144,7 @@ export async function archiveLocationAction(formData: FormData): Promise<void> {
   const companyId = text(formData, "companyId");
   if (!id || !companyId) return;
 
-  const user = await requireAdmin();
+  const user = await requireHierarchyManager();
   await archiveLocation(id, user.id);
 
   revalidatePath(`/companies/${companyId}`);
@@ -155,7 +155,7 @@ export async function unarchiveLocationAction(formData: FormData): Promise<void>
   const companyId = text(formData, "companyId");
   if (!id || !companyId) return;
 
-  const user = await requireAdmin();
+  const user = await requireHierarchyManager();
   await unarchiveLocation(id, user.id);
 
   revalidatePath(`/companies/${companyId}`);

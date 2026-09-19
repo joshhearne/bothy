@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { canWrite, requireUser } from "@/server/auth/session";
+import { canManageHierarchy, requireUser } from "@/server/auth/session";
 import { getLocation } from "@/server/services/locations";
 import { EditLocationForm } from "../../../../location-form";
 
@@ -12,7 +12,7 @@ export default async function EditLocationPage({
 }) {
   const user = await requireUser();
   const { id, locationId } = await params;
-  if (!canWrite(user.role)) redirect(`/companies/${id}`);
+  if (!canManageHierarchy(user.role)) redirect(`/companies/${id}`);
 
   const location = await getLocation(locationId);
   if (!location || location.companyId !== id) notFound();

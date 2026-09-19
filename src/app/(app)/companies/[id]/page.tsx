@@ -4,7 +4,7 @@ import { FileText, MapPin } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { plural } from "@/lib/utils";
-import { canArchive, canWrite, requireUser } from "@/server/auth/session";
+import { canEditDocuments, canManageHierarchy, requireUser } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { listLocations } from "@/server/services/locations";
 import { listCompanyDocumentsGrouped } from "@/server/services/documents";
@@ -38,8 +38,9 @@ export default async function CompanyPage({
     listCompanyDocumentsGrouped(id),
   ]);
 
-  const writer = canWrite(user.role);
-  const archiver = canArchive(user.role);
+  const writer = canManageHierarchy(user.role);
+  const documentEditor = canEditDocuments(user.role);
+  const archiver = writer;
 
   return (
     <div className="flex flex-col gap-8">
@@ -178,12 +179,20 @@ export default async function CompanyPage({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Documents</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold tracking-tight">Documents</h2>
+          {documentEditor && !company.archivedAt && (
+            <Link
+              href={`/companies/${company.id}/documents/new`}
+              className={buttonVariants({ size: "sm" })}
+            >
+              New document
+            </Link>
+          )}
+        </div>
 
         {documentGroups.length === 0 ? (
-          <p className="text-sm text-[var(--muted-foreground)]">
-            No documents yet. Doc types and documents arrive in Phase 2.
-          </p>
+          <p className="text-sm text-[var(--muted-foreground)]">No documents yet.</p>
         ) : (
           <div className="flex flex-col gap-5">
             {documentGroups.map((group) => (
@@ -201,7 +210,12 @@ export default async function CompanyPage({
                         className="size-4 shrink-0 text-[var(--muted-foreground)]"
                         aria-hidden
                       />
-                      <span className="min-w-0 flex-1 truncate font-medium">{document.title}</span>
+                      <Link
+                        href={`/documents/${document.id}`}
+                        className="min-w-0 flex-1 truncate font-medium hover:underline"
+                      >
+                        {document.title}
+                      </Link>
                       {document.locationName && (
                         <span className="text-sm text-[var(--muted-foreground)]">
                           {document.locationName}

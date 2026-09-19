@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { canWrite, requireUser } from "@/server/auth/session";
+import { canManageHierarchy, requireUser } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { CompanyForm } from "../../company-form";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function EditCompanyPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const { id } = await params;
-  if (!canWrite(user.role)) redirect(`/companies/${id}`);
+  if (!canManageHierarchy(user.role)) redirect(`/companies/${id}`);
 
   const company = await getCompany(id);
   if (!company) notFound();
