@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
@@ -30,21 +29,23 @@ const TOOLBAR = [
 export function RichTextEditor({
   name,
   mode,
-  defaultValue = "",
+  value,
+  onChange,
   ariaLabelledBy,
 }: {
   name: string;
   mode: Mode;
-  defaultValue?: string;
+  /** Controlled by the form so structural edits never discard it. */
+  value: string;
+  onChange: (next: string) => void;
   ariaLabelledBy?: string;
 }) {
-  const [value, setValue] = useState(defaultValue);
-
   const editor = useEditor({
     // Rendering on the server would not match the client's ProseMirror output.
     immediatelyRender: false,
     extensions: [StarterKit, Markdown.configure({ html: mode === "richtext" })],
-    content: defaultValue,
+    // Seeded once; the editor owns the document from then on.
+    content: value,
     editorProps: {
       attributes: {
         class: "prose-editor min-h-40 w-full px-3 py-2 outline-none",
@@ -54,10 +55,10 @@ export function RichTextEditor({
     onUpdate: ({ editor: instance }) => {
       // An empty document still serializes to "<p></p>"; store a blank instead.
       if (instance.isEmpty) {
-        setValue("");
+        onChange("");
         return;
       }
-      setValue(
+      onChange(
         mode === "markdown"
           ? (instance.storage as unknown as MarkdownStorage).markdown.getMarkdown()
           : instance.getHTML(),

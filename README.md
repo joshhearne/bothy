@@ -37,6 +37,16 @@ npm run lint
 npm run typecheck
 ```
 
+End-to-end tests drive the inline editing flows in a real browser against a
+running instance:
+
+```bash
+APP_PORT=3090 docker compose -p strata-test up -d     # a throwaway stack
+npx playwright install chromium                       # first time only
+E2E_BASE_URL=http://127.0.0.1:3090 npm run test:e2e
+docker compose -p strata-test down -v
+```
+
 `db/schema.sql` is the reference data model, `src/server/db/schema.ts` mirrors it,
 and the SQL in `drizzle/` is what actually runs. Change all three together:
 `npm run db:generate` writes a new migration from the Drizzle schema.

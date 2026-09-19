@@ -1,14 +1,21 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/alert";
-import { FieldInput, type EditableField, type FieldOption } from "@/components/fields/field-input";
+import {
+  FieldControl,
+  FieldLabel,
+  toFormValue,
+  type EditableField,
+  type FieldFormValue,
+  type FieldOption,
+} from "@/components/fields/field-control";
 import type { FormState } from "@/lib/form";
-import { createDocumentAction, saveDocumentAction } from "./actions";
+import { createDocumentAction } from "./actions";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -19,75 +26,55 @@ function Submit({ label }: { label: string }) {
   );
 }
 
-export type DocumentFormProps = {
-  mode: "create" | "edit";
-  submitLabel: string;
-  title: string;
-  fields: EditableField[];
-  values: Record<string, unknown>;
-  options: Record<string, FieldOption[]>;
-  /** create mode */
-  companyId?: string;
-  docTypeId?: string;
-  locationId?: string | null;
-  /** edit mode */
-  documentId?: string;
-};
-
+/**
+ * Create form. Fields come from the doc type's template; local fields and
+ * reordering arrive once the document exists, in the inline editor.
+ */
 export function DocumentForm({
-  mode,
-  submitLabel,
-  title,
-  fields,
-  values,
-  options,
   companyId,
   docTypeId,
   locationId,
-  documentId,
-}: DocumentFormProps) {
-  const action = mode === "create" ? createDocumentAction : saveDocumentAction;
-  const [state, formAction] = useActionState<FormState, FormData>(action, {});
+  fields,
+  options,
+}: {
+  companyId: string;
+  docTypeId: string;
+  locationId: string | null;
+  fields: EditableField[];
+  options: Record<string, FieldOption[]>;
+}) {
+  const [state, formAction] = useActionState<FormState, FormData>(createDocumentAction, {});
+  const [values, setValues] = useState<Record<string, FieldFormValue>>(() =>
+    Object.fromEntries(fields.map((field) => [field.id, toFormValue(field.fieldType, null)])),
+  );
   const fieldErrors = state.fieldErrors ?? {};
 
   return (
     <form action={formAction} className="flex max-w-2xl flex-col gap-6">
       <FormError>{state.error}</FormError>
-
-      {mode === "create" ? (
-        <>
-          <input type="hidden" name="companyId" value={companyId ?? ""} />
-          <input type="hidden" name="docTypeId" value={docTypeId ?? ""} />
-          {locationId && <input type="hidden" name="locationId" value={locationId} />}
-        </>
-      ) : (
-        <input type="hidden" name="documentId" value={documentId ?? ""} />
-      )}
+      <input type="hidden" name="companyId" value={companyId} />
+      <input type="hidden" name="docTypeId" value={docTypeId} />
+      {locationId && <input type="hidden" name="locationId" value={locationId} />}
 
       <Field id="title" label="Title" error={fieldErrors.title}>
-        <Input
-          id="title"
-          name="title"
-          defaultValue={title}
-          required
-          maxLength={300}
-          autoFocus={mode === "create"}
-          aria-invalid={!!fieldErrors.title}
-        />
+        <Input id="title" name="title" required maxLength={300} autoFocus aria-invalid={!!fieldErrors.title} />
       </Field>
 
       {fields.map((field) => (
-        <FieldInput
-          key={field.id}
-          field={field}
-          value={values[field.id] ?? null}
-          options={field.optionListId ? (options[field.optionListId] ?? []) : []}
-          error={fieldErrors[field.id]}
-        />
+        <div key={field.id} className="flex flex-col gap-2">
+          <FieldLabel field={field} />
+          <FieldControl
+            field={field}
+            value={values[field.id] ?? toFormValue(field.fieldType, null)}
+            onChange={(next) => setValues((current) => ({ ...current, [field.id]: next }))}
+            options={field.optionListId ? (options[field.optionListId] ?? []) : []}
+            error={fieldErrors[field.id]}
+          />
+        </div>
       ))}
 
       <div>
-        <Submit label={submitLabel} />
+        <Submit label="Create document" />
       </div>
     </form>
   );

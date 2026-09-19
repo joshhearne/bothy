@@ -1,8 +1,10 @@
 import { notFound, redirect } from "next/navigation";
-import { canEditDocuments, requireUser } from "@/server/auth/session";
+import { canEditDocuments, canManageDocTypes, requireUser } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { getDocumentDetail } from "@/server/services/documents";
-import { DocumentForm } from "../../document-form";
+import { listOptionLists } from "@/server/services/option-lists";
+import { EDITABLE_FIELD_TYPES, FIELD_TYPE_LABELS, usesOptionList } from "@/server/fields/types";
+import { DocumentEditor } from "./document-editor";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,8 @@ export default async function EditDocumentPage({
   const company = await getCompany(detail.document.companyId);
   if (!company) notFound();
 
+  const optionLists = await listOptionLists();
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -31,14 +35,21 @@ export default async function EditDocumentPage({
         <h1 className="text-2xl font-semibold tracking-tight">Edit {detail.document.title}</h1>
       </div>
 
-      <DocumentForm
-        mode="edit"
-        submitLabel="Save document"
+      <DocumentEditor
         documentId={detail.document.id}
-        title={detail.document.title}
-        values={detail.document.fieldValues ?? {}}
-        options={Object.fromEntries(detail.optionIndex)}
-        fields={detail.fields.map((field) => ({
+        docTypeId={detail.docType.id}
+        docTypeName={detail.docType.name}
+        initialTitle={detail.document.title}
+        initialValues={detail.document.fieldValues ?? {}}
+        initialOptions={Object.fromEntries(detail.optionIndex)}
+        canManageTemplate={canManageDocTypes(user.role)}
+        optionLists={optionLists.map((list) => ({ id: list.id, name: list.name }))}
+        fieldTypes={EDITABLE_FIELD_TYPES.map((value) => ({
+          value,
+          label: FIELD_TYPE_LABELS[value],
+          usesOptionList: usesOptionList(value),
+        }))}
+        initialFields={detail.fields.map((field) => ({
           id: field.id,
           label: field.label,
           fieldType: field.fieldType,

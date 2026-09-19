@@ -1,0 +1,287 @@
+import "server-only";
+import { z } from "zod";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { db } from "@/server/db";
+import { documents, fields } from "@/server/db/schema";
+import { writeAudit } from "@/server/services/audit";
+import { NotFoundError } from "@/server/services/companies";
+import { EDITABLE_FIELD_TYPES, usesOptionList, type FieldDefinition } from "@/server/fields/types";
+
+/**
+ * Inline field operations run from inside a document, never from an admin
+ * screen (CLAUDE.md: users must never leave a document to add a field, add a
+ * dropdown option, or reorder fields).
+ */
+
+export const localFieldInputSchema = z
+  .object({
+    label: z.string().trim().min(1, "Label is required").max(200),
+    fieldType: z.enum(EDITABLE_FIELD_TYPES),
+    optionListId: z.uuid().optional().nullable(),
+    required: z.boolean().default(false),
+  })
+  .refine((v) => !usesOptionList(v.fieldType) || !!v.optionListId, {
+    message: "Choose an option list for a dropdown field",
+    path: ["optionListId"],
+  })
+  .refine((v) => usesOptionList(v.fieldType) || !v.optionListId, {
+    message: "Only dropdown fields use an option list",
+    path: ["optionListId"],
+  });
+
+export type LocalFieldInput = z.infer<typeof localFieldInputSchema>;
+
+const FIELD_COLUMNS = {
+  id: fields.id,
+  label: fields.label,
+  fieldType: fields.fieldType,
+  optionListId: fields.optionListId,
+  required: fields.required,
+  sortOrder: fields.sortOrder,
+  archivedAt: fields.archivedAt,
+  docTypeId: fields.docTypeId,
+  documentId: fields.documentId,
+};
+
+/** Adds a field that belongs to this document alone. */
+export async function addLocalField(
+  documentId: string,
+  input: z.input<typeof localFieldInputSchema>,
+  actorId: string,
+): Promise<FieldDefinition> {
+  const data = localFieldInputSchema.parse(input);
+
+  return db.transaction(async (tx) => {
+    const [document] = await tx
+      .select({ id: documents.id })
+      .from(documents)
+      .where(eq(documents.id, documentId))
+      .limit(1);
+    if (!document) throw new NotFoundError("Document");
+
+    const [{ next } = { next: 0 }] = await tx
+      .select({ next: sql<number>`coalesce(max(${fields.sortOrder}), -1) + 1` })
+      .from(fields)
+      .where(eq(fields.documentId, documentId));
+
+    const [field] = await tx
+      .insert(fields)
+      .values({
+        documentId,
+        label: data.label,
+        fieldType: data.fieldType,
+        optionListId: data.optionListId ?? null,
+        required: data.required,
+        sortOrder: next,
+      })
+      .returning(FIELD_COLUMNS);
+    if (!field) throw new Error("Failed to add field");
+
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "field.added_local",
+        entity: "field",
+        entityId: field.id,
+        detail: { documentId, label: data.label, fieldType: data.fieldType },
+      },
+      tx,
+    );
+
+    return field as FieldDefinition;
+  });
+}
+
+export class NotALocalFieldError extends Error {
+  constructor() {
+    super("Only a field belonging to this document can be promoted");
+    this.name = "NotALocalFieldError";
+  }
+}
+
+/**
+ * "Add to template": set doc_type_id, clear document_id. One UPDATE, exactly as
+ * ARCHITECTURE describes. Existing documents of that type pick the field up
+ * empty, because values are keyed by field UUID.
+ */
+export async function promoteField(
+  fieldId: string,
+  input: z.input<typeof localFieldInputSchema>,
+  actorId: string,
+): Promise<FieldDefinition> {
+  const data = localFieldInputSchema.parse(input);
+
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: fields.id, documentId: fields.documentId })
+      .from(fields)
+      .where(eq(fields.id, fieldId))
+      .limit(1);
+    if (!existing) throw new NotFoundError("Field");
+    if (!existing.documentId) throw new NotALocalFieldError();
+
+    const [document] = await tx
+      .select({ docTypeId: documents.docTypeId })
+      .from(documents)
+      .where(eq(documents.id, existing.documentId))
+      .limit(1);
+    if (!document) throw new NotFoundError("Document");
+
+    const [{ next } = { next: 0 }] = await tx
+      .select({ next: sql<number>`coalesce(max(${fields.sortOrder}), -1) + 1` })
+      .from(fields)
+      .where(eq(fields.docTypeId, document.docTypeId));
+
+    const [promoted] = await tx
+      .update(fields)
+      .set({
+        docTypeId: document.docTypeId,
+        documentId: null,
+        label: data.label,
+        fieldType: data.fieldType,
+        optionListId: data.optionListId ?? null,
+        required: data.required,
+        sortOrder: next,
+      })
+      .where(eq(fields.id, fieldId))
+      .returning(FIELD_COLUMNS);
+    if (!promoted) throw new Error("Failed to promote field");
+
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "field.promoted",
+        entity: "field",
+        entityId: fieldId,
+        detail: {
+          docTypeId: document.docTypeId,
+          fromDocumentId: existing.documentId,
+          label: data.label,
+        },
+      },
+      tx,
+    );
+
+    return promoted as FieldDefinition;
+  });
+}
+
+/** Reorder that applies to this document only: writes documents.field_order. */
+export async function setDocumentFieldOrder(
+  documentId: string,
+  orderedFieldIds: string[],
+  actorId: string,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(documents)
+      .set({ fieldOrder: orderedFieldIds })
+      .where(eq(documents.id, documentId))
+      .returning({ id: documents.id });
+    if (!updated) throw new NotFoundError("Document");
+
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "document.field_order_set",
+        entity: "document",
+        entityId: documentId,
+        detail: { order: orderedFieldIds },
+      },
+      tx,
+    );
+  });
+}
+
+/**
+ * Reorder that applies to the whole template: writes fields.sort_order and
+ * clears this document's override so it follows the template again.
+ */
+export async function applyOrderToTemplate(
+  documentId: string,
+  docTypeId: string,
+  orderedFieldIds: string[],
+  actorId: string,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const templateFieldIds = new Set(
+      (
+        await tx
+          .select({ id: fields.id })
+          .from(fields)
+          .where(eq(fields.docTypeId, docTypeId))
+      ).map((row) => row.id),
+    );
+
+    let position = 0;
+    for (const fieldId of orderedFieldIds) {
+      if (!templateFieldIds.has(fieldId)) continue; // local fields keep their own order
+      await tx.update(fields).set({ sortOrder: position }).where(eq(fields.id, fieldId));
+      position += 1;
+    }
+
+    // Local fields keep a document-level order, so the override still matters
+    // whenever the document has any.
+    const localFieldIds = orderedFieldIds.filter((id) => !templateFieldIds.has(id));
+    await tx
+      .update(documents)
+      .set({ fieldOrder: localFieldIds.length > 0 ? orderedFieldIds : null })
+      .where(eq(documents.id, documentId));
+
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "field.reordered",
+        entity: "doc_type",
+        entityId: docTypeId,
+        detail: { order: orderedFieldIds, fromDocumentId: documentId },
+      },
+      tx,
+    );
+  });
+}
+
+/** Archives a field from inside a document. Stored values stay in JSONB. */
+export async function archiveFieldInline(fieldId: string, actorId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(fields)
+      .set({ archivedAt: new Date() })
+      .where(and(eq(fields.id, fieldId), isNull(fields.archivedAt)))
+      .returning({ id: fields.id, documentId: fields.documentId, docTypeId: fields.docTypeId });
+    if (!updated) throw new NotFoundError("Active field");
+
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "field.archived",
+        entity: "field",
+        entityId: fieldId,
+        detail: { documentId: updated.documentId, docTypeId: updated.docTypeId },
+      },
+      tx,
+    );
+  });
+}
+
+/** Whether a field belongs to one document (local) or to a doc type (template). */
+export async function getFieldOwnership(
+  fieldId: string,
+): Promise<{ documentId: string | null; docTypeId: string | null } | null> {
+  const [field] = await db
+    .select({ documentId: fields.documentId, docTypeId: fields.docTypeId })
+    .from(fields)
+    .where(eq(fields.id, fieldId))
+    .limit(1);
+  return field ?? null;
+}
+
+/** Template fields of a doc type, oldest order first. Used after a promote. */
+export async function listTemplateFieldIds(docTypeId: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: fields.id })
+    .from(fields)
+    .where(and(eq(fields.docTypeId, docTypeId), isNull(fields.archivedAt)))
+    .orderBy(asc(fields.sortOrder), asc(fields.label));
+  return rows.map((row) => row.id);
+}

@@ -1,0 +1,23 @@
+import { defineConfig, devices } from "@playwright/test";
+
+/**
+ * Drives a running Strata instance. Start one first, for example:
+ *   APP_PORT=3090 docker compose -p strata-test up -d
+ * then: E2E_BASE_URL=http://127.0.0.1:3090 npm run test:e2e
+ */
+export default defineConfig({
+  testDir: "./e2e",
+  fullyParallel: false,
+  workers: 1,
+  retries: 0,
+  reporter: process.env.CI ? "list" : [["list"]],
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
+  use: {
+    baseURL: process.env.E2E_BASE_URL ?? "http://127.0.0.1:3090",
+    trace: "retain-on-failure",
+    locale: "en-US",
+    timezoneId: "UTC",
+  },
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+});

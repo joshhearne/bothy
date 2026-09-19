@@ -8,8 +8,10 @@ export type FieldType = (typeof FIELD_TYPES)[number];
  */
 export const UNSUPPORTED_FIELD_TYPES = ["doc_link", "secret_ref"] as const satisfies FieldType[];
 
+export type EditableFieldType = Exclude<FieldType, "doc_link" | "secret_ref">;
+
 export const EDITABLE_FIELD_TYPES = FIELD_TYPES.filter(
-  (type): type is Exclude<FieldType, "doc_link" | "secret_ref"> =>
+  (type): type is EditableFieldType =>
     !(UNSUPPORTED_FIELD_TYPES as readonly string[]).includes(type),
 );
 

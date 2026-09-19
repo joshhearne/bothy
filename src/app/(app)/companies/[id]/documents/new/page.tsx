@@ -128,13 +128,9 @@ export default async function NewDocumentPage({
       </div>
 
       <DocumentForm
-        mode="create"
-        submitLabel="Create document"
-        title=""
         companyId={company.id}
         docTypeId={chosen.id}
         locationId={chosenLocation?.id ?? null}
-        values={{}}
         options={Object.fromEntries(optionIndex)}
         fields={templateFields.map((field) => ({
           id: field.id,
