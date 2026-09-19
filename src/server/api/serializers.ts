@@ -62,6 +62,9 @@ function resolve(
       return rendered.title;
     case "tags":
       return rendered.labels;
+    case "secret":
+      // The label only. A secret never appears in an API response body.
+      return rendered.label;
     case "empty":
       return null;
   }
@@ -72,16 +75,24 @@ export function serializeFieldValues(
   values: Record<string, unknown>,
   optionLabels: Map<string, string>,
   linkedTitles: Map<string, string> = new Map(),
+  /** Webhooks carry no secret_ref payload at all (CLAUDE.md). */
+  redactSecrets = false,
 ): ApiFieldValue[] {
-  return fieldList.map((field) => ({
-    field_id: field.id,
-    label: field.label,
-    type: field.fieldType,
-    required: field.required,
-    value: values[field.id] ?? null,
-    resolved: resolve(field, values[field.id] ?? null, optionLabels, linkedTitles),
-    local: field.documentId !== null,
-  }));
+  return fieldList.map((field) => {
+    const raw = values[field.id] ?? null;
+    const secret = field.fieldType === "secret_ref";
+
+    return {
+      field_id: field.id,
+      label: field.label,
+      type: field.fieldType,
+      required: field.required,
+      value: secret && redactSecrets ? null : raw,
+      resolved:
+        secret && redactSecrets ? null : resolve(field, raw, optionLabels, linkedTitles),
+      local: field.documentId !== null,
+    };
+  });
 }
 
 export type ExternalRefPair = { system: string; external_id: string };
@@ -161,6 +172,8 @@ export function serializeDocument(input: {
   optionLabels: Map<string, string>;
   linkedTitles?: Map<string, string>;
   externalRefs?: ExternalRefPair[];
+  /** Set for webhook payloads, which must carry no vault reference. */
+  redactSecrets?: boolean;
 }) {
   return {
     id: input.document.id,
@@ -177,6 +190,7 @@ export function serializeDocument(input: {
       input.document.fieldValues ?? {},
       input.optionLabels,
       input.linkedTitles ?? new Map(),
+      input.redactSecrets ?? false,
     ),
     updated_at: input.document.updatedAt.toISOString(),
     archived_at: input.document.archivedAt?.toISOString() ?? null,

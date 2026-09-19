@@ -40,6 +40,11 @@ export function FieldValue({ value }: { value: RenderedValue }) {
         </Link>
       );
 
+    case "secret":
+      // The document page renders this with SecretField, which brokers the
+      // reveal. Reaching here means no vault context was supplied.
+      return <span className="text-sm text-[var(--muted-foreground)]">{value.label}</span>;
+
     case "html":
       // Sanitized on write and again on read in renderFieldValue.
       return <div className="prose-editor text-sm" dangerouslySetInnerHTML={{ __html: value.html }} />;

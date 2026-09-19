@@ -37,6 +37,7 @@ export function DocumentForm({
   fields,
   options,
   linkTargets,
+  secretItems,
 }: {
   companyId: string;
   docTypeId: string;
@@ -45,6 +46,8 @@ export function DocumentForm({
   options: Record<string, FieldOption[]>;
   /** Documents each doc_link field may point at, keyed by field id. */
   linkTargets: Record<string, FieldOption[]>;
+  /** Vault items each secret_ref field may reference, keyed by field id. */
+  secretItems: Record<string, FieldOption[]>;
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(createDocumentAction, {});
   const [values, setValues] = useState<Record<string, FieldFormValue>>(() =>
@@ -73,9 +76,11 @@ export function DocumentForm({
             options={
               field.fieldType === "doc_link"
                 ? (linkTargets[field.id] ?? [])
-                : field.optionListId
-                  ? (options[field.optionListId] ?? [])
-                  : []
+                : field.fieldType === "secret_ref"
+                  ? (secretItems[field.id] ?? [])
+                  : field.optionListId
+                    ? (options[field.optionListId] ?? [])
+                    : []
             }
             error={fieldErrors[field.id]}
           />

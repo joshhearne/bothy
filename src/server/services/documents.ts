@@ -23,8 +23,10 @@ import {
   validateFieldValues,
   type LinkTargetIndex,
   type OptionIndex,
+  type SecretItemIndex,
   type ValidationContext,
 } from "@/server/fields/values";
+import { listCompanyCollections, listCompanyVaultItems, toSecretRef } from "@/server/services/vault";
 
 export type DocumentListItem = {
   id: string;
@@ -243,6 +245,55 @@ export async function listBacklinks(documentId: string): Promise<Backlink[]> {
     .orderBy(asc(docTypes.name), asc(documents.title));
 }
 
+export type VaultContext = {
+  providerId: string;
+  status: string;
+  brokering: boolean;
+  allowCreate: boolean;
+  webVaultUrl: string | null;
+  collectionIds: string[];
+};
+
+/**
+ * Vault items each secret_ref field may reference, scoped to the collections
+ * mapped to this company (docs/VAULT_INTEGRATION.md: no cross-client leakage).
+ */
+export async function loadSecretItems(
+  fieldList: FieldDefinition[],
+  companyId: string,
+): Promise<{ index: SecretItemIndex; vault: VaultContext | null }> {
+  const index: SecretItemIndex = new Map();
+  const secretFields = fieldList.filter((field) => field.fieldType === "secret_ref");
+  if (secretFields.length === 0) return { index, vault: null };
+
+  const [{ items, vault }, collectionIds] = await Promise.all([
+    listCompanyVaultItems(companyId),
+    listCompanyCollections(companyId),
+  ]);
+
+  if (!vault) return { index, vault: null };
+
+  for (const field of secretFields) {
+    const byItem = new Map<string, Record<string, unknown>>();
+    for (const item of items) {
+      byItem.set(item.id, toSecretRef(vault.row.id, item, collectionIds) as unknown as Record<string, unknown>);
+    }
+    index.set(field.id, byItem);
+  }
+
+  return {
+    index,
+    vault: {
+      providerId: vault.row.id,
+      status: vault.status,
+      brokering: vault.brokering,
+      allowCreate: vault.row.allowCreate,
+      webVaultUrl: vault.row.webVaultUrl,
+      collectionIds,
+    },
+  };
+}
+
 export type DocumentDetail = {
   document: typeof documents.$inferSelect;
   docType: typeof docTypes.$inferSelect;
@@ -255,6 +306,10 @@ export type DocumentDetail = {
   linkTargets: LinkTargetIndex;
   /** Titles of documents already linked, archived ones included. */
   linkedTitles: Map<string, string>;
+  /** Vault items each secret_ref field may reference. */
+  secretItems: SecretItemIndex;
+  /** Null when the document has no secret_ref field. */
+  vault: VaultContext | null;
 };
 
 export async function getDocumentDetail(id: string): Promise<DocumentDetail | null> {
@@ -292,9 +347,10 @@ export async function getDocumentDetail(id: string): Promise<DocumentDetail | nu
     .map((field) => row.document.fieldValues?.[field.id])
     .filter((value): value is string => typeof value === "string" && value !== "");
 
-  const [linkTargets, linkedTitles] = await Promise.all([
+  const [linkTargets, linkedTitles, secrets] = await Promise.all([
     loadLinkTargets(ordered, row.document.companyId, row.document.id),
     loadLinkedTitles(linkedIds),
+    loadSecretItems(ordered, row.document.companyId),
   ]);
 
   return {
@@ -306,6 +362,8 @@ export async function getDocumentDetail(id: string): Promise<DocumentDetail | nu
     optionLabels,
     linkTargets,
     linkedTitles,
+    secretItems: secrets.index,
+    vault: secrets.vault,
   };
 }
 
@@ -370,11 +428,16 @@ export async function createDocument(
   await assertScope(input.docTypeId, input.companyId, input.locationId);
 
   const templateFields = await listTemplateFields(input.docTypeId);
-  const [optionIndex, linkTargets] = await Promise.all([
+  const [optionIndex, linkTargets, secrets] = await Promise.all([
     loadOptionIndex(templateFields.flatMap((f) => (f.optionListId ? [f.optionListId] : []))),
     loadLinkTargets(templateFields, input.companyId, null),
+    loadSecretItems(templateFields, input.companyId),
   ]);
-  const ctx: ValidationContext = { options: optionIndex, linkTargets };
+  const ctx: ValidationContext = {
+    options: optionIndex,
+    linkTargets,
+    secretItems: secrets.index,
+  };
 
   const raw = input.values ?? {};
   // A new document must satisfy every required field, so treat absent as blank.
@@ -455,6 +518,7 @@ export async function saveDocument(
   const ctx: ValidationContext = {
     options: detail.optionIndex,
     linkTargets: detail.linkTargets,
+    secretItems: detail.secretItems,
   };
   const validated = validateFieldValues(detail.fields, input.values ?? {}, ctx);
   Object.assign(errors, validated.errors);
@@ -501,6 +565,7 @@ export async function saveDocument(
         fields: detail.fields,
         optionLabels: detail.optionLabels,
         linkedTitles: detail.linkedTitles,
+        redactSecrets: true,
       }) as unknown as Record<string, unknown>,
       tx,
     );

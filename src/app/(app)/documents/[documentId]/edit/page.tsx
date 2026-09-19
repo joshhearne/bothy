@@ -57,6 +57,15 @@ export default async function EditDocumentPage({
             [...targets].map(([id, label]) => ({ id, label })),
           ]),
         )}
+        secretItems={Object.fromEntries(
+          [...detail.secretItems].map(([fieldId, items]) => [
+            fieldId,
+            [...items].map(([id, ref]) => ({
+              id,
+              label: String((ref as { label?: unknown }).label ?? id),
+            })),
+          ]),
+        )}
         fieldTypes={EDITABLE_FIELD_TYPES.map((value) => ({
           value,
           label: FIELD_TYPE_LABELS[value],

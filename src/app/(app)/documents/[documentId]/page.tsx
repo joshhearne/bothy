@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Paperclip } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FieldValue } from "@/components/fields/field-value";
+import { SecretField } from "@/components/fields/secret-field";
 import { canEditDocuments, requireUser } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { getDocumentDetail, listBacklinks } from "@/server/services/documents";
@@ -17,6 +18,12 @@ import {
 } from "../actions";
 
 export const dynamic = "force-dynamic";
+
+/** Deep link into the web vault, for link mode and degraded fallbacks. */
+function webVaultItemUrl(base: string | null | undefined, itemId: string): string | null {
+  if (!base) return null;
+  return `${base.replace(/\/$/, "")}/#/vault?itemId=${encodeURIComponent(itemId)}`;
+}
 
 export default async function DocumentPage({
   params,
@@ -107,14 +114,31 @@ export default async function DocumentPage({
             <div key={field.id} className="grid gap-1 px-4 py-3 sm:grid-cols-[14rem_1fr] sm:gap-4">
               <dt className="text-sm font-medium text-[var(--muted-foreground)]">{field.label}</dt>
               <dd className="min-w-0">
-                <FieldValue
-                  value={renderFieldValue(
+                {(() => {
+                  const rendered = renderFieldValue(
                     field,
                     detail.document.fieldValues?.[field.id] ?? null,
                     detail.optionLabels,
                     detail.linkedTitles,
-                  )}
-                />
+                  );
+
+                  if (rendered.kind !== "secret") return <FieldValue value={rendered} />;
+
+                  return (
+                    <SecretField
+                      documentId={detail.document.id}
+                      fieldId={field.id}
+                      itemId={rendered.itemId}
+                      label={rendered.label}
+                      username={rendered.username}
+                      uri={rendered.uri}
+                      webVaultUrl={webVaultItemUrl(detail.vault?.webVaultUrl, rendered.itemId)}
+                      canReveal={user.canRevealSecrets}
+                      brokering={detail.vault?.brokering ?? false}
+                      vaultStatus={detail.vault?.status ?? "unreachable"}
+                    />
+                  );
+                })()}
               </dd>
             </div>
           ))}

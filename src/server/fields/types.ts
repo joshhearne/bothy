@@ -2,10 +2,10 @@ import { FIELD_TYPES } from "@/server/db/schema";
 
 export type FieldType = (typeof FIELD_TYPES)[number];
 
-/** secret_ref lands in Phase 6, so nothing offers it yet. */
-export const UNSUPPORTED_FIELD_TYPES = ["secret_ref"] as const satisfies FieldType[];
+/** Every field type is editable now. Kept so a future type can opt out. */
+export const UNSUPPORTED_FIELD_TYPES = [] as const satisfies FieldType[];
 
-export type EditableFieldType = Exclude<FieldType, "secret_ref">;
+export type EditableFieldType = FieldType;
 
 export const EDITABLE_FIELD_TYPES = FIELD_TYPES.filter(
   (type): type is EditableFieldType =>
@@ -35,6 +35,11 @@ export function usesOptionList(type: FieldType): boolean {
 /** doc_link is the one type that points at another doc type. */
 export function usesLinkDocType(type: FieldType): boolean {
   return type === "doc_link";
+}
+
+/** secret_ref is brokered by the vault provider rather than typed in. */
+export function usesVault(type: FieldType): boolean {
+  return type === "secret_ref";
 }
 
 export function isEditableType(type: FieldType): boolean {

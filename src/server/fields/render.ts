@@ -36,7 +36,14 @@ export type RenderedValue =
   | { kind: "url"; href: string }
   | { kind: "html"; html: string }
   | { kind: "tags"; labels: string[] }
-  | { kind: "document"; id: string; title: string };
+  | { kind: "document"; id: string; title: string }
+  | {
+      kind: "secret";
+      itemId: string;
+      label: string;
+      username: string | null;
+      uri: string | null;
+    };
 
 /**
  * Turns a stored value into what the view page should show. Option ids become
@@ -90,9 +97,20 @@ export function renderFieldValue(
       return title ? { kind: "document", id, title } : { kind: "empty" };
     }
 
-    case "secret_ref":
-      // Phase 6 owns this; never guess at rendering a secret.
-      return { kind: "empty" };
+    case "secret_ref": {
+      // Only the cached non-secret metadata. The password and TOTP are fetched
+      // live on reveal and never pass through here.
+      if (typeof value !== "object" || value === null) return { kind: "empty" };
+      const ref = value as Record<string, unknown>;
+      if (typeof ref.item_id !== "string") return { kind: "empty" };
+      return {
+        kind: "secret",
+        itemId: ref.item_id,
+        label: typeof ref.label === "string" && ref.label !== "" ? ref.label : "Vault item",
+        username: typeof ref.username === "string" ? ref.username : null,
+        uri: typeof ref.uri === "string" ? ref.uri : null,
+      };
+    }
 
     default:
       return { kind: "text", text: String(value) };

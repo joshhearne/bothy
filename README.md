@@ -10,6 +10,7 @@ A lightweight alternative to Hudu and IT Glue.
 - Link documents to each other, with backlinks on the target
 - Full-text search across every document, no extra service
 - Attachments on a local volume or any S3-compatible bucket
+- Credentials stay in your own Bitwarden or Vaultwarden; Strata brokers access
 - REST API + signed webhooks for any PSA or ticketing system
 - Deep links and an id mapping so a ticket can jump straight to its client
 - One `docker compose up` to run
@@ -46,6 +47,29 @@ Webhooks are signed with HMAC-SHA256 in `X-Strata-Signature` (`sha256=<hex>` ove
 the raw body) and retried with exponential backoff up to 8 attempts by a worker
 inside the app container. Set `STRATA_DISABLE_WEBHOOK_WORKER=true` to turn that
 worker off, for example on a second replica.
+
+## Secrets
+
+Strata never stores a password, TOTP seed, or secure note. A `secret_ref` field
+holds a reference plus non-secret metadata; the value itself is fetched live
+from your own Bitwarden or Vaultwarden when someone with `can_reveal_secrets`
+asks for it, and every reveal is audited.
+
+- `VAULT_MODE=link` (default) stores a deep link into the web vault. No trust
+  required, nothing to run.
+- `VAULT_MODE=bw_serve` brokers search, reveal, TOTP, and item creation through
+  a sidecar running the official Bitwarden CLI:
+  `docker compose --profile vault up -d`. The sidecar has no authentication of
+  its own, so it never publishes a port and stays on the internal network.
+
+If the sidecar is locked or unreachable, secret fields degrade to link mode and
+say so.
+
+**Worth being plain about:** in `bw_serve` mode, anyone who fully compromises
+the Strata host can read everything the service account can read. That is the
+same tradeoff Hudu and IT Glue make. Scope the service account to the
+collections Strata should see, keep the sidecar internal, and stay on `link`
+mode if that risk is unacceptable. See `docs/VAULT_INTEGRATION.md`.
 
 ## Development
 ```bash

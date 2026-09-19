@@ -32,6 +32,14 @@ export function inputName(fieldId: string): string {
 export function toFormValue(fieldType: FieldType, stored: unknown): FieldFormValue {
   if (fieldType === "boolean") return stored === true;
   if (fieldType === "multi_dropdown") return Array.isArray(stored) ? stored.map(String) : [];
+  if (fieldType === "secret_ref") {
+    // The control posts the item id; the stored value is the reference object.
+    if (stored !== null && typeof stored === "object") {
+      const itemId = (stored as { item_id?: unknown }).item_id;
+      return typeof itemId === "string" ? itemId : "";
+    }
+    return "";
+  }
   return stored === null || stored === undefined ? "" : String(stored);
 }
 
@@ -240,10 +248,30 @@ export function FieldControl({
         );
 
       case "secret_ref":
+        if (options.length === 0) {
+          return (
+            <p className="rounded-md border border-dashed px-3 py-2 text-sm text-[var(--muted-foreground)]">
+              No vault items are available. Map this company to a Bitwarden collection under
+              Admin → Vault, and check the sidecar is unlocked.
+            </p>
+          );
+        }
         return (
-          <p className="rounded-md border border-dashed px-3 py-2 text-sm text-[var(--muted-foreground)]">
-            This field type is not editable yet.
-          </p>
+          <select
+            id={id}
+            name={name}
+            value={asText}
+            onChange={(event) => onChange(event.target.value)}
+            aria-invalid={invalid}
+            className={selectClass}
+          >
+            <option value="">—</option>
+            {options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         );
 
       default:

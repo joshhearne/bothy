@@ -79,6 +79,7 @@ export function DocumentEditor({
   optionLists,
   docTypeChoices,
   linkTargets,
+  secretItems,
   canManageTemplate,
 }: {
   documentId: string;
@@ -93,6 +94,8 @@ export function DocumentEditor({
   docTypeChoices: DocTypeChoice[];
   /** Documents each doc_link field may point at, keyed by field id. */
   linkTargets: Record<string, FieldOption[]>;
+  /** Vault items each secret_ref field may reference, keyed by field id. */
+  secretItems: Record<string, FieldOption[]>;
   canManageTemplate: boolean;
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(saveDocumentAction, {});
@@ -116,6 +119,7 @@ export function DocumentEditor({
 
   function optionsFor(field: EditableField): FieldOption[] {
     if (field.fieldType === "doc_link") return linkTargets[field.id] ?? [];
+    if (field.fieldType === "secret_ref") return secretItems[field.id] ?? [];
     return field.optionListId ? (options[field.optionListId] ?? []) : [];
   }
 

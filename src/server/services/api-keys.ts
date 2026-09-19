@@ -12,7 +12,7 @@ import { NotFoundError } from "@/server/services/companies";
  * SHA-256 hash, looked up by an indexed prefix.
  */
 
-export const API_SCOPES = ["read", "write", "admin"] as const;
+export const API_SCOPES = ["read", "write", "admin", "secrets:reveal"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 const PREFIX_LENGTH = 8;
@@ -167,8 +167,13 @@ export async function authenticateApiKey(presented: string): Promise<Authenticat
   };
 }
 
-/** admin implies write, write implies read. */
+/**
+ * admin implies write, write implies read. `secrets:reveal` is never implied:
+ * docs/VAULT_INTEGRATION.md requires it to be granted explicitly, off by
+ * default.
+ */
 export function hasScope(granted: ApiScope[], required: ApiScope): boolean {
+  if (required === "secrets:reveal") return granted.includes("secrets:reveal");
   if (granted.includes("admin")) return true;
   if (required === "read") return granted.includes("read") || granted.includes("write");
   if (required === "write") return granted.includes("write");

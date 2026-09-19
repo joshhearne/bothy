@@ -8,10 +8,18 @@ export type OptionIndex = Map<string, { id: string; label: string }[]>;
 /** Documents a doc_link field may point at: field id -> (document id -> title). */
 export type LinkTargetIndex = Map<string, Map<string, string>>;
 
+/**
+ * Vault items a secret_ref field may reference: field id -> (item id -> the
+ * stored reference). Built from the collections mapped to the company, so a
+ * crafted item id cannot reach another client's vault.
+ */
+export type SecretItemIndex = Map<string, Map<string, Record<string, unknown>>>;
+
 /** Everything validation needs from the database, resolved once per save. */
 export type ValidationContext = {
   options?: OptionIndex;
   linkTargets?: LinkTargetIndex;
+  secretItems?: SecretItemIndex;
 };
 
 const MAX_TEXT = 10_000;
@@ -60,9 +68,15 @@ function baseSchema(field: FieldDefinition, ctx: ValidationContext): z.ZodType {
       );
     }
 
-    case "secret_ref":
-      // Phase 6. Reject rather than store something unvalidated.
-      return z.never({ error: "This field type cannot be edited yet" });
+    case "secret_ref": {
+      // The form posts an item id; what gets stored is the non-secret
+      // reference the server resolved for that item.
+      const allowed = ctx.secretItems?.get(field.id);
+      return z
+        .string()
+        .refine((id) => allowed?.has(id) ?? false, "Choose one of the vault items offered")
+        .transform((id) => allowed?.get(id) as Record<string, unknown>);
+    }
   }
 }
 

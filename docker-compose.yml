@@ -7,6 +7,9 @@ services:
       NODE_ENV: production
       # Set true to load the starter doc types on boot (see scripts/seed.ts).
       SEED_ON_START: ${SEED_ON_START:-false}
+      # link keeps secret fields as deep links; bw_serve brokers through the
+      # sidecar started by the `vault` profile.
+      VAULT_MODE: ${VAULT_MODE:-link}
     # Host port only. The container always listens on 3000.
     ports: ["${APP_PORT:-3080}:3000"]
     volumes: ["uploads:/data/uploads"]

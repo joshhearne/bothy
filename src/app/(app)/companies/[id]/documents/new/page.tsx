@@ -6,7 +6,7 @@ import { getCompany } from "@/server/services/companies";
 import { listLocations } from "@/server/services/locations";
 import { listDocTypes, listTemplateFields } from "@/server/services/doc-types";
 import { loadOptionIndex } from "@/server/services/option-lists";
-import { loadLinkTargets } from "@/server/services/documents";
+import { loadLinkTargets, loadSecretItems } from "@/server/services/documents";
 import { DocumentForm } from "../../../../documents/document-form";
 
 export const dynamic = "force-dynamic";
@@ -114,9 +114,10 @@ export default async function NewDocumentPage({
   }
 
   const templateFields = await listTemplateFields(chosen.id);
-  const [optionIndex, linkTargets] = await Promise.all([
+  const [optionIndex, linkTargets, secrets] = await Promise.all([
     loadOptionIndex(templateFields.flatMap((f) => (f.optionListId ? [f.optionListId] : []))),
     loadLinkTargets(templateFields, company.id, null),
+    loadSecretItems(templateFields, company.id),
   ]);
 
   return (
@@ -138,6 +139,15 @@ export default async function NewDocumentPage({
           [...linkTargets].map(([fieldId, targets]) => [
             fieldId,
             [...targets].map(([id, label]) => ({ id, label })),
+          ]),
+        )}
+        secretItems={Object.fromEntries(
+          [...secrets.index].map(([fieldId, items]) => [
+            fieldId,
+            [...items].map(([id, ref]) => ({
+              id,
+              label: String((ref as { label?: unknown }).label ?? id),
+            })),
           ]),
         )}
         fields={templateFields.map((field) => ({

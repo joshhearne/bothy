@@ -18,10 +18,20 @@ const envSchema = z.object({
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
 
-  // Phase 6. Present here so a bad value fails at boot, not on first reveal.
+  // Vault. Validated here so a bad value fails at boot, not on first reveal.
   VAULT_MODE: z.enum(["link", "bw_serve"]).default("link"),
+  BW_SERVE_URL: z.string().default("http://bw-serve:8087"),
+  BW_WEB_VAULT_URL: z.string().optional(),
+  BW_SYNC_INTERVAL_MIN: z.coerce.number().int().min(1).max(1440).default(5),
 })
   .superRefine((value, ctx) => {
+    if (value.VAULT_MODE === "bw_serve" && !value.BW_SERVE_URL) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["BW_SERVE_URL"],
+        message: "BW_SERVE_URL is required when VAULT_MODE is bw_serve",
+      });
+    }
     if (value.STORAGE_DRIVER !== "s3") return;
     // Fail at boot rather than on the first upload.
     for (const key of ["S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY"] as const) {

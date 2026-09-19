@@ -136,3 +136,35 @@ export async function loadExternalRefMap(
   }
   return map;
 }
+
+/** Removes one mapping. Used by the company to collection mapping screen. */
+export async function removeExternalRef(id: string, actorId: string | null): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .delete(externalRefs)
+      .where(eq(externalRefs.id, id))
+      .returning({ entity: externalRefs.entity, entityId: externalRefs.entityId });
+    if (!row) return;
+
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "external_ref.removed",
+        entity: row.entity,
+        entityId: row.entityId,
+        detail: { refId: id },
+      },
+      tx,
+    );
+  });
+}
+
+/** Mappings for one system, e.g. the Bitwarden collections of a company. */
+export async function listRefsForSystem(
+  entity: ExternalEntity,
+  entityId: string,
+  system: string,
+): Promise<ExternalRefRow[]> {
+  const rows = await listExternalRefs(entity, entityId);
+  return rows.filter((row) => row.system === system);
+}

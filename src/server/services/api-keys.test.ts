@@ -53,4 +53,14 @@ describe("hasScope", () => {
   it("refuses when nothing is granted", () => {
     expect(hasScope([], "read")).toBe(false);
   });
+
+  it("never implies secrets:reveal, not even for admin", () => {
+    expect(hasScope(["admin"], "secrets:reveal")).toBe(false);
+    expect(hasScope(["write"], "secrets:reveal")).toBe(false);
+    expect(hasScope(["secrets:reveal"], "secrets:reveal")).toBe(true);
+  });
+
+  it("does not let secrets:reveal stand in for reading", () => {
+    expect(hasScope(["secrets:reveal"], "read")).toBe(false);
+  });
 });
