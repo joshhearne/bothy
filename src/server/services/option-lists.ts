@@ -104,7 +104,7 @@ export async function loadOptionLabels(listIds: string[]): Promise<Map<string, s
 
 export async function createOptionList(
   input: z.input<typeof optionListInputSchema>,
-  actorId: string,
+  actorId: string | null,
 ): Promise<{ id: string }> {
   const data = optionListInputSchema.parse(input);
 
@@ -132,7 +132,7 @@ export async function createOptionList(
 export async function renameOptionList(
   id: string,
   input: z.input<typeof optionListInputSchema>,
-  actorId: string,
+  actorId: string | null,
 ): Promise<void> {
   const data = optionListInputSchema.parse(input);
 
@@ -171,7 +171,7 @@ export class DuplicateOptionError extends Error {
 export async function addOptionItem(
   listId: string,
   input: z.input<typeof optionItemInputSchema>,
-  actorId: string,
+  actorId: string | null,
   tx?: Executor,
 ): Promise<{ id: string; label: string }> {
   const data = optionItemInputSchema.parse(input);

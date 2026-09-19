@@ -4,6 +4,7 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { documents, fields } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
+import { queueEvent } from "@/server/services/webhooks";
 import { NotFoundError } from "@/server/services/companies";
 import {
   EDITABLE_FIELD_TYPES,
@@ -171,6 +172,17 @@ export async function promoteField(
           fromDocumentId: existing.documentId,
           label: data.label,
         },
+      },
+      tx,
+    );
+
+    await queueEvent(
+      "field.promoted",
+      {
+        field_id: fieldId,
+        doc_type_id: document.docTypeId,
+        label: data.label,
+        type: data.fieldType,
       },
       tx,
     );

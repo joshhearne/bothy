@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
-import { Building2, Layers, ListTree, Menu, Plus, Search, X } from "lucide-react";
+import { Building2, KeyRound, Layers, ListTree, Menu, Plus, Search, Webhook, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -248,6 +248,22 @@ function SidebarNav({
             onNavigate={onNavigate}
           >
             Option lists
+          </NavLink>
+          <NavLink
+            href="/admin/api-keys"
+            icon={KeyRound}
+            active={pathname.startsWith("/admin/api-keys")}
+            onNavigate={onNavigate}
+          >
+            API keys
+          </NavLink>
+          <NavLink
+            href="/admin/webhooks"
+            icon={Webhook}
+            active={pathname.startsWith("/admin/webhooks")}
+            onNavigate={onNavigate}
+          >
+            Webhooks
           </NavLink>
         </Section>
       )}

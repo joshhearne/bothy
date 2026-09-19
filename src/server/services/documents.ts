@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import { db, type Tx } from "@/server/db";
 import {
   docTypes,
@@ -11,6 +11,8 @@ import {
   locations,
 } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
+import { queueEvent } from "@/server/services/webhooks";
+import { serializeDocument } from "@/server/api/serializers";
 import { NotFoundError } from "@/server/services/companies";
 import { listTemplateFields } from "@/server/services/doc-types";
 import { loadOptionIndex, loadOptionLabels } from "@/server/services/option-lists";
@@ -362,7 +364,7 @@ export async function createDocument(
     title: string;
     values?: Record<string, unknown>;
   },
-  actorId: string,
+  actorId: string | null,
 ): Promise<SaveResult> {
   const { title } = documentInputSchema.parse({ title: input.title });
   await assertScope(input.docTypeId, input.companyId, input.locationId);
@@ -420,6 +422,8 @@ export async function createDocument(
       tx,
     );
 
+    await queueEvent("document.created", { id: document.id, title }, tx);
+
     return document.id;
   });
 
@@ -434,7 +438,7 @@ export async function createDocument(
 export async function saveDocument(
   id: string,
   input: { title?: string; values?: Record<string, unknown> },
-  actorId: string,
+  actorId: string | null,
 ): Promise<SaveResult> {
   const detail = await getDocumentDetail(id);
   if (!detail) throw new NotFoundError("Document");
@@ -487,6 +491,19 @@ export async function saveDocument(
       },
       tx,
     );
+
+    await queueEvent(
+      "document.updated",
+      serializeDocument({
+        document: { ...detail.document, title, fieldValues, updatedAt: new Date() },
+        docType: detail.docType,
+        location: detail.location,
+        fields: detail.fields,
+        optionLabels: detail.optionLabels,
+        linkedTitles: detail.linkedTitles,
+      }) as unknown as Record<string, unknown>,
+      tx,
+    );
   });
 
   return { ok: true, id };
@@ -505,6 +522,8 @@ export async function archiveDocument(id: string, actorId: string): Promise<void
       { userId: actorId, action: "document.archived", entity: "document", entityId: id },
       tx,
     );
+
+    await queueEvent("document.archived", { id }, tx);
   });
 }
 
@@ -559,4 +578,40 @@ export async function listUsableDocTypes(hasLocations: boolean) {
         : and(isNull(docTypes.archivedAt), eq(docTypes.scope, "company")),
     )
     .orderBy(asc(docTypes.name));
+}
+
+/** Keyset page ordered by (title, id), for GET /api/v1/companies/:id/documents. */
+export async function listCompanyDocumentsPage(input: {
+  companyId: string;
+  docTypeId?: string | undefined;
+  locationId?: string | undefined;
+  limit: number;
+  cursor: { sort: string; id: string } | null;
+}) {
+  const filters = [eq(documents.companyId, input.companyId), isNull(documents.archivedAt)];
+  if (input.docTypeId) filters.push(eq(documents.docTypeId, input.docTypeId));
+  if (input.locationId) filters.push(eq(documents.locationId, input.locationId));
+  if (input.cursor) {
+    filters.push(
+      or(
+        gt(documents.title, input.cursor.sort),
+        and(eq(documents.title, input.cursor.sort), gt(documents.id, input.cursor.id)),
+      ) as ReturnType<typeof isNull>,
+    );
+  }
+
+  return db
+    .select({
+      id: documents.id,
+      title: documents.title,
+      docTypeId: documents.docTypeId,
+      docTypeName: docTypes.name,
+      locationId: documents.locationId,
+      updatedAt: documents.updatedAt,
+    })
+    .from(documents)
+    .innerJoin(docTypes, eq(docTypes.id, documents.docTypeId))
+    .where(and(...filters))
+    .orderBy(asc(documents.title), asc(documents.id))
+    .limit(input.limit + 1);
 }

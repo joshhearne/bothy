@@ -10,7 +10,8 @@ A lightweight alternative to Hudu and IT Glue.
 - Link documents to each other, with backlinks on the target
 - Full-text search across every document, no extra service
 - Attachments on a local volume or any S3-compatible bucket
-- REST API + webhooks for any PSA or ticketing system
+- REST API + signed webhooks for any PSA or ticketing system
+- Deep links and an id mapping so a ticket can jump straight to its client
 - One `docker compose up` to run
 
 License: AGPL-3.0. Contributions require DCO sign-off (see CONTRIBUTING.md).
@@ -28,6 +29,23 @@ creates the administrator account. Migrations run automatically on container sta
 Set `SEED_ON_START=true` to load the starter doc types (see `scripts/seed.ts`).
 Change the published port with `APP_PORT` in `.env`, and keep `APP_URL` in step —
 Better Auth rejects requests whose origin does not match it.
+
+## API
+
+`/api/v1`, authenticated with an API key as a bearer token (Admin → API keys).
+The spec is generated from the same Zod schemas the endpoints validate with and
+served at `/api/v1/openapi.json`.
+
+```bash
+curl -H "Authorization: Bearer $STRATA_KEY" http://localhost:3080/api/v1/companies
+curl -H "Authorization: Bearer $STRATA_KEY" \
+  "http://localhost:3080/api/v1/lookup?system=halopsa&entity=company&external_id=123"
+```
+
+Webhooks are signed with HMAC-SHA256 in `X-Strata-Signature` (`sha256=<hex>` over
+the raw body) and retried with exponential backoff up to 8 attempts by a worker
+inside the app container. Set `STRATA_DISABLE_WEBHOOK_WORKER=true` to turn that
+worker off, for example on a second replica.
 
 ## Development
 ```bash

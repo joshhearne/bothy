@@ -1,9 +1,10 @@
 import "server-only";
 import { z } from "zod";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { documents, locations } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
+import { queueEvent } from "@/server/services/webhooks";
 import { NotFoundError } from "@/server/services/companies";
 
 export const locationInputSchema = z.object({
@@ -67,7 +68,7 @@ export async function getLocationOrThrow(id: string) {
 export async function createLocation(
   companyId: string,
   input: LocationInput,
-  actorId: string,
+  actorId: string | null,
 ): Promise<{ id: string }> {
   const data = locationInputSchema.parse(input);
 
@@ -89,6 +90,12 @@ export async function createLocation(
       tx,
     );
 
+    await queueEvent(
+      "location.created",
+      { id: location.id, company_id: companyId, name: data.name, address: data.address ?? null },
+      tx,
+    );
+
     return location;
   });
 }
@@ -96,7 +103,7 @@ export async function createLocation(
 export async function updateLocation(
   id: string,
   input: LocationInput,
-  actorId: string,
+  actorId: string | null,
 ): Promise<void> {
   const data = locationInputSchema.parse(input);
 
@@ -116,6 +123,12 @@ export async function updateLocation(
         entityId: id,
         detail: { name: data.name },
       },
+      tx,
+    );
+
+    await queueEvent(
+      "location.updated",
+      { id, name: data.name, address: data.address ?? null },
       tx,
     );
   });
@@ -151,4 +164,28 @@ export async function unarchiveLocation(id: string, actorId: string): Promise<vo
       tx,
     );
   });
+}
+
+/** Keyset page ordered by (name, id), for GET /api/v1/companies/:id/locations. */
+export async function listLocationsPage(input: {
+  companyId: string;
+  limit: number;
+  cursor: { sort: string; id: string } | null;
+}) {
+  const filters = [eq(locations.companyId, input.companyId), isNull(locations.archivedAt)];
+  if (input.cursor) {
+    filters.push(
+      or(
+        gt(locations.name, input.cursor.sort),
+        and(eq(locations.name, input.cursor.sort), gt(locations.id, input.cursor.id)),
+      ) as ReturnType<typeof isNull>,
+    );
+  }
+
+  return db
+    .select()
+    .from(locations)
+    .where(and(...filters))
+    .orderBy(asc(locations.name), asc(locations.id))
+    .limit(input.limit + 1);
 }

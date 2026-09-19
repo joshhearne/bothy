@@ -1,9 +1,10 @@
 import "server-only";
 import { z } from "zod";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, gt, ilike, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { companies, documents, locations } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
+import { queueEvent } from "@/server/services/webhooks";
 
 export const companyInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
@@ -82,7 +83,7 @@ export async function getCompanyOrThrow(id: string) {
 
 export async function createCompany(
   input: CompanyInput,
-  actorId: string,
+  actorId: string | null,
 ): Promise<{ id: string }> {
   const data = companyInputSchema.parse(input);
 
@@ -104,6 +105,12 @@ export async function createCompany(
       tx,
     );
 
+    await queueEvent(
+      "company.created",
+      { id: company.id, name: data.name, is_internal: data.isInternal },
+      tx,
+    );
+
     return company;
   });
 }
@@ -111,7 +118,7 @@ export async function createCompany(
 export async function updateCompany(
   id: string,
   input: CompanyInput,
-  actorId: string,
+  actorId: string | null,
 ): Promise<void> {
   const data = companyInputSchema.parse(input);
 
@@ -133,6 +140,8 @@ export async function updateCompany(
       },
       tx,
     );
+
+    await queueEvent("company.updated", { id, name: data.name, is_internal: data.isInternal }, tx);
   });
 }
 
@@ -174,4 +183,31 @@ export async function unarchiveCompany(id: string, actorId: string): Promise<voi
       tx,
     );
   });
+}
+
+export type CompanyPageInput = {
+  q?: string | undefined;
+  limit: number;
+  cursor: { sort: string; id: string } | null;
+};
+
+/** Keyset page ordered by (name, id), for GET /api/v1/companies. */
+export async function listCompaniesPage(input: CompanyPageInput) {
+  const filters = [isNull(companies.archivedAt)];
+  if (input.q) filters.push(ilike(companies.name, `%${input.q}%`));
+  if (input.cursor) {
+    filters.push(
+      or(
+        gt(companies.name, input.cursor.sort),
+        and(eq(companies.name, input.cursor.sort), gt(companies.id, input.cursor.id)),
+      ) as ReturnType<typeof isNull>,
+    );
+  }
+
+  return db
+    .select()
+    .from(companies)
+    .where(and(...filters))
+    .orderBy(asc(companies.name), asc(companies.id))
+    .limit(input.limit + 1);
 }
