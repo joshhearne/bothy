@@ -12,6 +12,8 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-border: var(--sidebar-border);
   --color-destructive: var(--destructive);
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
@@ -32,6 +34,10 @@
   --input: oklch(0.922 0.006 258);
   --ring: oklch(0.45 0.13 250);
   --destructive: oklch(0.58 0.21 27);
+  /* A second neutral layer, so navigation reads as chrome, not content. */
+  --sidebar: oklch(0.979 0.004 258);
+  --sidebar-border: oklch(0.915 0.006 258);
+  --selection: oklch(0.45 0.13 250 / 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -48,6 +54,9 @@
     --input: oklch(0.32 0.017 258);
     --ring: oklch(0.72 0.12 245);
     --destructive: oklch(0.65 0.19 27);
+    --sidebar: oklch(0.215 0.016 258);
+    --sidebar-border: oklch(0.3 0.017 258);
+    --selection: oklch(0.72 0.12 245 / 0.28);
   }
 }
 
@@ -59,6 +68,52 @@
     background-color: var(--background);
     color: var(--foreground);
     -webkit-font-smoothing: antialiased;
+  }
+
+  /* Surfaces the browser draws for us still belong to the palette. */
+  ::selection {
+    background-color: var(--selection);
+  }
+
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--muted-foreground);
+  }
+
+  /* Numbers in dense lists should not dance between rows. */
+  :where(table, dl, .tabular) {
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
@@ -101,3 +156,16 @@
 .prose-editor :where(th, td) { border: 1px solid var(--border); padding: 0.35em 0.6em; }
 .prose-editor p:first-child { margin-top: 0; }
 .prose-editor p:last-child { margin-bottom: 0; }
+
+/* Navigation drawer entrance. State change, not decoration. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+}
