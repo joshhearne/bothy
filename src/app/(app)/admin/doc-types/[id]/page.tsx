@@ -3,9 +3,14 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { canManageDocTypes, requireUser } from "@/server/auth/session";
-import { getDocType } from "@/server/services/doc-types";
+import { getDocType, listDocTypes } from "@/server/services/doc-types";
 import { listOptionLists } from "@/server/services/option-lists";
-import { EDITABLE_FIELD_TYPES, FIELD_TYPE_LABELS, usesOptionList } from "@/server/fields/types";
+import {
+  EDITABLE_FIELD_TYPES,
+  FIELD_TYPE_LABELS,
+  usesLinkDocType,
+  usesOptionList,
+} from "@/server/fields/types";
 import { DocTypeForm } from "../../doc-type-form";
 import { AddTemplateFieldForm } from "../../template-field-form";
 import {
@@ -26,11 +31,12 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
   const docType = await getDocType(id);
   if (!docType) notFound();
 
-  const optionLists = await listOptionLists();
+  const [optionLists, allDocTypes] = await Promise.all([listOptionLists(), listDocTypes()]);
   const fieldTypes = EDITABLE_FIELD_TYPES.map((value) => ({
     value,
     label: FIELD_TYPE_LABELS[value],
     usesOptionList: usesOptionList(value),
+    usesLinkDocType: usesLinkDocType(value),
   }));
 
   const active = docType.fields.filter((field) => !field.archivedAt);
@@ -156,6 +162,7 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
 
         <AddTemplateFieldForm
           docTypeId={docType.id}
+          docTypes={allDocTypes.map((candidate) => ({ id: candidate.id, name: candidate.name }))}
           fieldTypes={fieldTypes}
           optionLists={optionLists.map((list) => ({ id: list.id, name: list.name }))}
         />

@@ -93,6 +93,7 @@ function templateFieldInput(formData: FormData) {
     label: text(formData, "label") ?? "",
     fieldType: (text(formData, "fieldType") ?? "text") as never,
     optionListId: text(formData, "optionListId") ?? null,
+    linkDocTypeId: text(formData, "linkDocTypeId") ?? null,
     required: checkbox(formData, "required"),
   };
 }

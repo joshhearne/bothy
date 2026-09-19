@@ -1,9 +1,10 @@
 import "server-only";
 import { z } from "zod";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
-import { db } from "@/server/db";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { db, type Tx } from "@/server/db";
 import {
   docTypes,
+  documentLinks,
   documentRevisions,
   documents,
   fields,
@@ -18,7 +19,9 @@ import {
   flattenForSearch,
   mergeFieldValues,
   validateFieldValues,
+  type LinkTargetIndex,
   type OptionIndex,
+  type ValidationContext,
 } from "@/server/fields/values";
 
 export type DocumentListItem = {
@@ -131,6 +134,7 @@ async function listLocalFields(
       label: fields.label,
       fieldType: fields.fieldType,
       optionListId: fields.optionListId,
+      linkDocTypeId: fields.linkDocTypeId,
       required: fields.required,
       sortOrder: fields.sortOrder,
       archivedAt: fields.archivedAt,
@@ -146,6 +150,97 @@ async function listLocalFields(
     .orderBy(asc(fields.sortOrder), asc(fields.label)) as Promise<FieldDefinition[]>;
 }
 
+/**
+ * The documents each doc_link field may point at: same company, active, the
+ * right doc type when the field names one, and never the document itself.
+ */
+export async function loadLinkTargets(
+  fieldList: FieldDefinition[],
+  companyId: string,
+  selfDocumentId: string | null,
+): Promise<LinkTargetIndex> {
+  const index: LinkTargetIndex = new Map();
+  const linkFields = fieldList.filter((field) => field.fieldType === "doc_link");
+  if (linkFields.length === 0) return index;
+
+  const rows = await db
+    .select({ id: documents.id, title: documents.title, docTypeId: documents.docTypeId })
+    .from(documents)
+    .where(and(eq(documents.companyId, companyId), isNull(documents.archivedAt)))
+    .orderBy(asc(documents.title));
+
+  for (const field of linkFields) {
+    const candidates = new Map<string, string>();
+    for (const row of rows) {
+      if (row.id === selfDocumentId) continue;
+      if (field.linkDocTypeId && row.docTypeId !== field.linkDocTypeId) continue;
+      candidates.set(row.id, row.title);
+    }
+    index.set(field.id, candidates);
+  }
+
+  return index;
+}
+
+/** Titles for documents already linked, archived ones included, for rendering. */
+async function loadLinkedTitles(documentIds: string[]): Promise<Map<string, string>> {
+  const ids = [...new Set(documentIds)];
+  if (ids.length === 0) return new Map();
+  const rows = await db
+    .select({ id: documents.id, title: documents.title })
+    .from(documents)
+    .where(inArray(documents.id, ids));
+  return new Map(rows.map((row) => [row.id, row.title]));
+}
+
+/**
+ * Mirrors the document's doc_link values into document_links, which is what
+ * backlinks are read from. Rewritten wholesale on every save.
+ */
+async function syncDocumentLinks(
+  tx: Tx,
+  documentId: string,
+  fieldList: FieldDefinition[],
+  values: Record<string, unknown>,
+): Promise<void> {
+  await tx.delete(documentLinks).where(eq(documentLinks.fromDoc, documentId));
+
+  const rows = fieldList
+    .filter((field) => field.fieldType === "doc_link")
+    .flatMap((field) => {
+      const target = values[field.id];
+      return typeof target === "string" && target !== ""
+        ? [{ fromDoc: documentId, toDoc: target, fieldId: field.id }]
+        : [];
+    });
+
+  if (rows.length > 0) await tx.insert(documentLinks).values(rows).onConflictDoNothing();
+}
+
+export type Backlink = {
+  documentId: string;
+  title: string;
+  docTypeName: string;
+  fieldLabel: string;
+};
+
+/** Documents pointing at this one, for the "Linked from" section. */
+export async function listBacklinks(documentId: string): Promise<Backlink[]> {
+  return db
+    .select({
+      documentId: documents.id,
+      title: documents.title,
+      docTypeName: docTypes.name,
+      fieldLabel: fields.label,
+    })
+    .from(documentLinks)
+    .innerJoin(documents, eq(documents.id, documentLinks.fromDoc))
+    .innerJoin(docTypes, eq(docTypes.id, documents.docTypeId))
+    .innerJoin(fields, eq(fields.id, documentLinks.fieldId))
+    .where(and(eq(documentLinks.toDoc, documentId), isNull(documents.archivedAt)))
+    .orderBy(asc(docTypes.name), asc(documents.title));
+}
+
 export type DocumentDetail = {
   document: typeof documents.$inferSelect;
   docType: typeof docTypes.$inferSelect;
@@ -154,6 +249,10 @@ export type DocumentDetail = {
   optionIndex: OptionIndex;
   /** Every option label, archived included, so stored values still render. */
   optionLabels: Map<string, string>;
+  /** Documents each doc_link field may point at. */
+  linkTargets: LinkTargetIndex;
+  /** Titles of documents already linked, archived ones included. */
+  linkedTitles: Map<string, string>;
 };
 
 export async function getDocumentDetail(id: string): Promise<DocumentDetail | null> {
@@ -186,6 +285,16 @@ export async function getDocumentDetail(id: string): Promise<DocumentDetail | nu
       : Promise.resolve(null),
   ]);
 
+  const linkedIds = ordered
+    .filter((field) => field.fieldType === "doc_link")
+    .map((field) => row.document.fieldValues?.[field.id])
+    .filter((value): value is string => typeof value === "string" && value !== "");
+
+  const [linkTargets, linkedTitles] = await Promise.all([
+    loadLinkTargets(ordered, row.document.companyId, row.document.id),
+    loadLinkedTitles(linkedIds),
+  ]);
+
   return {
     document: row.document,
     docType: row.docType,
@@ -193,6 +302,8 @@ export async function getDocumentDetail(id: string): Promise<DocumentDetail | nu
     fields: ordered,
     optionIndex,
     optionLabels,
+    linkTargets,
+    linkedTitles,
   };
 }
 
@@ -257,20 +368,22 @@ export async function createDocument(
   await assertScope(input.docTypeId, input.companyId, input.locationId);
 
   const templateFields = await listTemplateFields(input.docTypeId);
-  const optionIndex = await loadOptionIndex(
-    templateFields.flatMap((field) => (field.optionListId ? [field.optionListId] : [])),
-  );
+  const [optionIndex, linkTargets] = await Promise.all([
+    loadOptionIndex(templateFields.flatMap((f) => (f.optionListId ? [f.optionListId] : []))),
+    loadLinkTargets(templateFields, input.companyId, null),
+  ]);
+  const ctx: ValidationContext = { options: optionIndex, linkTargets };
 
   const raw = input.values ?? {};
   // A new document must satisfy every required field, so treat absent as blank.
   const submitted: Record<string, unknown> = {};
   for (const field of templateFields) submitted[field.id] = raw[field.id] ?? null;
 
-  const { values, errors } = validateFieldValues(templateFields, submitted, optionIndex);
+  const { values, errors } = validateFieldValues(templateFields, submitted, ctx);
   if (Object.keys(errors).length > 0) return { ok: false, errors };
 
   const fieldValues = mergeFieldValues({}, values);
-  const searchText = flattenForSearch(templateFields, fieldValues, optionIndex);
+  const searchText = flattenForSearch(templateFields, fieldValues, ctx);
 
   const id = await db.transaction(async (tx) => {
     const [document] = await tx
@@ -286,6 +399,8 @@ export async function createDocument(
       })
       .returning({ id: documents.id });
     if (!document) throw new Error("Failed to create document");
+
+    await syncDocumentLinks(tx, document.id, templateFields, fieldValues);
 
     await tx.insert(documentRevisions).values({
       documentId: document.id,
@@ -333,7 +448,11 @@ export async function saveDocument(
     else errors["title"] = parsed.error.issues[0]?.message ?? "Invalid title";
   }
 
-  const validated = validateFieldValues(detail.fields, input.values ?? {}, detail.optionIndex);
+  const ctx: ValidationContext = {
+    options: detail.optionIndex,
+    linkTargets: detail.linkTargets,
+  };
+  const validated = validateFieldValues(detail.fields, input.values ?? {}, ctx);
   Object.assign(errors, validated.errors);
   if (Object.keys(errors).length > 0) return { ok: false, errors };
 
@@ -341,13 +460,15 @@ export async function saveDocument(
     detail.document.fieldValues ?? {},
     validated.values,
   );
-  const searchText = flattenForSearch(detail.fields, fieldValues, detail.optionIndex);
+  const searchText = flattenForSearch(detail.fields, fieldValues, ctx);
 
   await db.transaction(async (tx) => {
     await tx
       .update(documents)
       .set({ title, fieldValues, searchText, updatedBy: actorId, updatedAt: new Date() })
       .where(eq(documents.id, id));
+
+    await syncDocumentLinks(tx, id, detail.fields, fieldValues);
 
     await tx.insert(documentRevisions).values({
       documentId: id,

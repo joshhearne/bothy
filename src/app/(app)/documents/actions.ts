@@ -16,9 +16,17 @@ import {
   unarchiveDocument,
 } from "@/server/services/documents";
 import { readRawValues } from "@/server/fields/form";
+import {
+  addAttachment,
+  EmptyUploadError,
+  removeAttachment,
+  UploadTooLargeError,
+} from "@/server/services/attachments";
 
 function toFormState(err: unknown): FormState {
   if (err instanceof ZodError) return { fieldErrors: toFieldErrors(err) };
+  if (err instanceof UploadTooLargeError) return { error: err.message };
+  if (err instanceof EmptyUploadError) return { error: err.message };
   if (err instanceof ForbiddenError) return { error: err.message };
   if (err instanceof NotFoundError) return { error: err.message };
   if (err instanceof ScopeMismatchError) return { error: err.message };
@@ -107,5 +115,36 @@ export async function unarchiveDocumentAction(formData: FormData): Promise<void>
   await unarchiveDocument(documentId, user.id);
 
   revalidatePath(`/companies/${companyId}`);
+  revalidatePath(`/documents/${documentId}`);
+}
+
+export async function addAttachmentAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const documentId = text(formData, "documentId");
+  if (!documentId) return { error: "Missing document" };
+
+  const file = formData.get("file");
+  if (!(file instanceof File)) return { error: "Choose a file to upload" };
+
+  try {
+    const user = await requireDocumentEditor();
+    await addAttachment(documentId, file, user.id);
+  } catch (err) {
+    return toFormState(err);
+  }
+
+  revalidatePath(`/documents/${documentId}`);
+  return { ok: true };
+}
+
+export async function removeAttachmentAction(formData: FormData): Promise<void> {
+  const attachmentId = text(formData, "attachmentId");
+  if (!attachmentId) return;
+
+  const user = await requireDocumentEditor();
+  const { documentId } = await removeAttachment(attachmentId, user.id);
+
   revalidatePath(`/documents/${documentId}`);
 }

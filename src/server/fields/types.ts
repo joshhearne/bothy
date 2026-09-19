@@ -2,13 +2,10 @@ import { FIELD_TYPES } from "@/server/db/schema";
 
 export type FieldType = (typeof FIELD_TYPES)[number];
 
-/**
- * doc_link lands in Phase 4 and secret_ref in Phase 6, so the editor and the
- * doc type admin only offer the rest for now.
- */
-export const UNSUPPORTED_FIELD_TYPES = ["doc_link", "secret_ref"] as const satisfies FieldType[];
+/** secret_ref lands in Phase 6, so nothing offers it yet. */
+export const UNSUPPORTED_FIELD_TYPES = ["secret_ref"] as const satisfies FieldType[];
 
-export type EditableFieldType = Exclude<FieldType, "doc_link" | "secret_ref">;
+export type EditableFieldType = Exclude<FieldType, "secret_ref">;
 
 export const EDITABLE_FIELD_TYPES = FIELD_TYPES.filter(
   (type): type is EditableFieldType =>
@@ -35,6 +32,11 @@ export function usesOptionList(type: FieldType): boolean {
   return type === "dropdown" || type === "multi_dropdown";
 }
 
+/** doc_link is the one type that points at another doc type. */
+export function usesLinkDocType(type: FieldType): boolean {
+  return type === "doc_link";
+}
+
 export function isEditableType(type: FieldType): boolean {
   return !(UNSUPPORTED_FIELD_TYPES as readonly string[]).includes(type);
 }
@@ -45,6 +47,8 @@ export type FieldDefinition = {
   label: string;
   fieldType: FieldType;
   optionListId: string | null;
+  /** doc_link only: the doc type this field points at, when constrained. */
+  linkDocTypeId: string | null;
   required: boolean;
   sortOrder: number;
   archivedAt: Date | null;

@@ -35,7 +35,8 @@ export type RenderedValue =
   | { kind: "text"; text: string }
   | { kind: "url"; href: string }
   | { kind: "html"; html: string }
-  | { kind: "tags"; labels: string[] };
+  | { kind: "tags"; labels: string[] }
+  | { kind: "document"; id: string; title: string };
 
 /**
  * Turns a stored value into what the view page should show. Option ids become
@@ -45,6 +46,8 @@ export function renderFieldValue(
   field: FieldDefinition,
   value: unknown,
   optionLabels: Map<string, string>,
+  /** Titles of linked documents, for doc_link fields. */
+  documentTitles: Map<string, string> = new Map(),
 ): RenderedValue {
   if (value === null || value === undefined || value === "") return { kind: "empty" };
 
@@ -81,9 +84,14 @@ export function renderFieldValue(
       return labels.length > 0 ? { kind: "tags", labels } : { kind: "empty" };
     }
 
-    case "doc_link":
+    case "doc_link": {
+      const id = String(value);
+      const title = documentTitles.get(id);
+      return title ? { kind: "document", id, title } : { kind: "empty" };
+    }
+
     case "secret_ref":
-      // Phase 4 and Phase 6 own these; never guess at rendering a secret.
+      // Phase 6 owns this; never guess at rendering a secret.
       return { kind: "empty" };
 
     default:

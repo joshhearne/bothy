@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { RenderedValue } from "@/server/fields/render";
 
 /** Read-only rendering of one already-resolved field value. */
@@ -30,6 +31,13 @@ export function FieldValue({ value }: { value: RenderedValue }) {
             </span>
           ))}
         </span>
+      );
+
+    case "document":
+      return (
+        <Link href={`/documents/${value.id}`} className="text-sm underline">
+          {value.title}
+        </Link>
       );
 
     case "html":

@@ -57,6 +57,7 @@ function f(id: string, overrides: Partial<FieldDefinition> = {}): FieldDefinitio
     label: id,
     fieldType: "text",
     optionListId: null,
+    linkDocTypeId: null,
     required: false,
     sortOrder: 0,
     archivedAt: null,

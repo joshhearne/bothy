@@ -3,7 +3,13 @@ import { canEditDocuments, canManageDocTypes, requireUser } from "@/server/auth/
 import { getCompany } from "@/server/services/companies";
 import { getDocumentDetail } from "@/server/services/documents";
 import { listOptionLists } from "@/server/services/option-lists";
-import { EDITABLE_FIELD_TYPES, FIELD_TYPE_LABELS, usesOptionList } from "@/server/fields/types";
+import {
+  EDITABLE_FIELD_TYPES,
+  FIELD_TYPE_LABELS,
+  usesLinkDocType,
+  usesOptionList,
+} from "@/server/fields/types";
+import { listDocTypes } from "@/server/services/doc-types";
 import { DocumentEditor } from "./document-editor";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +29,7 @@ export default async function EditDocumentPage({
   const company = await getCompany(detail.document.companyId);
   if (!company) notFound();
 
-  const optionLists = await listOptionLists();
+  const [optionLists, docTypes] = await Promise.all([listOptionLists(), listDocTypes()]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,10 +50,18 @@ export default async function EditDocumentPage({
         initialOptions={Object.fromEntries(detail.optionIndex)}
         canManageTemplate={canManageDocTypes(user.role)}
         optionLists={optionLists.map((list) => ({ id: list.id, name: list.name }))}
+        docTypeChoices={docTypes.map((docType) => ({ id: docType.id, name: docType.name }))}
+        linkTargets={Object.fromEntries(
+          [...detail.linkTargets].map(([fieldId, targets]) => [
+            fieldId,
+            [...targets].map(([id, label]) => ({ id, label })),
+          ]),
+        )}
         fieldTypes={EDITABLE_FIELD_TYPES.map((value) => ({
           value,
           label: FIELD_TYPE_LABELS[value],
           usesOptionList: usesOptionList(value),
+          usesLinkDocType: usesLinkDocType(value),
         }))}
         initialFields={detail.fields.map((field) => ({
           id: field.id,
@@ -55,6 +69,7 @@ export default async function EditDocumentPage({
           fieldType: field.fieldType,
           required: field.required,
           optionListId: field.optionListId,
+          linkDocTypeId: field.linkDocTypeId,
           isLocal: field.documentId !== null,
         }))}
       />

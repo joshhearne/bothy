@@ -62,6 +62,7 @@ export default async function RevisionsPage({
                           field,
                           revision.fieldValues?.[field.id] ?? null,
                           detail.optionLabels,
+                          detail.linkedTitles,
                         )}
                       />
                     </dd>

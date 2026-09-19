@@ -17,12 +17,21 @@ const options: OptionIndex = new Map([
   [LIST, [{ id: OPTION_A, label: "Fibre" }, { id: OPTION_B, label: "DSL" }]],
 ]);
 
+const DOC_A = "55555555-5555-4555-8555-555555555555";
+const DOC_B = "66666666-6666-4666-8666-666666666666";
+
+const ctx = {
+  options,
+  linkTargets: new Map([["field-1", new Map([[DOC_A, "Acme Fibre"]])]]),
+};
+
 function field(fieldType: FieldType, overrides: Partial<FieldDefinition> = {}): FieldDefinition {
   return {
     id: "field-1",
     label: "Field",
     fieldType,
     optionListId: fieldType.includes("dropdown") ? LIST : null,
+    linkDocTypeId: null,
     required: false,
     sortOrder: 0,
     archivedAt: null,
@@ -33,7 +42,7 @@ function field(fieldType: FieldType, overrides: Partial<FieldDefinition> = {}): 
 }
 
 function value(type: FieldType, raw: unknown, overrides?: Partial<FieldDefinition>) {
-  return validateFieldValue(field(type, overrides), raw, options);
+  return validateFieldValue(field(type, overrides), raw, ctx);
 }
 
 describe("validateFieldValue", () => {
@@ -103,8 +112,12 @@ describe("validateFieldValue", () => {
     expect(value("markdown", "# Title\n\n- a")).toEqual({ ok: true, value: "# Title\n\n- a" });
   });
 
+  it("accepts a doc_link only for a document the field may reach", () => {
+    expect(value("doc_link", DOC_A)).toEqual({ ok: true, value: DOC_A });
+    expect(value("doc_link", DOC_B).ok).toBe(false);
+  });
+
   it("refuses field types that are not implemented yet", () => {
-    expect(value("doc_link", "22222222-2222-4222-8222-222222222222").ok).toBe(false);
     expect(value("secret_ref", { itemId: "x" }).ok).toBe(false);
   });
 });
@@ -117,7 +130,7 @@ describe("validateFieldValues", () => {
   ];
 
   it("ignores fields that were not submitted", () => {
-    const result = validateFieldValues(fields, { "f-port": 443 }, options);
+    const result = validateFieldValues(fields, { "f-port": 443 }, ctx);
     expect(result.values).toEqual({ "f-port": 443 });
     expect(result.errors).toEqual({});
   });
@@ -126,7 +139,7 @@ describe("validateFieldValues", () => {
     const result = validateFieldValues(
       fields,
       { "f-name": "", "f-port": "nope", "f-type": OTHER },
-      options,
+      ctx,
     );
     expect(Object.keys(result.errors).sort()).toEqual(["f-name", "f-port", "f-type"]);
     expect(result.errors["f-name"]).toBe("Name is required");
@@ -134,7 +147,7 @@ describe("validateFieldValues", () => {
 
   it("skips archived fields so their stored values survive", () => {
     const archived = [field("text", { id: "f-old", archivedAt: new Date() })];
-    const result = validateFieldValues(archived, { "f-old": "x" }, options);
+    const result = validateFieldValues(archived, { "f-old": "x" }, ctx);
     expect(result.values).toEqual({});
   });
 });
@@ -160,7 +173,7 @@ describe("flattenForSearch", () => {
       field("number", { id: "b" }),
       field("date", { id: "c" }),
     ];
-    const text = flattenForSearch(fields, { a: "Acme", b: 443, c: "2026-03-01" }, options);
+    const text = flattenForSearch(fields, { a: "Acme", b: 443, c: "2026-03-01" }, ctx);
     expect(text).toBe("Acme 443 2026-03-01");
   });
 
@@ -169,24 +182,29 @@ describe("flattenForSearch", () => {
       field("dropdown", { id: "a" }),
       field("multi_dropdown", { id: "b" }),
     ];
-    const text = flattenForSearch(fields, { a: OPTION_A, b: [OPTION_B] }, options);
+    const text = flattenForSearch(fields, { a: OPTION_A, b: [OPTION_B] }, ctx);
     expect(text).toBe("Fibre DSL");
   });
 
   it("indexes the readable text of richtext, not its markup", () => {
     const fields = [field("richtext", { id: "a" })];
-    expect(flattenForSearch(fields, { a: "<p>Hello <b>world</b></p>" }, options)).toBe(
+    expect(flattenForSearch(fields, { a: "<p>Hello <b>world</b></p>" }, ctx)).toBe(
       "Hello world",
     );
   });
 
+  it("indexes the linked document's title, not its id", () => {
+    const fields = [field("doc_link", { id: "field-1" })];
+    expect(flattenForSearch(fields, { "field-1": DOC_A }, ctx)).toBe("Acme Fibre");
+  });
+
   it("never indexes secrets", () => {
     const fields = [field("secret_ref", { id: "a" })];
-    expect(flattenForSearch(fields, { a: { itemId: "abc" } }, options)).toBe("");
+    expect(flattenForSearch(fields, { a: { itemId: "abc" } }, ctx)).toBe("");
   });
 
   it("skips blanks", () => {
     const fields = [field("text", { id: "a" }), field("text", { id: "b" })];
-    expect(flattenForSearch(fields, { a: "", b: "kept" }, options)).toBe("kept");
+    expect(flattenForSearch(fields, { a: "", b: "kept" }, ctx)).toBe("kept");
   });
 });

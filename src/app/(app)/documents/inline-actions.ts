@@ -37,6 +37,7 @@ export type InlineFieldPayload = {
   label: string;
   fieldType: FieldType;
   optionListId: string | null;
+  linkDocTypeId: string | null;
   required: boolean;
   isLocal: boolean;
 };
@@ -47,6 +48,7 @@ function toPayload(field: FieldDefinition): InlineFieldPayload {
     label: field.label,
     fieldType: field.fieldType,
     optionListId: field.optionListId,
+    linkDocTypeId: field.linkDocTypeId,
     required: field.required,
     isLocal: field.documentId !== null,
   };
@@ -69,9 +71,10 @@ async function editor(): Promise<CurrentUser> {
 
 export type FieldDraft = {
   label: string;
-  /** doc_link and secret_ref are not editable yet, so they cannot be drafted. */
+  /** secret_ref is not editable yet, so it cannot be drafted. */
   fieldType: EditableFieldType;
   optionListId: string | null;
+  linkDocTypeId: string | null;
   required: boolean;
 };
 

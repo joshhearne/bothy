@@ -5,7 +5,12 @@ import { db } from "@/server/db";
 import { documents, fields } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/companies";
-import { EDITABLE_FIELD_TYPES, usesOptionList, type FieldDefinition } from "@/server/fields/types";
+import {
+  EDITABLE_FIELD_TYPES,
+  usesLinkDocType,
+  usesOptionList,
+  type FieldDefinition,
+} from "@/server/fields/types";
 
 /**
  * Inline field operations run from inside a document, never from an admin
@@ -18,6 +23,7 @@ export const localFieldInputSchema = z
     label: z.string().trim().min(1, "Label is required").max(200),
     fieldType: z.enum(EDITABLE_FIELD_TYPES),
     optionListId: z.uuid().optional().nullable(),
+    linkDocTypeId: z.uuid().optional().nullable(),
     required: z.boolean().default(false),
   })
   .refine((v) => !usesOptionList(v.fieldType) || !!v.optionListId, {
@@ -27,6 +33,10 @@ export const localFieldInputSchema = z
   .refine((v) => usesOptionList(v.fieldType) || !v.optionListId, {
     message: "Only dropdown fields use an option list",
     path: ["optionListId"],
+  })
+  .refine((v) => usesLinkDocType(v.fieldType) || !v.linkDocTypeId, {
+    message: "Only a link field points at a doc type",
+    path: ["linkDocTypeId"],
   });
 
 export type LocalFieldInput = z.infer<typeof localFieldInputSchema>;
@@ -36,6 +46,7 @@ const FIELD_COLUMNS = {
   label: fields.label,
   fieldType: fields.fieldType,
   optionListId: fields.optionListId,
+  linkDocTypeId: fields.linkDocTypeId,
   required: fields.required,
   sortOrder: fields.sortOrder,
   archivedAt: fields.archivedAt,
@@ -71,6 +82,7 @@ export async function addLocalField(
         label: data.label,
         fieldType: data.fieldType,
         optionListId: data.optionListId ?? null,
+        linkDocTypeId: data.linkDocTypeId ?? null,
         required: data.required,
         sortOrder: next,
       })
@@ -140,6 +152,7 @@ export async function promoteField(
         label: data.label,
         fieldType: data.fieldType,
         optionListId: data.optionListId ?? null,
+        linkDocTypeId: data.linkDocTypeId ?? null,
         required: data.required,
         sortOrder: next,
       })

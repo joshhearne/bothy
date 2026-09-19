@@ -7,6 +7,9 @@ A lightweight alternative to Hudu and IT Glue.
 - Documents built from templates (doc types) with typed fields
 - Add fields and dropdown options inline while editing. No round trips to admin.
 - Markdown and rich text fields, drag-and-drop field ordering
+- Link documents to each other, with backlinks on the target
+- Full-text search across every document, no extra service
+- Attachments on a local volume or any S3-compatible bucket
 - REST API + webhooks for any PSA or ticketing system
 - One `docker compose up` to run
 

@@ -36,12 +36,15 @@ export function DocumentForm({
   locationId,
   fields,
   options,
+  linkTargets,
 }: {
   companyId: string;
   docTypeId: string;
   locationId: string | null;
   fields: EditableField[];
   options: Record<string, FieldOption[]>;
+  /** Documents each doc_link field may point at, keyed by field id. */
+  linkTargets: Record<string, FieldOption[]>;
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(createDocumentAction, {});
   const [values, setValues] = useState<Record<string, FieldFormValue>>(() =>
@@ -67,7 +70,13 @@ export function DocumentForm({
             field={field}
             value={values[field.id] ?? toFormValue(field.fieldType, null)}
             onChange={(next) => setValues((current) => ({ ...current, [field.id]: next }))}
-            options={field.optionListId ? (options[field.optionListId] ?? []) : []}
+            options={
+              field.fieldType === "doc_link"
+                ? (linkTargets[field.id] ?? [])
+                : field.optionListId
+                  ? (options[field.optionListId] ?? [])
+                  : []
+            }
             error={fieldErrors[field.id]}
           />
         </div>

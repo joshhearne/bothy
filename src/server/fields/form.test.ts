@@ -8,6 +8,7 @@ function field(id: string, fieldType: FieldType): FieldDefinition {
     label: id,
     fieldType,
     optionListId: null,
+    linkDocTypeId: null,
     required: false,
     sortOrder: 0,
     archivedAt: null,

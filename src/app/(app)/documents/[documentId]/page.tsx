@@ -1,12 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Paperclip } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FieldValue } from "@/components/fields/field-value";
 import { canEditDocuments, requireUser } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
-import { getDocumentDetail } from "@/server/services/documents";
+import { getDocumentDetail, listBacklinks } from "@/server/services/documents";
 import { formatDateTime, renderFieldValue } from "@/server/fields/render";
-import { archiveDocumentAction, unarchiveDocumentAction } from "../actions";
+import { formatBytes, listAttachments } from "@/server/services/attachments";
+import { env } from "@/lib/env";
+import { AttachmentUpload } from "../attachment-upload";
+import {
+  archiveDocumentAction,
+  removeAttachmentAction,
+  unarchiveDocumentAction,
+} from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +29,11 @@ export default async function DocumentPage({
   const detail = await getDocumentDetail(documentId);
   if (!detail) notFound();
 
-  const company = await getCompany(detail.document.companyId);
+  const [company, backlinks, files] = await Promise.all([
+    getCompany(detail.document.companyId),
+    listBacklinks(documentId),
+    listAttachments(documentId),
+  ]);
   if (!company) notFound();
 
   const editor = canEditDocuments(user.role);
@@ -100,12 +112,74 @@ export default async function DocumentPage({
                     field,
                     detail.document.fieldValues?.[field.id] ?? null,
                     detail.optionLabels,
+                    detail.linkedTitles,
                   )}
                 />
               </dd>
             </div>
           ))}
         </dl>
+      )}
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-semibold tracking-tight">Attachments</h2>
+
+        {files.length === 0 ? (
+          <p className="text-sm text-[var(--muted-foreground)]">No files attached.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {files.map((file) => (
+              <li key={file.id} className="flex flex-wrap items-center gap-3 rounded-md border px-4 py-3">
+                <Paperclip className="size-4 shrink-0 text-[var(--muted-foreground)]" aria-hidden />
+                <a
+                  href={`/api/attachments/${file.id}`}
+                  className="min-w-0 flex-1 truncate font-medium hover:underline"
+                >
+                  {file.filename}
+                </a>
+                <span className="text-sm text-[var(--muted-foreground)]">
+                  {formatBytes(file.sizeBytes)} · {formatDateTime(file.createdAt)}
+                </span>
+                {editor && (
+                  <form action={removeAttachmentAction}>
+                    <input type="hidden" name="attachmentId" value={file.id} />
+                    <Button type="submit" variant="ghost" size="sm">
+                      Remove
+                    </Button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {editor && !detail.document.archivedAt && (
+          <AttachmentUpload documentId={detail.document.id} maxMb={env.MAX_UPLOAD_MB} />
+        )}
+      </section>
+
+      {backlinks.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold tracking-tight">Linked from</h2>
+          <ul className="flex flex-col gap-2">
+            {backlinks.map((backlink) => (
+              <li
+                key={`${backlink.documentId}-${backlink.fieldLabel}`}
+                className="flex flex-wrap items-center gap-2 rounded-md border px-4 py-3"
+              >
+                <Link
+                  href={`/documents/${backlink.documentId}`}
+                  className="font-medium hover:underline"
+                >
+                  {backlink.title}
+                </Link>
+                <span className="text-sm text-[var(--muted-foreground)]">
+                  {backlink.docTypeName} · {backlink.fieldLabel}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

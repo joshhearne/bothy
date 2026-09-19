@@ -10,8 +10,14 @@ import { FormError } from "@/components/ui/alert";
 import type { FormState } from "@/lib/form";
 import { addTemplateFieldAction, updateTemplateFieldAction } from "./actions";
 
-export type FieldTypeChoice = { value: string; label: string; usesOptionList: boolean };
+export type FieldTypeChoice = {
+  value: string;
+  label: string;
+  usesOptionList: boolean;
+  usesLinkDocType: boolean;
+};
 export type OptionListChoice = { id: string; name: string };
+export type DocTypeChoice = { id: string; name: string };
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -25,16 +31,26 @@ function Submit({ label }: { label: string }) {
 function Controls({
   fieldTypes,
   optionLists,
+  docTypes,
   fieldErrors,
   defaults,
 }: {
   fieldTypes: FieldTypeChoice[];
   optionLists: OptionListChoice[];
+  docTypes: DocTypeChoice[];
   fieldErrors: Record<string, string>;
-  defaults: { label?: string; fieldType?: string; optionListId?: string | null; required?: boolean };
+  defaults: {
+    label?: string;
+    fieldType?: string;
+    optionListId?: string | null;
+    linkDocTypeId?: string | null;
+    required?: boolean;
+  };
 }) {
   const [fieldType, setFieldType] = useState(defaults.fieldType ?? "text");
-  const needsList = fieldTypes.find((t) => t.value === fieldType)?.usesOptionList ?? false;
+  const choice = fieldTypes.find((t) => t.value === fieldType);
+  const needsList = choice?.usesOptionList ?? false;
+  const needsDocType = choice?.usesLinkDocType ?? false;
 
   return (
     <>
@@ -83,6 +99,29 @@ function Controls({
         </Field>
       )}
 
+      {needsDocType && (
+        <Field
+          id="linkDocTypeId"
+          label="Links to"
+          error={fieldErrors.linkDocTypeId}
+          hint="Restricts the picker to documents of one type in the same company."
+        >
+          <select
+            id="linkDocTypeId"
+            name="linkDocTypeId"
+            defaultValue={defaults.linkDocTypeId ?? ""}
+            className="h-10 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          >
+            <option value="">Any document in this company</option>
+            {docTypes.map((docType) => (
+              <option key={docType.id} value={docType.id}>
+                {docType.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"
@@ -100,10 +139,12 @@ export function AddTemplateFieldForm({
   docTypeId,
   fieldTypes,
   optionLists,
+  docTypes,
 }: {
   docTypeId: string;
   fieldTypes: FieldTypeChoice[];
   optionLists: OptionListChoice[];
+  docTypes: DocTypeChoice[];
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(addTemplateFieldAction, {});
   const formRef = useRef<HTMLFormElement>(null);
@@ -124,6 +165,7 @@ export function AddTemplateFieldForm({
       <Controls
         fieldTypes={fieldTypes}
         optionLists={optionLists}
+        docTypes={docTypes}
         fieldErrors={state.fieldErrors ?? {}}
         defaults={{}}
       />
@@ -139,11 +181,20 @@ export function EditTemplateFieldForm({
   field,
   fieldTypes,
   optionLists,
+  docTypes,
 }: {
   docTypeId: string;
-  field: { id: string; label: string; fieldType: string; optionListId: string | null; required: boolean };
+  field: {
+    id: string;
+    label: string;
+    fieldType: string;
+    optionListId: string | null;
+    linkDocTypeId: string | null;
+    required: boolean;
+  };
   fieldTypes: FieldTypeChoice[];
   optionLists: OptionListChoice[];
+  docTypes: DocTypeChoice[];
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(updateTemplateFieldAction, {});
 
@@ -155,6 +206,7 @@ export function EditTemplateFieldForm({
       <Controls
         fieldTypes={fieldTypes}
         optionLists={optionLists}
+        docTypes={docTypes}
         fieldErrors={state.fieldErrors ?? {}}
         defaults={field}
       />

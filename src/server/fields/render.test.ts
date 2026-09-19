@@ -8,6 +8,7 @@ function field(fieldType: FieldType): FieldDefinition {
     label: "F",
     fieldType,
     optionListId: null,
+    linkDocTypeId: null,
     required: false,
     sortOrder: 0,
     archivedAt: null,
@@ -80,6 +81,21 @@ describe("renderFieldValue", () => {
   it("sanitizes richtext again on read", () => {
     const result = renderFieldValue(field("richtext"), '<p>hi</p><script>x</script>', labels);
     expect(result).toEqual({ kind: "html", html: "<p>hi</p>" });
+  });
+
+  it("renders a doc_link as the linked document", () => {
+    const titles = new Map([["doc-1", "Acme Fibre"]]);
+    expect(renderFieldValue(field("doc_link"), "doc-1", labels, titles)).toEqual({
+      kind: "document",
+      id: "doc-1",
+      title: "Acme Fibre",
+    });
+  });
+
+  it("renders a link to a document that no longer exists as empty", () => {
+    expect(renderFieldValue(field("doc_link"), "gone", labels, new Map())).toEqual({
+      kind: "empty",
+    });
   });
 
   it("never renders a secret", () => {

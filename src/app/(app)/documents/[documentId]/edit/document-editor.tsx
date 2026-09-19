@@ -44,8 +44,14 @@ import {
   type FieldDraft,
 } from "../../inline-actions";
 
-export type FieldTypeChoice = { value: EditableFieldType; label: string; usesOptionList: boolean };
+export type FieldTypeChoice = {
+  value: EditableFieldType;
+  label: string;
+  usesOptionList: boolean;
+  usesLinkDocType: boolean;
+};
 export type OptionListChoice = { id: string; name: string };
+export type DocTypeChoice = { id: string; name: string };
 
 function SaveButton() {
   const { pending } = useFormStatus();
@@ -71,6 +77,8 @@ export function DocumentEditor({
   initialOptions,
   fieldTypes,
   optionLists,
+  docTypeChoices,
+  linkTargets,
   canManageTemplate,
 }: {
   documentId: string;
@@ -82,6 +90,9 @@ export function DocumentEditor({
   initialOptions: Record<string, FieldOption[]>;
   fieldTypes: FieldTypeChoice[];
   optionLists: OptionListChoice[];
+  docTypeChoices: DocTypeChoice[];
+  /** Documents each doc_link field may point at, keyed by field id. */
+  linkTargets: Record<string, FieldOption[]>;
   canManageTemplate: boolean;
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(saveDocumentAction, {});
@@ -102,6 +113,12 @@ export function DocumentEditor({
   const [isPending, startTransition] = useTransition();
 
   const fieldErrors = state.fieldErrors ?? {};
+
+  function optionsFor(field: EditableField): FieldOption[] {
+    if (field.fieldType === "doc_link") return linkTargets[field.id] ?? [];
+    return field.optionListId ? (options[field.optionListId] ?? []) : [];
+  }
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -245,7 +262,7 @@ export function DocumentEditor({
                   field={field}
                   value={values[field.id] ?? toFormValue(field.fieldType, null)}
                   onChange={(next) => setValues((current) => ({ ...current, [field.id]: next }))}
-                  options={field.optionListId ? (options[field.optionListId] ?? []) : []}
+                  options={optionsFor(field)}
                   error={fieldErrors[field.id]}
                   busy={isPending}
                   canArchive={field.isLocal || canManageTemplate}
@@ -281,11 +298,13 @@ export function DocumentEditor({
           submitLabel="Add to template"
           fieldTypes={fieldTypes}
           optionLists={optionLists}
+          docTypes={docTypeChoices}
           busy={isPending}
           initial={{
             label: promoting.label,
             fieldType: promoting.fieldType as EditableFieldType,
             optionListId: promoting.optionListId,
+            linkDocTypeId: promoting.linkDocTypeId,
             required: promoting.required,
           }}
           onCancel={() => setPromoting(null)}
@@ -314,8 +333,15 @@ export function DocumentEditor({
           submitLabel="Add field"
           fieldTypes={fieldTypes}
           optionLists={optionLists}
+          docTypes={docTypeChoices}
           busy={isPending}
-          initial={{ label: "", fieldType: "text", optionListId: null, required: false }}
+          initial={{
+            label: "",
+            fieldType: "text",
+            optionListId: null,
+            linkDocTypeId: null,
+            required: false,
+          }}
           onCancel={() => setAddingField(false)}
           onSubmit={(draft) =>
             startTransition(async () => {
@@ -429,6 +455,7 @@ function FieldDraftPanel({
   submitLabel,
   fieldTypes,
   optionLists,
+  docTypes,
   initial,
   busy,
   onSubmit,
@@ -439,6 +466,7 @@ function FieldDraftPanel({
   submitLabel: string;
   fieldTypes: FieldTypeChoice[];
   optionLists: OptionListChoice[];
+  docTypes: DocTypeChoice[];
   initial: FieldDraft;
   busy: boolean;
   onSubmit: (draft: FieldDraft) => void;
@@ -447,9 +475,12 @@ function FieldDraftPanel({
   const [label, setLabel] = useState(initial.label);
   const [fieldType, setFieldType] = useState<EditableFieldType>(initial.fieldType);
   const [optionListId, setOptionListId] = useState(initial.optionListId ?? "");
+  const [linkDocTypeId, setLinkDocTypeId] = useState(initial.linkDocTypeId ?? "");
   const [required, setRequired] = useState(initial.required);
 
-  const needsList = fieldTypes.find((type) => type.value === fieldType)?.usesOptionList ?? false;
+  const choice = fieldTypes.find((type) => type.value === fieldType);
+  const needsList = choice?.usesOptionList ?? false;
+  const needsDocType = choice?.usesLinkDocType ?? false;
 
   return (
     <section
@@ -504,6 +535,24 @@ function FieldDraftPanel({
         </Field>
       )}
 
+      {needsDocType && (
+        <Field id="draft-doc-type" label="Links to">
+          <select
+            id="draft-doc-type"
+            value={linkDocTypeId}
+            onChange={(event) => setLinkDocTypeId(event.target.value)}
+            className="h-10 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          >
+            <option value="">Any document in this company</option>
+            {docTypes.map((docType) => (
+              <option key={docType.id} value={docType.id}>
+                {docType.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+
       <label className="flex items-center gap-2 text-sm">
         <input
           type="checkbox"
@@ -523,6 +572,7 @@ function FieldDraftPanel({
               label: label.trim(),
               fieldType,
               optionListId: needsList ? optionListId || null : null,
+              linkDocTypeId: needsDocType ? linkDocTypeId || null : null,
               required,
             })
           }

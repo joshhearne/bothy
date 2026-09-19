@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
-import { Building2, Layers, ListTree, Menu, Plus, X } from "lucide-react";
+import { Building2, Layers, ListTree, Menu, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -161,6 +161,25 @@ function SidebarNav({
 
   return (
     <nav aria-label="Main" className="flex flex-col gap-6 px-3 py-4">
+      <form action="/search" role="search" className="px-1">
+        <label htmlFor="sidebar-search" className="sr-only">
+          Search documents
+        </label>
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-[var(--muted-foreground)]"
+            aria-hidden
+          />
+          <input
+            id="sidebar-search"
+            name="q"
+            type="search"
+            placeholder="Search"
+            className="h-9 w-full rounded-md border bg-[var(--background)] pl-8 pr-3 text-sm outline-none placeholder:text-[var(--muted-foreground)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          />
+        </div>
+      </form>
+
       <Section
         title="Companies"
         action={

@@ -6,6 +6,7 @@ import { getCompany } from "@/server/services/companies";
 import { listLocations } from "@/server/services/locations";
 import { listDocTypes, listTemplateFields } from "@/server/services/doc-types";
 import { loadOptionIndex } from "@/server/services/option-lists";
+import { loadLinkTargets } from "@/server/services/documents";
 import { DocumentForm } from "../../../../documents/document-form";
 
 export const dynamic = "force-dynamic";
@@ -113,9 +114,10 @@ export default async function NewDocumentPage({
   }
 
   const templateFields = await listTemplateFields(chosen.id);
-  const optionIndex = await loadOptionIndex(
-    templateFields.flatMap((field) => (field.optionListId ? [field.optionListId] : [])),
-  );
+  const [optionIndex, linkTargets] = await Promise.all([
+    loadOptionIndex(templateFields.flatMap((f) => (f.optionListId ? [f.optionListId] : []))),
+    loadLinkTargets(templateFields, company.id, null),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -132,12 +134,19 @@ export default async function NewDocumentPage({
         docTypeId={chosen.id}
         locationId={chosenLocation?.id ?? null}
         options={Object.fromEntries(optionIndex)}
+        linkTargets={Object.fromEntries(
+          [...linkTargets].map(([fieldId, targets]) => [
+            fieldId,
+            [...targets].map(([id, label]) => ({ id, label })),
+          ]),
+        )}
         fields={templateFields.map((field) => ({
           id: field.id,
           label: field.label,
           fieldType: field.fieldType,
           required: field.required,
           optionListId: field.optionListId,
+          linkDocTypeId: field.linkDocTypeId,
           isLocal: false,
         }))}
       />

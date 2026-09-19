@@ -5,7 +5,12 @@ import { db, type Executor } from "@/server/db";
 import { docTypes, documents, fields } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/companies";
-import { EDITABLE_FIELD_TYPES, usesOptionList, type FieldDefinition } from "@/server/fields/types";
+import {
+  EDITABLE_FIELD_TYPES,
+  usesLinkDocType,
+  usesOptionList,
+  type FieldDefinition,
+} from "@/server/fields/types";
 
 const editableFieldType = z.enum(EDITABLE_FIELD_TYPES);
 
@@ -20,6 +25,7 @@ export const templateFieldInputSchema = z
     label: z.string().trim().min(1, "Label is required").max(200),
     fieldType: editableFieldType,
     optionListId: z.uuid().optional().nullable(),
+    linkDocTypeId: z.uuid().optional().nullable(),
     required: z.boolean().default(false),
   })
   .refine((v) => !usesOptionList(v.fieldType) || !!v.optionListId, {
@@ -29,6 +35,10 @@ export const templateFieldInputSchema = z
   .refine((v) => usesOptionList(v.fieldType) || !v.optionListId, {
     message: "Only dropdown fields use an option list",
     path: ["optionListId"],
+  })
+  .refine((v) => usesLinkDocType(v.fieldType) || !v.linkDocTypeId, {
+    message: "Only a link field points at a doc type",
+    path: ["linkDocTypeId"],
   });
 
 export type DocTypeInput = z.infer<typeof docTypeInputSchema>;
@@ -91,6 +101,7 @@ export async function listTemplateFields(
       label: fields.label,
       fieldType: fields.fieldType,
       optionListId: fields.optionListId,
+      linkDocTypeId: fields.linkDocTypeId,
       required: fields.required,
       sortOrder: fields.sortOrder,
       archivedAt: fields.archivedAt,
@@ -220,6 +231,7 @@ export async function addTemplateField(
         label: data.label,
         fieldType: data.fieldType,
         optionListId: data.optionListId ?? null,
+        linkDocTypeId: data.linkDocTypeId ?? null,
         required: data.required,
         sortOrder: next,
       })
@@ -254,6 +266,7 @@ export async function updateTemplateField(
         label: data.label,
         fieldType: data.fieldType,
         optionListId: data.optionListId ?? null,
+        linkDocTypeId: data.linkDocTypeId ?? null,
         required: data.required,
       })
       .where(eq(fields.id, id))

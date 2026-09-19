@@ -14,6 +14,7 @@ export type EditableField = {
   fieldType: FieldType;
   required: boolean;
   optionListId: string | null;
+  linkDocTypeId: string | null;
   isLocal: boolean;
 };
 
@@ -220,6 +221,24 @@ export function FieldControl({
         );
 
       case "doc_link":
+        return (
+          <select
+            id={id}
+            name={name}
+            value={asText}
+            onChange={(event) => onChange(event.target.value)}
+            aria-invalid={invalid}
+            className={selectClass}
+          >
+            <option value="">—</option>
+            {options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
+
       case "secret_ref":
         return (
           <p className="rounded-md border border-dashed px-3 py-2 text-sm text-[var(--muted-foreground)]">

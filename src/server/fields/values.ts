@@ -5,12 +5,22 @@ import type { FieldDefinition, FieldType } from "@/server/fields/types";
 /** Option items available to a dropdown field, keyed by option list id. */
 export type OptionIndex = Map<string, { id: string; label: string }[]>;
 
+/** Documents a doc_link field may point at: field id -> (document id -> title). */
+export type LinkTargetIndex = Map<string, Map<string, string>>;
+
+/** Everything validation needs from the database, resolved once per save. */
+export type ValidationContext = {
+  options?: OptionIndex;
+  linkTargets?: LinkTargetIndex;
+};
+
 const MAX_TEXT = 10_000;
 const MAX_LONG_TEXT = 200_000;
 
 const uuid = z.uuid();
 
-function baseSchema(field: FieldDefinition, options: OptionIndex): z.ZodType {
+function baseSchema(field: FieldDefinition, ctx: ValidationContext): z.ZodType {
+  const options: OptionIndex = ctx.options ?? new Map();
   const allowed = field.optionListId ? (options.get(field.optionListId) ?? []) : [];
   const allowedIds = new Set(allowed.map((o) => o.id));
 
@@ -40,9 +50,18 @@ function baseSchema(field: FieldDefinition, options: OptionIndex): z.ZodType {
       return z
         .array(uuid.refine((id) => allowedIds.has(id), "Choose from the listed options"))
         .refine((ids) => new Set(ids).size === ids.length, "Each option can only be chosen once");
-    case "doc_link":
+    case "doc_link": {
+      // Only documents the field is allowed to reach: same company, and the
+      // right doc type when the field names one.
+      const targets = ctx.linkTargets?.get(field.id);
+      return uuid.refine(
+        (id) => targets?.has(id) ?? false,
+        "Choose one of the documents offered",
+      );
+    }
+
     case "secret_ref":
-      // Phase 4 and Phase 6. Reject rather than store something unvalidated.
+      // Phase 6. Reject rather than store something unvalidated.
       return z.never({ error: "This field type cannot be edited yet" });
   }
 }
@@ -63,14 +82,14 @@ export type FieldValidationResult =
 export function validateFieldValue(
   field: FieldDefinition,
   raw: unknown,
-  options: OptionIndex = new Map(),
+  ctx: ValidationContext = {},
 ): FieldValidationResult {
   if (isEmptyValue(raw)) {
     if (field.required) return { ok: false, message: `${field.label} is required` };
     return { ok: true, value: null };
   }
 
-  const parsed = baseSchema(field, options).safeParse(raw);
+  const parsed = baseSchema(field, ctx).safeParse(raw);
   if (!parsed.success) {
     return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid value" };
   }
@@ -97,7 +116,7 @@ export type FieldValuesResult = {
 export function validateFieldValues(
   fields: FieldDefinition[],
   raw: Record<string, unknown>,
-  options: OptionIndex = new Map(),
+  ctx: ValidationContext = {},
 ): FieldValuesResult {
   const values: Record<string, unknown> = {};
   const errors: Record<string, string> = {};
@@ -106,7 +125,7 @@ export function validateFieldValues(
     if (!(field.id in raw)) continue;
     if (field.archivedAt) continue; // archived fields keep their stored value
 
-    const result = validateFieldValue(field, raw[field.id], options);
+    const result = validateFieldValue(field, raw[field.id], ctx);
     if (result.ok) {
       values[field.id] = result.value;
     } else {
@@ -134,8 +153,9 @@ export function mergeFieldValues(
 export function flattenForSearch(
   fields: FieldDefinition[],
   values: Record<string, unknown>,
-  options: OptionIndex = new Map(),
+  ctx: ValidationContext = {},
 ): string {
+  const options: OptionIndex = ctx.options ?? new Map();
   const labelFor = (optionListId: string | null, id: unknown): string => {
     if (!optionListId || typeof id !== "string") return "";
     return options.get(optionListId)?.find((o) => o.id === id)?.label ?? "";
@@ -162,7 +182,13 @@ export function flattenForSearch(
       case "boolean":
         parts.push(value === true ? field.label : "");
         break;
-      case "doc_link":
+      case "doc_link": {
+        // Index the linked document's title, not its UUID.
+        const title = ctx.linkTargets?.get(field.id)?.get(String(value));
+        if (title) parts.push(title);
+        break;
+      }
+
       case "secret_ref":
         // Never indexed: secrets stay out of search entirely (CLAUDE.md).
         break;
