@@ -358,7 +358,13 @@ export function FieldLabel({ field }: { field: EditableField }) {
     <div className="flex items-center gap-2">
       <Label htmlFor={`f-${field.id}`} id={`f-${field.id}-label`}>
         {field.label}
-        {field.required && <span className="text-[var(--destructive)]"> *</span>}
+        {/* Decoration: the control itself is marked required, and a screen
+            reader should not read the label as "Name star". */}
+        {field.required && (
+          <span aria-hidden="true" className="text-[var(--destructive)]">
+            {" *"}
+          </span>
+        )}
       </Label>
       {field.isLocal && (
         <span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--muted-foreground)]">

@@ -2,10 +2,18 @@ import "server-only";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { genericOAuth } from "better-auth/plugins";
 import { db } from "@/server/db";
 import { users, sessions, accounts, verifications } from "@/server/db/schema";
 import { env } from "@/lib/env";
 import { hashPassword, verifyPassword, MIN_PASSWORD_LENGTH } from "@/server/services/password";
+
+/** The provider id the sign-in page posts to. */
+export const OIDC_PROVIDER_ID = "oidc";
+
+export const oidcConfigured = Boolean(
+  env.OIDC_ISSUER && env.OIDC_CLIENT_ID && env.OIDC_CLIENT_SECRET,
+);
 
 export const auth = betterAuth({
   appName: "Strata",
@@ -48,7 +56,29 @@ export const auth = betterAuth({
     max: 20,
   },
 
-  plugins: [nextCookies()],
+  /**
+   * OIDC is optional: configure OIDC_ISSUER, OIDC_CLIENT_ID, and
+   * OIDC_CLIENT_SECRET and a "Sign in with SSO" button appears. Works with
+   * Entra ID, Google, Authentik, and Keycloak through discovery.
+   */
+  plugins: [
+    ...(oidcConfigured
+      ? [
+          genericOAuth({
+            config: [
+              {
+                providerId: OIDC_PROVIDER_ID,
+                clientId: env.OIDC_CLIENT_ID as string,
+                clientSecret: env.OIDC_CLIENT_SECRET as string,
+                discoveryUrl: `${(env.OIDC_ISSUER as string).replace(/\/$/, "")}/.well-known/openid-configuration`,
+                scopes: ["openid", "profile", "email"],
+              },
+            ],
+          }),
+        ]
+      : []),
+    nextCookies(),
+  ],
 });
 
 export type Auth = typeof auth;

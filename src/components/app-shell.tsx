@@ -8,6 +8,7 @@ import {
   Building2,
   KeyRound,
   Layers,
+  ScrollText,
   ListTree,
   Menu,
   Plus,
@@ -292,6 +293,14 @@ function SidebarNav({
             onNavigate={onNavigate}
           >
             Users
+          </NavLink>
+          <NavLink
+            href="/admin/audit"
+            icon={ScrollText}
+            active={pathname.startsWith("/admin/audit")}
+            onNavigate={onNavigate}
+          >
+            Audit log
           </NavLink>
         </Section>
       )}

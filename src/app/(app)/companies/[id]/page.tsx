@@ -63,6 +63,20 @@ export default async function CompanyPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={`/companies/${company.id}/export`}
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+            download
+          >
+            Export JSON
+          </a>
+          <a
+            href={`/companies/${company.id}/export?format=markdown`}
+            className={buttonVariants({ variant: "ghost", size: "sm" })}
+            download
+          >
+            Export Markdown
+          </a>
           {writer && (
             <Link
               href={`/companies/${company.id}/edit`}

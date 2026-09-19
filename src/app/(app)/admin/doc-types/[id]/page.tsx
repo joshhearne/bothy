@@ -99,7 +99,11 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">
                     {field.label}
-                    {field.required && <span className="text-[var(--destructive)]"> *</span>}
+                    {field.required && (
+                      <span aria-hidden="true" className="text-[var(--destructive)]">
+                        {" *"}
+                      </span>
+                    )}
                   </p>
                   <p className="text-sm text-[var(--muted-foreground)]">
                     {FIELD_TYPE_LABELS[field.fieldType]}

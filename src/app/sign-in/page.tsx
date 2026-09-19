@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { auth } from "@/lib/auth";
+import { auth, oidcConfigured } from "@/lib/auth";
 import { isSetupComplete } from "@/server/services/setup";
 import { SignInForm } from "./sign-in-form";
 
@@ -18,10 +18,12 @@ export default async function SignInPage() {
       <Card className="w-full">
         <CardHeader>
           <CardTitle>Sign in to Strata</CardTitle>
-          <CardDescription>Use your local account.</CardDescription>
+          <CardDescription>
+            {oidcConfigured ? "Use single sign-on or a local account." : "Use your local account."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <SignInForm />
+          <SignInForm ssoEnabled={oidcConfigured} />
         </CardContent>
       </Card>
     </main>

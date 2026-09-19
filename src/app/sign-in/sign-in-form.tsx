@@ -17,11 +17,40 @@ function SubmitButton() {
   );
 }
 
-export function SignInForm() {
+/**
+ * Starts the generic OAuth flow. The plugin answers with the provider's
+ * authorization URL, which the browser then follows.
+ */
+async function startSso() {
+  const response = await fetch("/api/auth/sign-in/oauth2", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ providerId: "oidc", callbackURL: "/companies" }),
+  });
+
+  const data = (await response.json()) as { url?: string };
+  if (data.url) window.location.href = data.url;
+}
+
+export function SignInForm({ ssoEnabled = false }: { ssoEnabled?: boolean }) {
   const [state, formAction] = useActionState<SignInState, FormData>(signInAction, {});
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4">
+      {ssoEnabled && (
+        <>
+          <Button type="button" variant="outline" className="w-full" onClick={startSso}>
+            Sign in with SSO
+          </Button>
+          <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
+            <span className="h-px flex-1 bg-[var(--border)]" />
+            or use a local account
+            <span className="h-px flex-1 bg-[var(--border)]" />
+          </div>
+        </>
+      )}
+
+      <form action={formAction} className="flex flex-col gap-4">
       <FormError>{state.error}</FormError>
 
       <div className="flex flex-col gap-2">
@@ -40,7 +69,8 @@ export function SignInForm() {
         />
       </div>
 
-      <SubmitButton />
-    </form>
+        <SubmitButton />
+      </form>
+    </div>
   );
 }

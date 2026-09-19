@@ -8,6 +8,11 @@ const envSchema = z.object({
   APP_URL: z.url(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 
+  // Optional OIDC (Entra ID, Google, Authentik, Keycloak).
+  OIDC_ISSUER: z.string().optional(),
+  OIDC_CLIENT_ID: z.string().optional(),
+  OIDC_CLIENT_SECRET: z.string().optional(),
+
   STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
   STORAGE_PATH: z.string().default("/data/uploads"),
   MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(1024).default(25),
@@ -25,6 +30,15 @@ const envSchema = z.object({
   BW_SYNC_INTERVAL_MIN: z.coerce.number().int().min(1).max(1440).default(5),
 })
   .superRefine((value, ctx) => {
+    // All three or none: a half-configured provider fails at sign-in, not boot.
+    const oidc = [value.OIDC_ISSUER, value.OIDC_CLIENT_ID, value.OIDC_CLIENT_SECRET];
+    if (oidc.some(Boolean) && !oidc.every(Boolean)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["OIDC_ISSUER"],
+        message: "Set OIDC_ISSUER, OIDC_CLIENT_ID, and OIDC_CLIENT_SECRET together, or none of them",
+      });
+    }
     if (value.VAULT_MODE === "bw_serve" && !value.BW_SERVE_URL) {
       ctx.addIssue({
         code: "custom",

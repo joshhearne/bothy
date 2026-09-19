@@ -11,6 +11,8 @@ A lightweight alternative to Hudu and IT Glue.
 - Full-text search across every document, no extra service
 - Attachments on a local volume or any S3-compatible bucket
 - Credentials stay in your own Bitwarden or Vaultwarden; Strata brokers access
+- Local accounts or OIDC single sign-on, with an append-only audit trail
+- Per-company export as JSON or Markdown
 - REST API + signed webhooks for any PSA or ticketing system
 - Deep links and an id mapping so a ticket can jump straight to its client
 - One `docker compose up` to run
@@ -70,6 +72,20 @@ the Strata host can read everything the service account can read. That is the
 same tradeoff Hudu and IT Glue make. Scope the service account to the
 collections Strata should see, keep the sidecar internal, and stay on `link`
 mode if that risk is unacceptable. See `docs/VAULT_INTEGRATION.md`.
+
+## Backups
+
+`docs/BACKUP.md` covers what to keep, how to restore it, and how to verify a
+dump before you need it. In short: `pg_dump` the database, archive the uploads
+volume, and store `.env` with them.
+
+## Single sign-on
+
+Set `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` (all three or
+none) and the sign-in page offers SSO alongside local accounts. Discovery is
+used, so Entra ID, Google, Authentik, and Keycloak all work. Accounts created
+this way start with the `tech` role and cannot reveal secrets until an
+administrator says so under Admin → Users.
 
 ## Development
 ```bash
