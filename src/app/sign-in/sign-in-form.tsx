@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormError } from "@/components/ui/alert";
+import { authClient } from "@/lib/auth-client";
 import { signInAction, type SignInState } from "./actions";
 
 function SubmitButton() {
@@ -18,18 +19,17 @@ function SubmitButton() {
 }
 
 /**
- * Starts the generic OAuth flow. The plugin answers with the provider's
- * authorization URL, which the browser then follows.
+ * Starts the OIDC flow. The generic OAuth plugin registers the provider as a
+ * first-class social provider, so this is the ordinary social sign-in route;
+ * it answers with the authorization URL for the browser to follow.
  */
 async function startSso() {
-  const response = await fetch("/api/auth/sign-in/oauth2", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ providerId: "oidc", callbackURL: "/companies" }),
+  const { data } = await authClient.signIn.social({
+    provider: "oidc",
+    callbackURL: "/companies",
   });
 
-  const data = (await response.json()) as { url?: string };
-  if (data.url) window.location.href = data.url;
+  if (data?.url) window.location.href = data.url;
 }
 
 export function SignInForm({ ssoEnabled = false }: { ssoEnabled?: boolean }) {

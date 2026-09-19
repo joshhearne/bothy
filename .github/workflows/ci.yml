@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, types, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          # src/lib/env.ts validates at import, which happens during the build.
+          DATABASE_URL: postgres://strata:build@localhost:5432/strata
+          AUTH_SECRET: build-time-placeholder-value-unused-at-runtime
+          APP_URL: http://localhost:3000
+
+  migrations:
+    name: Migrations match the schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: drizzle-kit generate produces no new migration
+        run: |
+          npx drizzle-kit generate --name=ci-check
+          if ! git diff --quiet --exit-code -- drizzle; then
+            echo "::error::The Drizzle schema and drizzle/ are out of step. Run npm run db:generate and commit the result."
+            git --no-pager diff --stat -- drizzle
+            exit 1
+          fi
+
+  e2e:
+    name: End to end
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Write .env for the test stack
+        run: |
+          cp .env.example .env
+          {
+            echo "POSTGRES_PASSWORD=ci-postgres-password"
+            echo "DATABASE_URL=postgres://strata:ci-postgres-password@db:5432/strata"
+            echo "AUTH_SECRET=$(openssl rand -base64 32)"
+            echo "APP_PORT=3090"
+            echo "APP_URL=http://127.0.0.1:3090"
+            echo "SEED_ON_START=true"
+          } >> .env
+
+      - name: Start the stack
+        run: |
+          APP_PORT=3090 docker compose -p strata-test up -d --build
+          for _ in $(seq 1 60); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' strata-test-app-1 2>/dev/null || echo starting)
+            [ "$status" = "healthy" ] && exit 0
+            sleep 3
+          done
+          echo "::error::The app never became healthy"
+          docker compose -p strata-test logs app
+          exit 1
+
+      - name: Run Playwright
+        run: npm run test:e2e
+        env:
+          E2E_BASE_URL: http://127.0.0.1:3090
+          E2E_REPO: ${{ github.workspace }}
+          E2E_COMPOSE_PROJECT: strata-test
+          E2E_DOCKER_NETWORK: strata-test_public
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker compose -p strata-test logs --tail 200
+
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: |
+          docker compose -p strata-test down -v || true
+          docker rm -f mock-oidc bw-serve || true

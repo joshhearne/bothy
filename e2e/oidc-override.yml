@@ -1,0 +1,13 @@
+# Test-only overlay: points the app at the mock IdP and fixes APP_URL to the
+# port the e2e stack publishes, so redirect URIs come back to the right place.
+# Kept out of docker-compose.yml so an empty value can never override a real
+# OIDC configuration from .env.
+services:
+  app:
+    environment:
+      # Must match the origin the browser uses, or the OAuth state cookie
+      # set before the redirect is not sent back with the callback.
+      APP_URL: ${APP_URL:-http://127.0.0.1:3090}
+      OIDC_ISSUER: ${OIDC_ISSUER:-http://mock-oidc:8080/default}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-strata-e2e}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-strata-e2e-secret}

@@ -67,7 +67,7 @@ require('http')
 `;
 
 function docker(args: string[]): string {
-  return execFileSync("docker", args, { encoding: "utf8" });
+  return execFileSync("docker", args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
 export const VAULT_COLLECTION = "col-alpha";

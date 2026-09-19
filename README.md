@@ -82,7 +82,10 @@ volume, and store `.env` with them.
 ## Single sign-on
 
 Set `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` (all three or
-none) and the sign-in page offers SSO alongside local accounts. Discovery is
+none) and the sign-in page offers SSO alongside local accounts. `APP_URL` must
+be the origin people actually browse to: the redirect URI and the cookie that
+carries the OAuth state are both built from it, so a mismatch fails the
+callback with `state_mismatch`. Discovery is
 used, so Entra ID, Google, Authentik, and Keycloak all work. Accounts created
 this way start with the `tech` role and cannot reveal secrets until an
 administrator says so under Admin → Users.

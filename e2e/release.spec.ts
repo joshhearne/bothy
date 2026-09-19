@@ -92,7 +92,7 @@ test("seeding twice does not duplicate anything", async () => {
   // The container runs the seed on every start; run it again by hand.
   const { execFileSync } = await import("node:child_process");
   execFileSync("docker", ["compose", "-p", "strata-test", "exec", "-T", "app", "node", "/app/dist/seed.js"], {
-    cwd: "/home/jhearne/dev/strata",
+    cwd: process.env.E2E_REPO ?? process.cwd(),
     stdio: "ignore",
   });
 
@@ -167,7 +167,7 @@ test("the audit viewer is closed to non-admins", async ({ browser }) => {
   await tech.goto("/sign-in");
   await tech.getByLabel("Email").fill("e2e-audit-tech@example.com");
   await tech.getByLabel("Password").fill("an-audit-tech-password");
-  await tech.getByRole("button", { name: "Sign in" }).click();
+  await tech.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(tech).toHaveURL(/\/companies/);
 
   const response = await tech.goto("/admin/audit");
@@ -181,7 +181,7 @@ test("no SSO button appears when OIDC is not configured", async ({ browser }) =>
   const page = await context.newPage();
   await page.goto("/sign-in");
 
-  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in with SSO" })).toHaveCount(0);
   await expect(page.getByText("Use your local account.")).toBeVisible();
   await context.close();

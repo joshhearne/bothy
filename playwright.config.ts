@@ -19,5 +19,17 @@ export default defineConfig({
     locale: "en-US",
     timezoneId: "UTC",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: {
+          // The OIDC test's provider is reachable as mock-oidc:8080 from the
+          // app container; map that name to the published port for the browser.
+          args: ["--host-resolver-rules=MAP mock-oidc 127.0.0.1"],
+        },
+      },
+    },
+  ],
 });
