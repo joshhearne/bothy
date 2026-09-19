@@ -2,12 +2,13 @@ import Link from "next/link";
 import { FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { plural } from "@/lib/utils";
+
 import { requireUser } from "@/server/auth/session";
 import { listCompanies } from "@/server/services/companies";
 import { listDocTypes } from "@/server/services/doc-types";
 import { searchDocuments, snippetToSegments } from "@/server/services/search";
-import { formatDateTime } from "@/server/fields/render";
+import { formatDateTime, plural } from "@/i18n/format";
+import { getI18n } from "@/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -28,55 +29,57 @@ export default async function SearchPage({
     cursor: params.cursor,
   });
 
+  const { locale, messages: t } = await getI18n();
+
   const selectClass =
     "h-10 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Search</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{t.search.title}</h1>
 
       <form className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Input
           name="q"
           type="search"
           defaultValue={q}
-          placeholder="Search every document"
-          aria-label="Search query"
+          placeholder={t.search.placeholder}
+          aria-label={t.search.query}
           autoFocus
           className="sm:max-w-sm"
         />
-        <select name="company" defaultValue={params.company ?? ""} aria-label="Company" className={selectClass}>
-          <option value="">Any company</option>
+        <select name="company" defaultValue={params.company ?? ""} aria-label={t.search.company} className={selectClass}>
+          <option value="">{t.search.anyCompany}</option>
           {companies.map((company) => (
             <option key={company.id} value={company.id}>
               {company.name}
             </option>
           ))}
         </select>
-        <select name="docType" defaultValue={params.docType ?? ""} aria-label="Doc type" className={selectClass}>
-          <option value="">Any doc type</option>
+        <select name="docType" defaultValue={params.docType ?? ""} aria-label={t.search.docType} className={selectClass}>
+          <option value="">{t.search.anyDocType}</option>
           {docTypes.map((docType) => (
             <option key={docType.id} value={docType.id}>
               {docType.name}
             </option>
           ))}
         </select>
-        <Button type="submit">Search</Button>
+        <Button type="submit">{t.search.submit}</Button>
       </form>
 
       {q === "" ? (
         <p className="text-sm text-[var(--muted-foreground)]">
-          Type a word or phrase. Quoted phrases and OR work, and titles rank above field values.
+          {t.search.hint}
         </p>
       ) : results.hits.length === 0 ? (
         <p className="text-sm text-[var(--muted-foreground)]">
-          Nothing matches <span className="font-medium">{q}</span>.
+          {t.search.noMatches(q)}
         </p>
       ) : (
         <>
           <p className="text-sm text-[var(--muted-foreground)]">
-            {plural(results.hits.length, "result")}
-            {results.nextCursor ? " on this page" : ""}
+            {plural(results.hits.length, t.units.result, t.units.results, locale)}
+            {results.nextCursor ? t.search.onThisPage : ""}
           </p>
 
           <ul className="flex flex-col gap-2">
@@ -127,7 +130,7 @@ export default async function SearchPage({
                 }}
                 className="text-sm underline"
               >
-                Next page
+                {t.search.nextPage}
               </Link>
             </div>
           )}

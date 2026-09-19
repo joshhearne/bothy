@@ -7,6 +7,7 @@ import { listLocations } from "@/server/services/locations";
 import { listDocTypes, listTemplateFields } from "@/server/services/doc-types";
 import { loadOptionIndex } from "@/server/services/option-lists";
 import { loadLinkTargets, loadSecretItems } from "@/server/services/documents";
+import { getMessages } from "@/i18n/server";
 import { DocumentForm } from "../../../../documents/document-form";
 
 export const dynamic = "force-dynamic";
@@ -28,22 +29,21 @@ export default async function NewDocumentPage({
   const { docType: docTypeId, location: locationId } = await searchParams;
   const [docTypes, locations] = await Promise.all([listDocTypes(), listLocations(id)]);
 
+  const t = await getMessages();
   const chosen = docTypes.find((candidate) => candidate.id === docTypeId);
 
   if (!chosen) {
     return (
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">New document</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.companies.newDocument}</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Pick a doc type for {company.name}.
+            {t.documents.pickDocType(company.name)}
           </p>
         </div>
 
         {docTypes.length === 0 ? (
-          <p className="text-sm text-[var(--muted-foreground)]">
-            No doc types exist yet. An administrator creates them under Admin → Doc types.
-          </p>
+          <p className="text-sm text-[var(--muted-foreground)]">{t.documents.noDocTypes}</p>
         ) : (
           <ul className="grid gap-2 sm:grid-cols-2">
             {docTypes.map((candidate) => (
@@ -57,7 +57,9 @@ export default async function NewDocumentPage({
                 >
                   <span className="font-medium">{candidate.name}</span>
                   <span className="text-sm text-[var(--muted-foreground)]">
-                    {candidate.scope === "company" ? "Company scope" : "Location scope"}
+                    {candidate.scope === "company"
+                      ? t.documents.companyScope
+                      : t.documents.locationScope}
                   </span>
                 </Link>
               </li>
@@ -75,15 +77,17 @@ export default async function NewDocumentPage({
     return (
       <div className="flex flex-col gap-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">New {chosen.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {t.documents.newOf(chosen.name)}
+          </h1>
           <p className="text-sm text-[var(--muted-foreground)]">
-            {chosen.name} documents attach to a location. Pick one.
+            {t.documents.needsLocation(chosen.name)}
           </p>
         </div>
 
         {locations.length === 0 ? (
           <p className="text-sm text-[var(--muted-foreground)]">
-            {company.name} has no locations yet. Add one on the company page first.
+            {t.documents.noLocationsForCompany(company.name)}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -107,7 +111,7 @@ export default async function NewDocumentPage({
           href={`/companies/${id}/documents/new`}
           className={buttonVariants({ variant: "outline", size: "sm" })}
         >
-          Choose a different doc type
+          {t.documents.chooseDifferentType}
         </Link>
       </div>
     );
@@ -123,7 +127,7 @@ export default async function NewDocumentPage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">New {chosen.name}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.documents.newOf(chosen.name)}</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
           {company.name}
           {chosenLocation ? ` · ${chosenLocation.name}` : ""}

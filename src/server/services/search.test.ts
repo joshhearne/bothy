@@ -3,7 +3,7 @@ import { searchInputSchema, snippetToSegments } from "./search";
 
 describe("searchInputSchema", () => {
   it("trims the query and applies defaults", () => {
-    expect(searchInputSchema.parse({ q: "  fibre  " })).toMatchObject({ q: "fibre", limit: 25 });
+    expect(searchInputSchema.parse({ q: "  fiber  " })).toMatchObject({ q: "fiber", limit: 25 });
   });
 
   it("caps the page size", () => {

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/alert";
 import type { FormState } from "@/lib/form";
+import { useMessages } from "@/i18n/client";
 import { addTemplateFieldAction, updateTemplateFieldAction } from "./actions";
 
 export type FieldTypeChoice = {
@@ -21,9 +22,10 @@ export type DocTypeChoice = { id: string; name: string };
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useMessages();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? t.common.saving : label}
     </Button>
   );
 }
@@ -47,6 +49,7 @@ function Controls({
     required?: boolean;
   };
 }) {
+  const t = useMessages();
   const [fieldType, setFieldType] = useState(defaults.fieldType ?? "text");
   const choice = fieldTypes.find((t) => t.value === fieldType);
   const needsList = choice?.usesOptionList ?? false;
@@ -54,7 +57,7 @@ function Controls({
 
   return (
     <>
-      <Field id="label" label="Label" error={fieldErrors.label}>
+      <Field id="label" label={t.editor.label} error={fieldErrors.label}>
         <Input
           id="label"
           name="label"
@@ -65,7 +68,7 @@ function Controls({
         />
       </Field>
 
-      <Field id="fieldType" label="Type" error={fieldErrors.fieldType}>
+      <Field id="fieldType" label={t.editor.type} error={fieldErrors.fieldType}>
         <select
           id="fieldType"
           name="fieldType"
@@ -82,14 +85,14 @@ function Controls({
       </Field>
 
       {needsList && (
-        <Field id="optionListId" label="Option list" error={fieldErrors.optionListId}>
+        <Field id="optionListId" label={t.editor.optionList} error={fieldErrors.optionListId}>
           <select
             id="optionListId"
             name="optionListId"
             defaultValue={defaults.optionListId ?? ""}
             className="h-10 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
-            <option value="">Choose a list…</option>
+            <option value="">{t.editor.chooseList}</option>
             {optionLists.map((list) => (
               <option key={list.id} value={list.id}>
                 {list.name}
@@ -102,9 +105,9 @@ function Controls({
       {needsDocType && (
         <Field
           id="linkDocTypeId"
-          label="Links to"
+          label={t.editor.linksTo}
           error={fieldErrors.linkDocTypeId}
-          hint="Restricts the picker to documents of one type in the same company."
+          hint={t.admin.docTypes.linkHint}
         >
           <select
             id="linkDocTypeId"
@@ -112,7 +115,7 @@ function Controls({
             defaultValue={defaults.linkDocTypeId ?? ""}
             className="h-10 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
-            <option value="">Any document in this company</option>
+            <option value="">{t.editor.anyDocumentInCompany}</option>
             {docTypes.map((docType) => (
               <option key={docType.id} value={docType.id}>
                 {docType.name}
@@ -129,7 +132,7 @@ function Controls({
           defaultChecked={defaults.required ?? false}
           className="size-4 rounded border"
         />
-        Required
+        {t.common.required}
       </label>
     </>
   );
@@ -148,6 +151,7 @@ export function AddTemplateFieldForm({
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(addTemplateFieldAction, {});
   const formRef = useRef<HTMLFormElement>(null);
+  const t = useMessages();
 
   useEffect(() => {
     if (state.ok) formRef.current?.reset();
@@ -161,7 +165,7 @@ export function AddTemplateFieldForm({
     >
       <FormError>{state.error}</FormError>
       <input type="hidden" name="docTypeId" value={docTypeId} />
-      <h3 className="text-sm font-semibold">Add a template field</h3>
+      <h3 className="text-sm font-semibold">{t.admin.docTypes.addField}</h3>
       <Controls
         fieldTypes={fieldTypes}
         optionLists={optionLists}
@@ -170,7 +174,7 @@ export function AddTemplateFieldForm({
         defaults={{}}
       />
       <div>
-        <Submit label="Add field" />
+        <Submit label={t.admin.docTypes.addFieldSubmit} />
       </div>
     </form>
   );
@@ -197,6 +201,7 @@ export function EditTemplateFieldForm({
   docTypes: DocTypeChoice[];
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(updateTemplateFieldAction, {});
+  const t = useMessages();
 
   return (
     <form action={formAction} className="flex max-w-xl flex-col gap-5">
@@ -211,7 +216,7 @@ export function EditTemplateFieldForm({
         defaults={field}
       />
       <div>
-        <Submit label="Save field" />
+        <Submit label={t.admin.docTypes.saveField} />
       </div>
     </form>
   );

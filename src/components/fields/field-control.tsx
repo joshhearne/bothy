@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/fields/rich-text-editor";
 import type { FieldType } from "@/server/fields/types";
+import { useMessages } from "@/i18n/client";
 
 export type EditableField = {
   id: string;
@@ -69,6 +70,7 @@ export function FieldControl({
   const name = inputName(field.id);
   const id = `f-${field.id}`;
   const invalid = !!error;
+  const t = useMessages();
 
   const asText = typeof value === "string" ? value : "";
   const checked = value === true;
@@ -192,9 +194,7 @@ export function FieldControl({
               {/* Keeps the field present when every box is cleared. */}
               <input type="hidden" name={name} value="" />
               {options.length === 0 && (
-                <p className="text-sm text-[var(--muted-foreground)]">
-                  This list has no options yet.
-                </p>
+                <p className="text-sm text-[var(--muted-foreground)]">{t.editor.emptyList}</p>
               )}
               {options.map((option) => (
                 <label key={option.id} className="flex items-center gap-2 text-sm">
@@ -251,8 +251,7 @@ export function FieldControl({
         if (options.length === 0) {
           return (
             <p className="rounded-md border border-dashed px-3 py-2 text-sm text-[var(--muted-foreground)]">
-              No vault items are available. Map this company to a Bitwarden collection under
-              Admin → Vault, and check the sidecar is unlocked.
+              {t.editor.noVaultItems}
             </p>
           );
         }
@@ -299,6 +298,7 @@ function AddOptionButton({
   const [open, setOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [busy, setBusy] = useState(false);
+  const t = useMessages();
 
   if (!open) {
     return (
@@ -306,7 +306,7 @@ function AddOptionButton({
         type="button"
         variant="outline"
         size="icon"
-        aria-label={`Add an option to ${fieldLabel}`}
+        aria-label={t.editor.addOptionTo(fieldLabel)}
         onClick={() => setOpen(true)}
       >
         <Plus className="size-4" aria-hidden />
@@ -318,7 +318,7 @@ function AddOptionButton({
     <div className="flex items-center gap-2">
       <Input
         autoFocus
-        aria-label={`New option for ${fieldLabel}`}
+        aria-label={t.editor.newOptionFor(fieldLabel)}
         value={label}
         onChange={(event) => setLabel(event.target.value)}
         onKeyDown={(event) => {
@@ -331,10 +331,10 @@ function AddOptionButton({
         className="w-48"
       />
       <Button type="button" size="sm" disabled={busy || label.trim() === ""} onClick={submit}>
-        {busy ? "Adding…" : "Add"}
+        {busy ? t.editor.adding : t.editor.add}
       </Button>
       <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
-        Cancel
+        {t.common.cancel}
       </Button>
     </div>
   );
@@ -354,6 +354,8 @@ function AddOptionButton({
 
 /** Label row shared by the create form and the inline editor. */
 export function FieldLabel({ field }: { field: EditableField }) {
+  const t = useMessages();
+
   return (
     <div className="flex items-center gap-2">
       <Label htmlFor={`f-${field.id}`} id={`f-${field.id}-label`}>
@@ -368,7 +370,7 @@ export function FieldLabel({ field }: { field: EditableField }) {
       </Label>
       {field.isLocal && (
         <span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--muted-foreground)]">
-          This document
+          {t.editor.thisDocument}
         </span>
       )}
     </div>

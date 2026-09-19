@@ -7,6 +7,8 @@ import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/companies";
 import { buildStorageKey, getStorage } from "@/server/storage";
 import { sanitizeFilename } from "@/server/storage/filename";
+import { formatNumber } from "@/i18n/format";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/locales";
 
 export type AttachmentRow = {
   id: string;
@@ -146,8 +148,8 @@ export async function removeAttachment(id: string, actorId: string): Promise<{ d
   return { documentId: row.documentId };
 }
 
-/** Human-readable size, en-US. */
-export function formatBytes(bytes: number): string {
+/** Human-readable size in the reader's locale. */
+export function formatBytes(bytes: number, locale: Locale = DEFAULT_LOCALE): string {
   const units = ["B", "KB", "MB", "GB"];
   let value = bytes;
   let unit = 0;
@@ -156,5 +158,5 @@ export function formatBytes(bytes: number): string {
     unit += 1;
   }
   const rounded = unit === 0 ? value : Number(value.toFixed(value < 10 ? 1 : 0));
-  return `${new Intl.NumberFormat("en-US").format(rounded)} ${units[unit]}`;
+  return `${formatNumber(rounded, locale)} ${units[unit]}`;
 }

@@ -4,6 +4,9 @@
  * Loads the doc type pack from docs/DOCTYPE_STARTER_PACK.md, the option lists
  * those types need, and one internal company to hang documents on.
  *
+ * SEED_LOCALE picks the wording: en-US by default, en-GB for British spelling.
+ * Only the strings that actually differ are overridden.
+ *
  * It never creates users — the first admin comes from the setup screen.
  */
 import "dotenv/config";
@@ -24,6 +27,19 @@ if (!url) throw new Error("DATABASE_URL is required");
 
 const pool = new Pool({ connectionString: url, max: 1 });
 const db = drizzle(pool);
+
+const SEED_LOCALE = process.env.SEED_LOCALE === "en-GB" ? "en-GB" : "en-US";
+
+/** en-GB wording for the starter content. Everything else stays as written. */
+const EN_GB_TERMS: Record<string, string> = {
+  Fiber: "Fibre",
+  "Your own organization.": "Your own organisation.",
+};
+
+function term(value: string): string {
+  if (SEED_LOCALE !== "en-GB") return value;
+  return EN_GB_TERMS[value] ?? value;
+}
 
 type FieldType = (typeof fields.$inferInsert)["fieldType"];
 
@@ -46,7 +62,7 @@ type NewDocType = {
 
 const OPTION_LISTS: Record<string, string[]> = {
   "Vendor Types": ["ISP", "Hardware", "Software", "Distributor", "Carrier"],
-  "Circuit Types": ["Fibre", "FTTC", "FTTP", "DSL", "Leased Line", "4G/5G", "Satellite"],
+  "Circuit Types": ["Fiber", "FTTC", "FTTP", "DSL", "Leased Line", "4G/5G", "Satellite"],
   "Firewall Vendors": ["Fortinet", "Palo Alto", "Sophos", "WatchGuard", "Cisco", "pfSense"],
   "Wi-Fi Security": ["WPA2-Personal", "WPA2-Enterprise", "WPA3-Personal", "WPA3-Enterprise", "Open"],
   "Server Roles": [
@@ -202,7 +218,7 @@ async function upsertOptionList(name: string, items: string[]): Promise<string> 
 
   await db
     .insert(optionItems)
-    .values(items.map((label, index) => ({ listId: list.id, label, sortOrder: index })))
+    .values(items.map((label, index) => ({ listId: list.id, label: term(label), sortOrder: index })))
     .onConflictDoNothing({ target: [optionItems.listId, optionItems.label] });
 
   return list.id;
@@ -272,7 +288,11 @@ try {
     (
       await db
         .insert(companies)
-        .values({ name: "Internal IT", isInternal: true, notes: "Your own organization." })
+        .values({
+          name: "Internal IT",
+          isInternal: true,
+          notes: term("Your own organization."),
+        })
         .returning({ id: companies.id })
     )[0]?.id;
 
@@ -289,7 +309,8 @@ try {
   }
 
   console.log(
-    `seed complete: ${DOC_TYPES.length} doc types, ${Object.keys(OPTION_LISTS).length} option lists`,
+    `seed complete (${SEED_LOCALE}): ${DOC_TYPES.length} doc types, ` +
+      `${Object.keys(OPTION_LISTS).length} option lists`,
   );
 } finally {
   await pool.end();

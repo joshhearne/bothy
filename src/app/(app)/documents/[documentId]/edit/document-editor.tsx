@@ -33,6 +33,7 @@ import {
   type FieldOption,
 } from "@/components/fields/field-control";
 import type { FormState } from "@/lib/form";
+import { useMessages } from "@/i18n/client";
 import type { EditableFieldType } from "@/server/fields/types";
 import { saveDocumentAction } from "../../actions";
 import {
@@ -55,9 +56,10 @@ export type DocTypeChoice = { id: string; name: string };
 
 function SaveButton() {
   const { pending } = useFormStatus();
+  const t = useMessages();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : "Save document"}
+      {pending ? t.common.saving : t.documents.saveDocument}
     </Button>
   );
 }
@@ -114,6 +116,7 @@ export function DocumentEditor({
   const [promoting, setPromoting] = useState<EditableField | null>(null);
   const [addingField, setAddingField] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const t = useMessages();
 
   const fieldErrors = state.fieldErrors ?? {};
 
@@ -135,7 +138,7 @@ export function DocumentEditor({
       return true;
     }
     setNotice(null);
-    setInlineError(result.error ?? "That did not work");
+    setInlineError(result.error ?? t.editor.failed);
     return false;
   }
 
@@ -153,7 +156,7 @@ export function DocumentEditor({
     const movedTemplateField = fields[from]?.isLocal === false;
 
     // Rule 5: moving a template field asks whether this is a one-document
-    // change or a change to the template itself. Cancelling puts the order back
+    // change or a change to the template itself. Canceling puts the order back
     // the way it was before this drag.
     if (movedTemplateField) {
       setPendingOrder({ order, previous: fields });
@@ -162,7 +165,7 @@ export function DocumentEditor({
 
     startTransition(async () => {
       const result = await reorderFieldsAction(documentId, docTypeId, order, "document");
-      report(result, "Field order saved for this document.");
+      report(result, t.editor.orderSavedForDocument);
     });
   }
 
@@ -175,8 +178,8 @@ export function DocumentEditor({
       report(
         result,
         scope === "template"
-          ? `Field order updated for every ${docTypeName} document.`
-          : "Field order saved for this document.",
+          ? t.editor.orderSavedForTemplate(docTypeName)
+          : t.editor.orderSavedForDocument,
       );
     });
   }
@@ -185,11 +188,11 @@ export function DocumentEditor({
     const result = await addOptionItemInlineAction(documentId, listId, label);
     if (!result.ok) {
       setNotice(null);
-      setInlineError(result.error ?? result.fieldErrors?.label ?? "Could not add that option");
+      setInlineError(result.error ?? result.fieldErrors?.label ?? t.editor.failed);
       return null;
     }
     setInlineError(null);
-    setNotice(`Added "${result.data.label}".`);
+    setNotice(t.editor.addedOption(result.data.label));
     setOptions((current) => ({
       ...current,
       [listId]: [...(current[listId] ?? []), result.data],
@@ -213,16 +216,16 @@ export function DocumentEditor({
       {pendingOrder && (
         <div
           role="group"
-          aria-label="Apply new field order"
+          aria-label={t.editor.applyOrder}
           className="flex flex-wrap items-center gap-3 rounded-md border px-4 py-3"
         >
-          <p className="text-sm">Apply this order to…</p>
+          <p className="text-sm">{t.editor.applyOrderPrompt}</p>
           <Button type="button" size="sm" variant="outline" onClick={() => persistOrder("document")}>
-            This document only
+            {t.editor.thisDocumentOnly}
           </Button>
           {canManageTemplate && (
             <Button type="button" size="sm" onClick={() => persistOrder("template")}>
-              Update template
+              {t.editor.updateTemplate}
             </Button>
           )}
           <Button
@@ -234,7 +237,7 @@ export function DocumentEditor({
               setPendingOrder(null);
             }}
           >
-            Cancel
+            {t.common.cancel}
           </Button>
         </div>
       )}
@@ -243,7 +246,7 @@ export function DocumentEditor({
         <FormError>{state.error}</FormError>
         <input type="hidden" name="documentId" value={documentId} />
 
-        <Field id="title" label="Title" error={fieldErrors.title}>
+        <Field id="title" label={t.common.title} error={fieldErrors.title}>
           <Input
             id="title"
             name="title"
@@ -279,7 +282,7 @@ export function DocumentEditor({
                   onArchive={() =>
                     startTransition(async () => {
                       const result = await archiveFieldAction(documentId, field.id);
-                      if (report(result, `Archived ${field.label}.`)) {
+                      if (report(result, t.editor.archivedField(field.label))) {
                         setFields((current) => current.filter((item) => item.id !== field.id));
                       }
                     })
@@ -297,9 +300,9 @@ export function DocumentEditor({
 
       {promoting && (
         <FieldDraftPanel
-          heading={`Add "${promoting.label}" to the ${docTypeName} template`}
-          description="Confirm the label, type, and option list. Every document of this type gains the field, empty."
-          submitLabel="Add to template"
+          heading={t.editor.promoteHeading(promoting.label, docTypeName)}
+          description={t.editor.promoteDescription}
+          submitLabel={t.editor.addToTemplate}
           fieldTypes={fieldTypes}
           optionLists={optionLists}
           docTypes={docTypeChoices}
@@ -321,7 +324,7 @@ export function DocumentEditor({
                   current.map((item) => (item.id === promoted.id ? promoted : item)),
                 );
                 setPromoting(null);
-                report(result, `"${promoted.label}" is now part of the template.`);
+                report(result, t.editor.promoted(promoted.label));
               } else {
                 report(result, "");
               }
@@ -332,9 +335,9 @@ export function DocumentEditor({
 
       {addingField ? (
         <FieldDraftPanel
-          heading="Add a field to this document"
-          description="It belongs to this document only until you add it to the template."
-          submitLabel="Add field"
+          heading={t.editor.addFieldHeading}
+          description={t.editor.addFieldDescription}
+          submitLabel={t.editor.addField}
           fieldTypes={fieldTypes}
           optionLists={optionLists}
           docTypes={docTypeChoices}
@@ -358,7 +361,7 @@ export function DocumentEditor({
                   [field.id]: toFormValue(field.fieldType, null),
                 }));
                 setAddingField(false);
-                report(result, `Added ${field.label}.`);
+                report(result, t.editor.added(field.label));
               } else {
                 report(result, "");
               }
@@ -369,7 +372,7 @@ export function DocumentEditor({
         <div>
           <Button type="button" variant="outline" onClick={() => setAddingField(true)}>
             <Plus className="size-4" aria-hidden />
-            Add field
+            {t.editor.addField}
           </Button>
         </div>
       )}
@@ -403,6 +406,7 @@ function SortableField({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: field.id,
   });
+  const t = useMessages();
 
   return (
     <li
@@ -413,7 +417,7 @@ function SortableField({
       <div className="flex items-start gap-2">
         <button
           type="button"
-          aria-label={`Reorder ${field.label}`}
+          aria-label={t.editor.reorderField(field.label)}
           className="mt-1 cursor-grab rounded p-1 text-[var(--muted-foreground)] hover:bg-[var(--muted)]"
           {...attributes}
           {...listeners}
@@ -427,12 +431,12 @@ function SortableField({
             <div className="flex items-center gap-1">
               {field.isLocal && (
                 <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={onPromote}>
-                  Add to template
+                  {t.editor.addToTemplate}
                 </Button>
               )}
               {canArchive && (
                 <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={onArchive}>
-                  Archive
+                  {t.common.archive}
                 </Button>
               )}
             </div>
@@ -482,6 +486,7 @@ function FieldDraftPanel({
   const [linkDocTypeId, setLinkDocTypeId] = useState(initial.linkDocTypeId ?? "");
   const [required, setRequired] = useState(initial.required);
 
+  const t = useMessages();
   const choice = fieldTypes.find((type) => type.value === fieldType);
   const needsList = choice?.usesOptionList ?? false;
   const needsDocType = choice?.usesLinkDocType ?? false;
@@ -496,7 +501,7 @@ function FieldDraftPanel({
         <p className="text-sm text-[var(--muted-foreground)]">{description}</p>
       </div>
 
-      <Field id="draft-label" label="Label">
+      <Field id="draft-label" label={t.editor.label}>
         <Input
           id="draft-label"
           value={label}
@@ -506,7 +511,7 @@ function FieldDraftPanel({
         />
       </Field>
 
-      <Field id="draft-type" label="Type">
+      <Field id="draft-type" label={t.editor.type}>
         <select
           id="draft-type"
           value={fieldType}
@@ -522,14 +527,14 @@ function FieldDraftPanel({
       </Field>
 
       {needsList && (
-        <Field id="draft-list" label="Option list">
+        <Field id="draft-list" label={t.editor.optionList}>
           <select
             id="draft-list"
             value={optionListId}
             onChange={(event) => setOptionListId(event.target.value)}
             className="h-10 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
-            <option value="">Choose a list…</option>
+            <option value="">{t.editor.chooseList}</option>
             {optionLists.map((list) => (
               <option key={list.id} value={list.id}>
                 {list.name}
@@ -540,14 +545,14 @@ function FieldDraftPanel({
       )}
 
       {needsDocType && (
-        <Field id="draft-doc-type" label="Links to">
+        <Field id="draft-doc-type" label={t.editor.linksTo}>
           <select
             id="draft-doc-type"
             value={linkDocTypeId}
             onChange={(event) => setLinkDocTypeId(event.target.value)}
             className="h-10 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           >
-            <option value="">Any document in this company</option>
+            <option value="">{t.editor.anyDocumentInCompany}</option>
             {docTypes.map((docType) => (
               <option key={docType.id} value={docType.id}>
                 {docType.name}
@@ -564,7 +569,7 @@ function FieldDraftPanel({
           onChange={(event) => setRequired(event.target.checked)}
           className="size-4 rounded border"
         />
-        Required
+        {t.common.required}
       </label>
 
       <div className="flex gap-2">
@@ -581,10 +586,10 @@ function FieldDraftPanel({
             })
           }
         >
-          {busy ? "Saving…" : submitLabel}
+          {busy ? t.common.saving : submitLabel}
         </Button>
         <Button type="button" variant="ghost" onClick={onCancel}>
-          Cancel
+          {t.common.cancel}
         </Button>
       </div>
     </section>

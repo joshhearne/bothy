@@ -7,13 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/alert";
 import type { FormState } from "@/lib/form";
+import { useMessages } from "@/i18n/client";
 import { createDocTypeAction, updateDocTypeAction } from "./actions";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useMessages();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? t.common.saving : label}
     </Button>
   );
 }
@@ -28,14 +30,15 @@ export function DocTypeForm({
   const action = values.id ? updateDocTypeAction : createDocTypeAction;
   const [state, formAction] = useActionState<FormState, FormData>(action, {});
   const fieldErrors = state.fieldErrors ?? {};
+  const t = useMessages();
 
   return (
     <form action={formAction} className="flex max-w-xl flex-col gap-5">
       <FormError>{state.error}</FormError>
-      {state.ok && <p className="text-sm text-[var(--muted-foreground)]">Saved.</p>}
+      {state.ok && <p className="text-sm text-[var(--muted-foreground)]">{t.common.saved}</p>}
       {values.id && <input type="hidden" name="id" value={values.id} />}
 
-      <Field id="name" label="Name" error={fieldErrors.name}>
+      <Field id="name" label={t.common.name} error={fieldErrors.name}>
         <Input
           id="name"
           name="name"
@@ -48,9 +51,9 @@ export function DocTypeForm({
 
       <Field
         id="scope"
-        label="Scope"
+        label={t.admin.docTypes.scope}
         error={fieldErrors.scope}
-        hint="Company documents attach to the company. Location documents attach to one site."
+        hint={t.admin.docTypes.scopeHint}
       >
         <select
           id="scope"
@@ -63,7 +66,7 @@ export function DocTypeForm({
         </select>
       </Field>
 
-      <Field id="icon" label="Icon" error={fieldErrors.icon} hint="Optional lucide icon name.">
+      <Field id="icon" label={t.admin.docTypes.icon} error={fieldErrors.icon} hint={t.admin.docTypes.iconHint}>
         <Input id="icon" name="icon" defaultValue={values.icon ?? ""} maxLength={64} />
       </Field>
 

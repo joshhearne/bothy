@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { canManageDocTypes, requireUser } from "@/server/auth/session";
 import { getOptionList } from "@/server/services/option-lists";
+import { getMessages } from "@/i18n/server";
 import { AddOptionItemForm, RenameOptionListForm } from "../../option-list-forms";
 import { archiveOptionItemAction, unarchiveOptionItemAction } from "../../actions";
 
@@ -15,6 +16,7 @@ export default async function OptionListPage({ params }: { params: Promise<{ id:
   const list = await getOptionList(id);
   if (!list) notFound();
 
+  const t = await getMessages();
   const active = list.items.filter((item) => !item.archivedAt);
   const archived = list.items.filter((item) => item.archivedAt);
 
@@ -23,10 +25,10 @@ export default async function OptionListPage({ params }: { params: Promise<{ id:
       <h1 className="text-2xl font-semibold tracking-tight">{list.name}</h1>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Options</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t.admin.optionLists.options}</h2>
 
         {active.length === 0 ? (
-          <p className="text-sm text-[var(--muted-foreground)]">No options yet.</p>
+          <p className="text-sm text-[var(--muted-foreground)]">{t.admin.optionLists.noOptions}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {active.map((item) => (
@@ -36,7 +38,7 @@ export default async function OptionListPage({ params }: { params: Promise<{ id:
                   <input type="hidden" name="id" value={item.id} />
                   <input type="hidden" name="listId" value={list.id} />
                   <Button type="submit" variant="ghost" size="sm">
-                    Archive
+                    {t.common.archive}
                   </Button>
                 </form>
               </li>
@@ -49,7 +51,7 @@ export default async function OptionListPage({ params }: { params: Promise<{ id:
         {archived.length > 0 && (
           <div className="flex flex-col gap-2">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-              Archived options
+              {t.admin.optionLists.archivedOptions}
             </h3>
             <ul className="flex flex-col gap-2">
               {archived.map((item) => (
@@ -64,22 +66,21 @@ export default async function OptionListPage({ params }: { params: Promise<{ id:
                     <input type="hidden" name="id" value={item.id} />
                     <input type="hidden" name="listId" value={list.id} />
                     <Button type="submit" variant="ghost" size="sm">
-                      Restore
+                      {t.common.restore}
                     </Button>
                   </form>
                 </li>
               ))}
             </ul>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Archived options cannot be chosen again, but documents that already hold one still
-              show its label.
+              {t.admin.optionLists.archivedNote}
             </p>
           </div>
         )}
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Rename</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t.admin.optionLists.rename}</h2>
         <RenameOptionListForm list={{ id: list.id, name: list.name }} />
       </section>
     </div>

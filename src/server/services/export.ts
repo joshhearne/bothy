@@ -5,7 +5,8 @@ import { docTypes, documents, locations } from "@/server/db/schema";
 import { getCompanyOrThrow } from "@/server/services/companies";
 import { getDocumentDetail } from "@/server/services/documents";
 import { serializeFieldValues, type ApiFieldValue } from "@/server/api/serializers";
-import { formatDate } from "@/server/fields/render";
+import { formatDate } from "@/i18n/format";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/locales";
 
 /**
  * Per-company export, JSON or markdown. A secret_ref exports as the reference
@@ -102,7 +103,7 @@ function escapeTableCell(value: string): string {
   return value.replace(/\|/g, "\\|").replace(/\n+/g, " ");
 }
 
-function fieldToMarkdown(field: ApiFieldValue): string {
+function fieldToMarkdown(field: ApiFieldValue, locale: Locale): string {
   if (field.value === null || field.value === undefined) return "—";
 
   if (field.type === "secret_ref") {
@@ -114,13 +115,13 @@ function fieldToMarkdown(field: ApiFieldValue): string {
   if (Array.isArray(field.resolved)) return field.resolved.join(", ");
   if (field.type === "markdown") return String(field.value);
   if (field.type === "richtext") return "(rich text, see the JSON export)";
-  if (field.type === "date") return formatDate(String(field.value));
+  if (field.type === "date") return formatDate(String(field.value), locale);
   if (typeof field.resolved === "string" && field.resolved !== "") return field.resolved;
   return String(field.value);
 }
 
 /** A readable document per company, grouped by doc type. */
-export function toMarkdown(data: CompanyExport): string {
+export function toMarkdown(data: CompanyExport, locale: Locale = DEFAULT_LOCALE): string {
   const lines: string[] = [];
 
   lines.push(`# ${data.company.name}`, "");
@@ -163,7 +164,7 @@ export function toMarkdown(data: CompanyExport): string {
     }
 
     for (const field of filled) {
-      const rendered = fieldToMarkdown(field);
+      const rendered = fieldToMarkdown(field, locale);
       if (field.type === "markdown" && rendered.includes("\n")) {
         lines.push(`**${field.label}**`, "", rendered, "");
       } else {

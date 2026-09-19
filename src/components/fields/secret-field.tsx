@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, KeyRound, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useMessages } from "@/i18n/client";
 import { revealPasswordAction, revealTotpAction } from "@/app/(app)/documents/vault-actions";
 
 /**
@@ -36,6 +37,7 @@ export function SecretField({
   const [totp, setTotp] = useState<{ code: string; remaining: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const t = useMessages();
 
   async function reveal() {
     setBusy(true);
@@ -76,10 +78,10 @@ export function SecretField({
       {!brokering ? (
         <p className="text-[var(--muted-foreground)]">
           {vaultStatus === "locked"
-            ? "The vault is locked, so this field is showing a link only."
+            ? t.secrets.locked
             : vaultStatus === "unreachable"
-              ? "The vault sidecar is unreachable, so this field is showing a link only."
-              : "This provider stores links only."}{" "}
+              ? t.secrets.unreachable
+              : t.secrets.linkOnlyProvider}{" "}
           {webVaultUrl && (
             <a
               href={webVaultUrl}
@@ -87,20 +89,20 @@ export function SecretField({
               rel="noopener noreferrer nofollow"
               className="underline"
             >
-              Open in the web vault
+              {t.secrets.openWebVault}
             </a>
           )}
         </p>
       ) : !canReveal ? (
         <p className="text-[var(--muted-foreground)]">
-          You do not have permission to reveal secrets.
+          {t.secrets.noPermission}
         </p>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           {password === null ? (
             <Button type="button" variant="outline" size="sm" disabled={busy} onClick={reveal}>
               <Eye className="size-4" aria-hidden />
-              Reveal password
+              {t.secrets.revealPassword}
             </Button>
           ) : (
             <>
@@ -110,17 +112,17 @@ export function SecretField({
                 variant="ghost"
                 size="sm"
                 onClick={() => setPassword(null)}
-                aria-label="Hide password"
+                aria-label={t.secrets.hidePassword}
               >
                 <EyeOff className="size-4" aria-hidden />
-                Hide
+                {t.secrets.hide}
               </Button>
             </>
           )}
 
           <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={code}>
             <Timer className="size-4" aria-hidden />
-            {totp ? `${totp.code} · ${totp.remaining}s` : "TOTP"}
+            {totp ? `${totp.code} · ${totp.remaining}s` : t.secrets.totp}
           </Button>
         </div>
       )}

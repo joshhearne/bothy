@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { plural } from "@/lib/utils";
+
 import { canManageDocTypes, requireUser } from "@/server/auth/session";
+import { getI18n } from "@/i18n/server";
+import { plural } from "@/i18n/format";
 import { listOptionLists } from "@/server/services/option-lists";
 import { CreateOptionListForm } from "../option-list-forms";
 
@@ -12,18 +14,19 @@ export default async function OptionListsPage() {
   if (!canManageDocTypes(user.role)) redirect("/companies");
 
   const lists = await listOptionLists();
+  const { locale, messages: t } = await getI18n();
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Option lists</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.admin.optionLists.title}</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Shared sources for dropdown fields. Any doc type can point at the same list.
+          {t.admin.optionLists.subtitle}
         </p>
       </div>
 
       {lists.length === 0 ? (
-        <p className="text-sm text-[var(--muted-foreground)]">No option lists yet.</p>
+        <p className="text-sm text-[var(--muted-foreground)]">{t.admin.optionLists.empty}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {lists.map((list) => (
@@ -35,7 +38,7 @@ export default async function OptionListsPage() {
                 {list.name}
               </Link>
               <span className="text-sm text-[var(--muted-foreground)]">
-                {plural(list.itemCount, "option")}
+                {plural(list.itemCount, t.units.option, t.units.options, locale)}
               </span>
             </li>
           ))}
@@ -43,7 +46,7 @@ export default async function OptionListsPage() {
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">New list</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t.admin.optionLists.newList}</h2>
         <CreateOptionListForm />
       </section>
     </div>

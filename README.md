@@ -12,6 +12,7 @@ A lightweight alternative to Hudu and IT Glue.
 - Attachments on a local volume or any S3-compatible bucket
 - Credentials stay in your own Bitwarden or Vaultwarden; Strata brokers access
 - Local accounts or OIDC single sign-on, with an append-only audit trail
+- en-US and en-GB interface, switchable per reader
 - Per-company export as JSON or Markdown
 - REST API + signed webhooks for any PSA or ticketing system
 - Deep links and an id mapping so a ticket can jump straight to its client
@@ -78,6 +79,19 @@ mode if that risk is unacceptable. See `docs/VAULT_INTEGRATION.md`.
 `docs/BACKUP.md` covers what to keep, how to restore it, and how to verify a
 dump before you need it. In short: `pg_dump` the database, archive the uploads
 volume, and store `.env` with them.
+
+## Language
+
+The interface ships in en-US, with en-GB available as a translation. Readers
+pick their own in the header; `APP_LOCALE` sets what a new visitor gets, and
+`SEED_LOCALE` sets the wording of the seeded starter content (so a British
+install gets "Fibre" rather than "Fiber"). Dates and numbers follow the same
+choice.
+
+Adding a language means one file: copy `src/i18n/en-GB.ts`, override only the
+strings that differ from `src/i18n/en-US.ts`, and add the code to
+`src/i18n/locales.ts`. Anything left out falls back to en-US, so a partial
+translation is still usable.
 
 ## Single sign-on
 

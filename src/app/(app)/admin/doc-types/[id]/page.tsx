@@ -11,6 +11,7 @@ import {
   usesLinkDocType,
   usesOptionList,
 } from "@/server/fields/types";
+import { getMessages } from "@/i18n/server";
 import { DocTypeForm } from "../../doc-type-form";
 import { AddTemplateFieldForm } from "../../template-field-form";
 import {
@@ -39,6 +40,7 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
     usesLinkDocType: usesLinkDocType(value),
   }));
 
+  const t = await getMessages();
   const active = docType.fields.filter((field) => !field.archivedAt);
   const archived = docType.fields.filter((field) => field.archivedAt);
   const order = active.map((field) => field.id).join(",");
@@ -50,31 +52,31 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{docType.name}</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
-            {docType.scope === "company" ? "Company scope" : "Location scope"}
-            {docType.archivedAt ? " · Archived" : ""}
+            {docType.scope === "company" ? t.documents.companyScope : t.documents.locationScope}
+            {docType.archivedAt ? ` · ${t.common.archived}` : ""}
           </p>
         </div>
         {docType.archivedAt ? (
           <form action={unarchiveDocTypeAction}>
             <input type="hidden" name="id" value={docType.id} />
             <Button type="submit" variant="outline" size="sm">
-              Restore
+              {t.common.restore}
             </Button>
           </form>
         ) : (
           <form action={archiveDocTypeAction}>
             <input type="hidden" name="id" value={docType.id} />
             <Button type="submit" variant="outline" size="sm">
-              Archive
+              {t.common.archive}
             </Button>
           </form>
         )}
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Details</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t.admin.docTypes.details}</h2>
         <DocTypeForm
-          submitLabel="Save doc type"
+          submitLabel={t.admin.docTypes.save}
           values={{
             id: docType.id,
             name: docType.name,
@@ -85,10 +87,12 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Template fields</h2>
+        <h2 className="text-lg font-semibold tracking-tight">
+          {t.admin.docTypes.templateFields}
+        </h2>
 
         {active.length === 0 ? (
-          <p className="text-sm text-[var(--muted-foreground)]">No fields yet.</p>
+          <p className="text-sm text-[var(--muted-foreground)]">{t.admin.docTypes.noFields}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {active.map((field, index) => (
@@ -122,7 +126,7 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
                     type="submit"
                     variant="ghost"
                     size="icon"
-                    aria-label={`Move ${field.label} up`}
+                    aria-label={t.admin.docTypes.moveUp(field.label)}
                     disabled={index === 0}
                   >
                     <ArrowUp className="size-4" aria-hidden />
@@ -138,7 +142,7 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
                     type="submit"
                     variant="ghost"
                     size="icon"
-                    aria-label={`Move ${field.label} down`}
+                    aria-label={t.admin.docTypes.moveDown(field.label)}
                     disabled={index === active.length - 1}
                   >
                     <ArrowDown className="size-4" aria-hidden />
@@ -149,14 +153,14 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
                   href={`/admin/doc-types/${docType.id}/fields/${field.id}`}
                   className={buttonVariants({ variant: "ghost", size: "sm" })}
                 >
-                  Edit
+                  {t.common.edit}
                 </Link>
 
                 <form action={archiveFieldAction}>
                   <input type="hidden" name="id" value={field.id} />
                   <input type="hidden" name="docTypeId" value={docType.id} />
                   <Button type="submit" variant="ghost" size="sm">
-                    Archive
+                    {t.common.archive}
                   </Button>
                 </form>
               </li>
@@ -174,7 +178,7 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
         {archived.length > 0 && (
           <div className="flex flex-col gap-2">
             <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
-              Archived fields
+              {t.admin.docTypes.archivedFields}
             </h3>
             <ul className="flex flex-col gap-2">
               {archived.map((field) => (
@@ -189,15 +193,14 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
                     <input type="hidden" name="id" value={field.id} />
                     <input type="hidden" name="docTypeId" value={docType.id} />
                     <Button type="submit" variant="ghost" size="sm">
-                      Restore
+                      {t.common.restore}
                     </Button>
                   </form>
                 </li>
               ))}
             </ul>
             <p className="text-xs text-[var(--muted-foreground)]">
-              Archived fields stay hidden but their stored values are kept, so old revisions still
-              render.
+              {t.admin.docTypes.archivedFieldsNote}
             </p>
           </div>
         )}

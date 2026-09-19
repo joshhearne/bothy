@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { plural } from "@/lib/utils";
+
 import { canManageDocTypes, requireUser } from "@/server/auth/session";
+import { getI18n } from "@/i18n/server";
+import { plural } from "@/i18n/format";
 import { listDocTypes } from "@/server/services/doc-types";
 import { unarchiveDocTypeAction } from "../actions";
 
@@ -19,14 +21,15 @@ export default async function DocTypesPage({
   const { archived } = await searchParams;
   const showArchived = archived === "1";
   const docTypes = await listDocTypes({ includeArchived: showArchived });
+  const { locale, messages: t } = await getI18n();
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Doc types</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.admin.docTypes.title}</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Templates documents are built from.
+            {t.admin.docTypes.subtitle}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -38,16 +41,16 @@ export default async function DocTypesPage({
             }
             className={buttonVariants({ variant: "outline", size: "sm" })}
           >
-            {showArchived ? "Hide archived" : "Show archived"}
+            {showArchived ? t.common.hideArchived : t.common.showArchived}
           </Link>
           <Link href="/admin/doc-types/new" className={buttonVariants({ size: "sm" })}>
-            New doc type
+            {t.admin.docTypes.newHeading}
           </Link>
         </div>
       </div>
 
       {docTypes.length === 0 ? (
-        <p className="text-sm text-[var(--muted-foreground)]">No doc types yet.</p>
+        <p className="text-sm text-[var(--muted-foreground)]">{t.admin.docTypes.empty}</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {docTypes.map((docType) => (
@@ -60,21 +63,24 @@ export default async function DocTypesPage({
                   {docType.name}
                 </Link>
                 <p className="text-sm text-[var(--muted-foreground)]">
-                  {`${docType.scope === "company" ? "Company" : "Location"} scope · ${plural(
-                    docType.fieldCount,
-                    "field",
-                  )} · ${plural(docType.documentCount, "document")}`}
+                  {t.admin.docTypes.summary(
+                    docType.scope === "company"
+                      ? t.documents.companyScope
+                      : t.documents.locationScope,
+                    plural(docType.fieldCount, t.units.field, t.units.fields, locale),
+                    plural(docType.documentCount, t.units.document, t.units.documents, locale),
+                  )}
                 </p>
               </div>
               {docType.archivedAt && (
                 <>
                   <span className="rounded-full border px-2 py-0.5 text-xs text-[var(--muted-foreground)]">
-                    Archived
+                    {t.common.archived}
                   </span>
                   <form action={unarchiveDocTypeAction}>
                     <input type="hidden" name="id" value={docType.id} />
                     <Button type="submit" variant="ghost" size="sm">
-                      Restore
+                      {t.common.restore}
                     </Button>
                   </form>
                 </>

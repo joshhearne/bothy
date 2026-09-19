@@ -8,13 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/alert";
 import type { FormState } from "@/lib/form";
+import { useMessages } from "@/i18n/client";
 import { createLocationAction, updateLocationAction } from "./actions";
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useMessages();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? t.common.saving : label}
     </Button>
   );
 }
@@ -25,6 +27,7 @@ export function AddLocationForm({ companyId }: { companyId: string }) {
   const formRef = useRef<HTMLFormElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
   const fieldErrors = state.fieldErrors ?? {};
+  const t = useMessages();
 
   useEffect(() => {
     if (state.ok) {
@@ -44,7 +47,7 @@ export function AddLocationForm({ companyId }: { companyId: string }) {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
-          <Field id="location-name" label="Location name" error={fieldErrors.name}>
+          <Field id="location-name" label={t.companies.locationName} error={fieldErrors.name}>
             <Input
               ref={nameRef}
               id="location-name"
@@ -57,11 +60,11 @@ export function AddLocationForm({ companyId }: { companyId: string }) {
           </Field>
         </div>
         <div className="flex-1">
-          <Field id="location-address" label="Address" error={fieldErrors.address}>
-            <Input id="location-address" name="address" placeholder="Optional" maxLength={2000} />
+          <Field id="location-address" label={t.companies.address} error={fieldErrors.address}>
+            <Input id="location-address" name="address" placeholder={t.companies.addressOptional} maxLength={2000} />
           </Field>
         </div>
-        <SubmitButton label="Add location" />
+        <SubmitButton label={t.companies.addLocation} />
       </div>
     </form>
   );
@@ -76,6 +79,7 @@ export function EditLocationForm({
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(updateLocationAction, {});
   const fieldErrors = state.fieldErrors ?? {};
+  const t = useMessages();
 
   return (
     <form action={formAction} className="flex max-w-xl flex-col gap-5">
@@ -83,7 +87,7 @@ export function EditLocationForm({
       <input type="hidden" name="id" value={location.id} />
       <input type="hidden" name="companyId" value={companyId} />
 
-      <Field id="name" label="Name" error={fieldErrors.name}>
+      <Field id="name" label={t.common.name} error={fieldErrors.name}>
         <Input
           id="name"
           name="name"
@@ -95,12 +99,12 @@ export function EditLocationForm({
         />
       </Field>
 
-      <Field id="address" label="Address" error={fieldErrors.address}>
+      <Field id="address" label={t.companies.address} error={fieldErrors.address}>
         <Input id="address" name="address" defaultValue={location.address ?? ""} maxLength={2000} />
       </Field>
 
       <div className="flex gap-2">
-        <SubmitButton label="Save changes" />
+        <SubmitButton label={t.companies.saveChanges} />
       </div>
     </form>
   );

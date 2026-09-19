@@ -7,13 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormError } from "@/components/ui/alert";
 import { authClient } from "@/lib/auth-client";
+import { useMessages } from "@/i18n/client";
 import { signInAction, type SignInState } from "./actions";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
+  const t = useMessages();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? "Signing in…" : "Sign in"}
+      {pending ? t.signIn.submitting : t.signIn.submit}
     </Button>
   );
 }
@@ -34,17 +36,18 @@ async function startSso() {
 
 export function SignInForm({ ssoEnabled = false }: { ssoEnabled?: boolean }) {
   const [state, formAction] = useActionState<SignInState, FormData>(signInAction, {});
+  const t = useMessages();
 
   return (
     <div className="flex flex-col gap-4">
       {ssoEnabled && (
         <>
           <Button type="button" variant="outline" className="w-full" onClick={startSso}>
-            Sign in with SSO
+            {t.signIn.sso}
           </Button>
           <div className="flex items-center gap-3 text-xs text-[var(--muted-foreground)]">
             <span className="h-px flex-1 bg-[var(--border)]" />
-            or use a local account
+            {t.signIn.orLocal}
             <span className="h-px flex-1 bg-[var(--border)]" />
           </div>
         </>
@@ -54,12 +57,12 @@ export function SignInForm({ ssoEnabled = false }: { ssoEnabled?: boolean }) {
       <FormError>{state.error}</FormError>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t.signIn.email}</Label>
         <Input id="email" name="email" type="email" autoComplete="username" required />
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">{t.signIn.password}</Label>
         <Input
           id="password"
           name="password"

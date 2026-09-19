@@ -6,13 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormError } from "@/components/ui/alert";
+import { useMessages } from "@/i18n/client";
 import { createFirstAdminAction, type SetupState } from "./actions";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
+  const t = useMessages();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? "Creating account…" : "Create admin account"}
+      {pending ? t.setup.submitting : t.setup.submit}
     </Button>
   );
 }
@@ -20,19 +22,20 @@ function SubmitButton() {
 export function SetupForm({ minPasswordLength }: { minPasswordLength: number }) {
   const [state, formAction] = useActionState<SetupState, FormData>(createFirstAdminAction, {});
   const fieldErrors = state.fieldErrors ?? {};
+  const t = useMessages();
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <FormError>{state.error}</FormError>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="name">Your name</Label>
+        <Label htmlFor="name">{t.setup.yourName}</Label>
         <Input id="name" name="name" autoComplete="name" required aria-invalid={!!fieldErrors.name} />
         {fieldErrors.name && <p className="text-sm text-[var(--destructive)]">{fieldErrors.name}</p>}
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t.setup.email}</Label>
         <Input
           id="email"
           name="email"
@@ -45,7 +48,7 @@ export function SetupForm({ minPasswordLength }: { minPasswordLength: number }) 
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">{t.setup.password}</Label>
         <Input
           id="password"
           name="password"
@@ -56,7 +59,7 @@ export function SetupForm({ minPasswordLength }: { minPasswordLength: number }) 
           aria-invalid={!!fieldErrors.password}
         />
         <p className="text-xs text-[var(--muted-foreground)]">
-          At least {minPasswordLength} characters.
+          {t.setup.passwordHint(minPasswordLength)}
         </p>
         {fieldErrors.password && (
           <p className="text-sm text-[var(--destructive)]">{fieldErrors.password}</p>
@@ -64,7 +67,7 @@ export function SetupForm({ minPasswordLength }: { minPasswordLength: number }) 
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="confirm">Confirm password</Label>
+        <Label htmlFor="confirm">{t.setup.confirmPassword}</Label>
         <Input
           id="confirm"
           name="confirm"

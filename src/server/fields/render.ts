@@ -2,6 +2,8 @@ import "server-only";
 import { marked } from "marked";
 import { sanitizeRichText } from "@/server/fields/sanitize";
 import type { FieldDefinition } from "@/server/fields/types";
+import { formatDate, formatNumber } from "@/i18n/format";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/locales";
 
 marked.setOptions({ gfm: true, breaks: false });
 
@@ -10,25 +12,7 @@ export function renderMarkdown(source: string): string {
   return sanitizeRichText(marked.parse(source, { async: false }));
 }
 
-const DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeZone: "UTC",
-});
-
-const DATE_TIME_FORMAT = new Intl.DateTimeFormat("en-US", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-/** ISO date string (YYYY-MM-DD) in en-US, with no timezone drift. */
-export function formatDate(iso: string): string {
-  const parsed = new Date(`${iso}T00:00:00Z`);
-  return Number.isNaN(parsed.getTime()) ? iso : DATE_FORMAT.format(parsed);
-}
-
-export function formatDateTime(date: Date): string {
-  return DATE_TIME_FORMAT.format(date);
-}
+export { formatDate, formatDateTime } from "@/i18n/format";
 
 export type RenderedValue =
   | { kind: "empty" }
@@ -55,6 +39,7 @@ export function renderFieldValue(
   optionLabels: Map<string, string>,
   /** Titles of linked documents, for doc_link fields. */
   documentTitles: Map<string, string> = new Map(),
+  locale: Locale = DEFAULT_LOCALE,
 ): RenderedValue {
   if (value === null || value === undefined || value === "") return { kind: "empty" };
 
@@ -73,10 +58,10 @@ export function renderFieldValue(
       return { kind: "text", text: value === true ? "Yes" : "No" };
 
     case "date":
-      return { kind: "text", text: formatDate(String(value)) };
+      return { kind: "text", text: formatDate(String(value), locale) };
 
     case "number":
-      return { kind: "text", text: new Intl.NumberFormat("en-US").format(Number(value)) };
+      return { kind: "text", text: formatNumber(Number(value), locale) };
 
     case "dropdown": {
       const label = optionLabels.get(String(value));

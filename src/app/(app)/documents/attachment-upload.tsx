@@ -6,13 +6,15 @@ import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/alert";
 import type { FormState } from "@/lib/form";
+import { useMessages } from "@/i18n/client";
 import { addAttachmentAction } from "./actions";
 
 function Submit() {
   const { pending } = useFormStatus();
+  const t = useMessages();
   return (
     <Button type="submit" size="sm" disabled={pending}>
-      {pending ? "Uploading…" : "Upload"}
+      {pending ? t.documents.uploading : t.documents.upload}
     </Button>
   );
 }
@@ -26,6 +28,7 @@ export function AttachmentUpload({
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(addAttachmentAction, {});
   const formRef = useRef<HTMLFormElement>(null);
+  const t = useMessages();
 
   useEffect(() => {
     if (state.ok) formRef.current?.reset();
@@ -42,7 +45,7 @@ export function AttachmentUpload({
 
       <div className="flex flex-wrap items-center gap-3">
         <label htmlFor="attachment-file" className="text-sm font-medium">
-          Add a file
+          {t.documents.addFile}
         </label>
         <input
           id="attachment-file"
@@ -53,7 +56,7 @@ export function AttachmentUpload({
         />
         <Submit />
       </div>
-      <p className="text-xs text-[var(--muted-foreground)]">Up to {maxMb} MB per file.</p>
+      <p className="text-xs text-[var(--muted-foreground)]">{t.documents.uploadLimit(maxMb)}</p>
     </form>
   );
 }

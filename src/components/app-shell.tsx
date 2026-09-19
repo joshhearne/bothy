@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useLocale, useMessages } from "@/i18n/client";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 
 export type SidebarCompany = { id: string; name: string; isInternal: boolean };
 
@@ -47,6 +49,8 @@ export function AppShell({
 }: AppShellProps) {
   const [open, setOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const t = useMessages();
+  const locale = useLocale();
 
   useEffect(() => {
     if (!open) return;
@@ -76,7 +80,7 @@ export function AppShell({
           variant="ghost"
           size="icon"
           className="-ml-2 md:hidden"
-          aria-label="Open navigation"
+          aria-label={t.app.openNavigation}
           aria-expanded={open}
           aria-controls="app-navigation"
           onClick={() => setOpen(true)}
@@ -85,7 +89,7 @@ export function AppShell({
         </Button>
 
         <Link href="/companies" className="font-semibold tracking-tight">
-          Strata
+          {t.app.name}
         </Link>
 
         <div className="ml-auto flex items-center gap-3">
@@ -95,9 +99,10 @@ export function AppShell({
           <span className="rounded-full border px-2 py-0.5 text-xs text-[var(--muted-foreground)]">
             {user.role}
           </span>
+          <LocaleSwitcher locale={locale} />
           <form action={signOut}>
             <Button type="submit" variant="outline" size="sm">
-              Sign out
+              {t.app.signOut}
             </Button>
           </form>
         </div>
@@ -130,17 +135,17 @@ export function AppShell({
             id="app-navigation"
             role="dialog"
             aria-modal="true"
-            aria-label="Navigation"
+            aria-label={t.app.navigation}
             className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col overflow-y-auto border-r bg-[var(--sidebar)] shadow-xl motion-safe:animate-[slide-in-left_200ms_cubic-bezier(0.16,1,0.3,1)]"
           >
             <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">
-              <span className="font-semibold tracking-tight">Strata</span>
+              <span className="font-semibold tracking-tight">{t.app.name}</span>
               <Button
                 ref={closeRef}
                 type="button"
                 variant="ghost"
                 size="icon"
-                aria-label="Close navigation"
+                aria-label={t.app.closeNavigation}
                 onClick={() => setOpen(false)}
               >
                 <X className="size-5" aria-hidden />
@@ -171,12 +176,13 @@ function SidebarNav({
   onNavigate?: (() => void) | undefined;
 }) {
   const pathname = usePathname();
+  const t = useMessages();
 
   return (
-    <nav aria-label="Main" className="flex flex-col gap-6 px-3 py-4">
+    <nav aria-label={t.app.mainNavigation} className="flex flex-col gap-6 px-3 py-4">
       <form action="/search" role="search" className="px-1">
         <label htmlFor="sidebar-search" className="sr-only">
-          Search documents
+          {t.app.searchDocuments}
         </label>
         <div className="relative">
           <Search
@@ -187,19 +193,19 @@ function SidebarNav({
             id="sidebar-search"
             name="q"
             type="search"
-            placeholder="Search"
+            placeholder={t.app.search}
             className="h-9 w-full rounded-md border bg-[var(--background)] pl-8 pr-3 text-sm outline-none placeholder:text-[var(--muted-foreground)] focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           />
         </div>
       </form>
 
       <Section
-        title="Companies"
+        title={t.nav.companies}
         action={
           canCreateCompanies ? (
             <Link
               href="/companies/new"
-              aria-label="New company"
+              aria-label={t.nav.newCompany}
               onClick={onNavigate}
               className="rounded-md p-1 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
             >
@@ -214,11 +220,11 @@ function SidebarNav({
           active={pathname === "/companies"}
           onNavigate={onNavigate}
         >
-          All companies
+          {t.nav.allCompanies}
         </NavLink>
 
         {companies.length === 0 ? (
-          <p className="px-2 py-1.5 text-sm text-[var(--muted-foreground)]">No companies yet.</p>
+          <p className="px-2 py-1.5 text-sm text-[var(--muted-foreground)]">{t.nav.noCompanies}</p>
         ) : (
           companies.map((company) => {
             const href = `/companies/${company.id}` as const;
@@ -232,7 +238,7 @@ function SidebarNav({
                 trailing={
                   company.isInternal ? (
                     <span className="text-[10px] uppercase tracking-wide text-[var(--muted-foreground)]">
-                      internal
+                      {t.nav.internal}
                     </span>
                   ) : undefined
                 }
@@ -245,14 +251,14 @@ function SidebarNav({
       </Section>
 
       {canManageDocTypes && (
-        <Section title="Admin">
+        <Section title={t.nav.admin}>
           <NavLink
             href="/admin/doc-types"
             icon={Layers}
             active={pathname.startsWith("/admin/doc-types")}
             onNavigate={onNavigate}
           >
-            Doc types
+            {t.nav.docTypes}
           </NavLink>
           <NavLink
             href="/admin/option-lists"
@@ -260,7 +266,7 @@ function SidebarNav({
             active={pathname.startsWith("/admin/option-lists")}
             onNavigate={onNavigate}
           >
-            Option lists
+            {t.nav.optionLists}
           </NavLink>
           <NavLink
             href="/admin/api-keys"
@@ -268,7 +274,7 @@ function SidebarNav({
             active={pathname.startsWith("/admin/api-keys")}
             onNavigate={onNavigate}
           >
-            API keys
+            {t.nav.apiKeys}
           </NavLink>
           <NavLink
             href="/admin/webhooks"
@@ -276,7 +282,7 @@ function SidebarNav({
             active={pathname.startsWith("/admin/webhooks")}
             onNavigate={onNavigate}
           >
-            Webhooks
+            {t.nav.webhooks}
           </NavLink>
           <NavLink
             href="/admin/vault"
@@ -284,7 +290,7 @@ function SidebarNav({
             active={pathname.startsWith("/admin/vault")}
             onNavigate={onNavigate}
           >
-            Vault
+            {t.nav.vault}
           </NavLink>
           <NavLink
             href="/admin/users"
@@ -292,7 +298,7 @@ function SidebarNav({
             active={pathname.startsWith("/admin/users")}
             onNavigate={onNavigate}
           >
-            Users
+            {t.nav.users}
           </NavLink>
           <NavLink
             href="/admin/audit"
@@ -300,7 +306,7 @@ function SidebarNav({
             active={pathname.startsWith("/admin/audit")}
             onNavigate={onNavigate}
           >
-            Audit log
+            {t.nav.auditLog}
           </NavLink>
         </Section>
       )}

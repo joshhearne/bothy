@@ -7,6 +7,8 @@ services:
       NODE_ENV: production
       # Set true to load the starter doc types on boot (see scripts/seed.ts).
       SEED_ON_START: ${SEED_ON_START:-false}
+      # Wording for the starter content: en-US or en-GB.
+      SEED_LOCALE: ${SEED_LOCALE:-en-US}
       # link keeps secret fields as deep links; bw_serve brokers through the
       # sidecar started by the `vault` profile.
       VAULT_MODE: ${VAULT_MODE:-link}

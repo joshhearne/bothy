@@ -18,7 +18,7 @@ function field(fieldType: FieldType): FieldDefinition {
 }
 
 const labels = new Map([
-  ["opt-a", "Fibre"],
+  ["opt-a", "Fiber"],
   ["opt-b", "DSL"],
 ]);
 
@@ -63,14 +63,14 @@ describe("renderFieldValue", () => {
   it("resolves a dropdown id to its label", () => {
     expect(renderFieldValue(field("dropdown"), "opt-a", labels)).toEqual({
       kind: "text",
-      text: "Fibre",
+      text: "Fiber",
     });
   });
 
   it("resolves multi-select ids to labels", () => {
     expect(renderFieldValue(field("multi_dropdown"), ["opt-a", "opt-b"], labels)).toEqual({
       kind: "tags",
-      labels: ["Fibre", "DSL"],
+      labels: ["Fiber", "DSL"],
     });
   });
 
@@ -84,11 +84,11 @@ describe("renderFieldValue", () => {
   });
 
   it("renders a doc_link as the linked document", () => {
-    const titles = new Map([["doc-1", "Acme Fibre"]]);
+    const titles = new Map([["doc-1", "Acme Fiber"]]);
     expect(renderFieldValue(field("doc_link"), "doc-1", labels, titles)).toEqual({
       kind: "document",
       id: "doc-1",
-      title: "Acme Fibre",
+      title: "Acme Fiber",
     });
   });
 

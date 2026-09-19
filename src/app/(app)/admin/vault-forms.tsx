@@ -7,13 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/alert";
 import type { FormState } from "@/lib/form";
+import { useMessages } from "@/i18n/client";
 import { mapCollectionAction, saveVaultProviderAction } from "./vault-actions";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useMessages();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? t.common.saving : label}
     </Button>
   );
 }
@@ -36,14 +38,15 @@ export function VaultProviderForm({
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(saveVaultProviderAction, {});
   const fieldErrors = state.fieldErrors ?? {};
+  const t = useMessages();
 
   return (
     <form action={formAction} className="flex max-w-xl flex-col gap-4">
       <FormError>{state.error}</FormError>
-      {state.ok && <p className="text-sm text-[var(--muted-foreground)]">Saved.</p>}
+      {state.ok && <p className="text-sm text-[var(--muted-foreground)]">{t.common.saved}</p>}
       {provider && <input type="hidden" name="id" value={provider.id} />}
 
-      <Field id="name" label="Name" error={fieldErrors.name}>
+      <Field id="name" label={t.common.name} error={fieldErrors.name}>
         <Input
           id="name"
           name="name"
@@ -56,9 +59,9 @@ export function VaultProviderForm({
 
       <Field
         id="kind"
-        label="Mode"
+        label={t.admin.vault.mode}
         error={fieldErrors.kind}
-        hint="link stores a deep link only. bw_serve brokers search, reveal, and TOTP through the sidecar."
+        hint={t.admin.vault.modeHint}
       >
         <select id="kind" name="kind" defaultValue={provider?.kind ?? "link"} className={selectClass}>
           <option value="link">link</option>
@@ -66,7 +69,7 @@ export function VaultProviderForm({
         </select>
       </Field>
 
-      <Field id="webVaultUrl" label="Web vault URL" error={fieldErrors.webVaultUrl}>
+      <Field id="webVaultUrl" label={t.admin.vault.webVaultUrl} error={fieldErrors.webVaultUrl}>
         <Input
           id="webVaultUrl"
           name="webVaultUrl"
@@ -76,7 +79,7 @@ export function VaultProviderForm({
         />
       </Field>
 
-      <Field id="organizationId" label="Organization id" error={fieldErrors.organizationId}>
+      <Field id="organizationId" label={t.admin.vault.organizationId} error={fieldErrors.organizationId}>
         <Input
           id="organizationId"
           name="organizationId"
@@ -92,7 +95,7 @@ export function VaultProviderForm({
           defaultChecked={provider?.allowCreate ?? false}
           className="size-4 rounded border"
         />
-        Allow creating vault items from a document
+        {t.admin.vault.allowCreate}
       </label>
 
       <label className="flex items-center gap-2 text-sm">
@@ -102,11 +105,13 @@ export function VaultProviderForm({
           defaultChecked={provider?.enabled ?? true}
           className="size-4 rounded border"
         />
-        Enabled
+        {t.admin.vault.enabled}
       </label>
 
       <div>
-        <Submit label={provider ? "Save provider" : "Add provider"} />
+        <Submit
+          label={provider ? t.admin.vault.saveProvider : t.admin.vault.addProviderSubmit}
+        />
       </div>
     </form>
   );
@@ -114,6 +119,7 @@ export function VaultProviderForm({
 
 export function MapCollectionForm({ companies }: { companies: { id: string; name: string }[] }) {
   const [state, formAction] = useActionState<FormState, FormData>(mapCollectionAction, {});
+  const t = useMessages();
 
   return (
     <form
@@ -123,9 +129,9 @@ export function MapCollectionForm({ companies }: { companies: { id: string; name
       <FormError>{state.error}</FormError>
 
       <div className="flex-1">
-        <Field id="companyId" label="Company">
+        <Field id="companyId" label={t.search.company}>
           <select id="companyId" name="companyId" className={selectClass} required>
-            <option value="">Choose a company…</option>
+            <option value="">{t.search.anyCompany}</option>
             {companies.map((company) => (
               <option key={company.id} value={company.id}>
                 {company.name}
@@ -136,12 +142,12 @@ export function MapCollectionForm({ companies }: { companies: { id: string; name
       </div>
 
       <div className="flex-1">
-        <Field id="collectionId" label="Bitwarden collection id">
+        <Field id="collectionId" label={t.admin.vault.collectionId}>
           <Input id="collectionId" name="collectionId" required maxLength={200} />
         </Field>
       </div>
 
-      <Submit label="Map collection" />
+      <Submit label={t.admin.vault.mapCollection} />
     </form>
   );
 }

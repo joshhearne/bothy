@@ -21,7 +21,7 @@ export function buildStorageKey(documentId: string, filename: string): string {
   return `${documentId}/${randomUUID()}${extension}`;
 }
 
-/** Defence in depth: a key must stay inside the storage root. */
+/** Defense in depth: a key must stay inside the storage root. */
 function assertSafeKey(key: string): void {
   if (key.includes("..") || key.startsWith("/") || key.includes("\0")) {
     throw new Error("Unsafe storage key");

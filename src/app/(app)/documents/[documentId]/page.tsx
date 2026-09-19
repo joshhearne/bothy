@@ -7,7 +7,9 @@ import { SecretField } from "@/components/fields/secret-field";
 import { canEditDocuments, requireUser } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { getDocumentDetail, listBacklinks } from "@/server/services/documents";
-import { formatDateTime, renderFieldValue } from "@/server/fields/render";
+import { renderFieldValue } from "@/server/fields/render";
+import { formatDateTime } from "@/i18n/format";
+import { getI18n } from "@/i18n/server";
 import { formatBytes, listAttachments } from "@/server/services/attachments";
 import { env } from "@/lib/env";
 import { AttachmentUpload } from "../attachment-upload";
@@ -44,6 +46,7 @@ export default async function DocumentPage({
   if (!company) notFound();
 
   const editor = canEditDocuments(user.role);
+  const { locale, messages: t } = await getI18n();
 
   return (
     <div className="flex flex-col gap-8">
@@ -59,12 +62,12 @@ export default async function DocumentPage({
             <h1 className="text-2xl font-semibold tracking-tight">{detail.document.title}</h1>
             {detail.document.archivedAt && (
               <span className="rounded-full border px-2 py-0.5 text-xs text-[var(--muted-foreground)]">
-                Archived
+                {t.common.archived}
               </span>
             )}
           </div>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Updated {formatDateTime(detail.document.updatedAt)}
+            {t.documents.updated(formatDateTime(detail.document.updatedAt, locale))}
           </p>
         </div>
 
@@ -73,14 +76,14 @@ export default async function DocumentPage({
             href={`/documents/${detail.document.id}/revisions`}
             className={buttonVariants({ variant: "ghost", size: "sm" })}
           >
-            History
+            {t.documents.history}
           </Link>
           {editor && !detail.document.archivedAt && (
             <Link
               href={`/documents/${detail.document.id}/edit`}
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              Edit
+              {t.common.edit}
             </Link>
           )}
           {editor &&
@@ -89,7 +92,7 @@ export default async function DocumentPage({
                 <input type="hidden" name="documentId" value={detail.document.id} />
                 <input type="hidden" name="companyId" value={company.id} />
                 <Button type="submit" variant="outline" size="sm">
-                  Restore
+                  {t.common.restore}
                 </Button>
               </form>
             ) : (
@@ -97,7 +100,7 @@ export default async function DocumentPage({
                 <input type="hidden" name="documentId" value={detail.document.id} />
                 <input type="hidden" name="companyId" value={company.id} />
                 <Button type="submit" variant="outline" size="sm">
-                  Archive
+                  {t.common.archive}
                 </Button>
               </form>
             ))}
@@ -105,9 +108,7 @@ export default async function DocumentPage({
       </div>
 
       {detail.fields.length === 0 ? (
-        <p className="text-sm text-[var(--muted-foreground)]">
-          This doc type has no fields yet.
-        </p>
+        <p className="text-sm text-[var(--muted-foreground)]">{t.documents.noFields}</p>
       ) : (
         <dl className="flex flex-col divide-y rounded-md border">
           {detail.fields.map((field) => (
@@ -120,6 +121,7 @@ export default async function DocumentPage({
                     detail.document.fieldValues?.[field.id] ?? null,
                     detail.optionLabels,
                     detail.linkedTitles,
+                    locale,
                   );
 
                   if (rendered.kind !== "secret") return <FieldValue value={rendered} />;
@@ -146,10 +148,10 @@ export default async function DocumentPage({
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">Attachments</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{t.documents.attachments}</h2>
 
         {files.length === 0 ? (
-          <p className="text-sm text-[var(--muted-foreground)]">No files attached.</p>
+          <p className="text-sm text-[var(--muted-foreground)]">{t.documents.noAttachments}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {files.map((file) => (
@@ -162,13 +164,13 @@ export default async function DocumentPage({
                   {file.filename}
                 </a>
                 <span className="text-sm text-[var(--muted-foreground)]">
-                  {formatBytes(file.sizeBytes)} · {formatDateTime(file.createdAt)}
+                  {formatBytes(file.sizeBytes, locale)} · {formatDateTime(file.createdAt, locale)}
                 </span>
                 {editor && (
                   <form action={removeAttachmentAction}>
                     <input type="hidden" name="attachmentId" value={file.id} />
                     <Button type="submit" variant="ghost" size="sm">
-                      Remove
+                      {t.common.remove}
                     </Button>
                   </form>
                 )}
@@ -184,7 +186,7 @@ export default async function DocumentPage({
 
       {backlinks.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold tracking-tight">Linked from</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{t.documents.linkedFrom}</h2>
           <ul className="flex flex-col gap-2">
             {backlinks.map((backlink) => (
               <li

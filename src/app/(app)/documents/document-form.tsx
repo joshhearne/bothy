@@ -15,13 +15,15 @@ import {
   type FieldOption,
 } from "@/components/fields/field-control";
 import type { FormState } from "@/lib/form";
+import { useMessages } from "@/i18n/client";
 import { createDocumentAction } from "./actions";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useMessages();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? t.common.saving : label}
     </Button>
   );
 }
@@ -54,6 +56,7 @@ export function DocumentForm({
     Object.fromEntries(fields.map((field) => [field.id, toFormValue(field.fieldType, null)])),
   );
   const fieldErrors = state.fieldErrors ?? {};
+  const t = useMessages();
 
   return (
     <form action={formAction} className="flex max-w-2xl flex-col gap-6">
@@ -62,7 +65,7 @@ export function DocumentForm({
       <input type="hidden" name="docTypeId" value={docTypeId} />
       {locationId && <input type="hidden" name="locationId" value={locationId} />}
 
-      <Field id="title" label="Title" error={fieldErrors.title}>
+      <Field id="title" label={t.common.title} error={fieldErrors.title}>
         <Input id="title" name="title" required maxLength={300} autoFocus aria-invalid={!!fieldErrors.title} />
       </Field>
 
@@ -88,7 +91,7 @@ export function DocumentForm({
       ))}
 
       <div>
-        <Submit label="Create document" />
+        <Submit label={t.documents.create} />
       </div>
     </form>
   );

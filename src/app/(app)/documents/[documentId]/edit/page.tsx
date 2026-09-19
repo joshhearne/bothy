@@ -10,6 +10,7 @@ import {
   usesOptionList,
 } from "@/server/fields/types";
 import { listDocTypes } from "@/server/services/doc-types";
+import { getMessages } from "@/i18n/server";
 import { DocumentEditor } from "./document-editor";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,7 @@ export default async function EditDocumentPage({
   if (!company) notFound();
 
   const [optionLists, docTypes] = await Promise.all([listOptionLists(), listDocTypes()]);
+  const t = await getMessages();
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,7 +40,9 @@ export default async function EditDocumentPage({
           {company.name}
           {detail.location ? ` · ${detail.location.name}` : ""} · {detail.docType.name}
         </p>
-        <h1 className="text-2xl font-semibold tracking-tight">Edit {detail.document.title}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t.documents.editHeading(detail.document.title)}
+        </h1>
       </div>
 
       <DocumentEditor

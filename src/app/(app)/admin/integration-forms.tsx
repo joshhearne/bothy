@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/alert";
+import { useMessages } from "@/i18n/client";
 import {
   createApiKeyAction,
   createWebhookAction,
@@ -15,9 +16,10 @@ import {
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useMessages();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? t.common.saving : label}
     </Button>
   );
 }
@@ -51,27 +53,33 @@ function RevealOnce({
 export function CreateApiKeyForm({ scopes }: { scopes: string[] }) {
   const [state, formAction] = useActionState<ApiKeyState, FormData>(createApiKeyAction, {});
   const fieldErrors = state.fieldErrors ?? {};
+  const t = useMessages();
 
   return (
     <div className="flex max-w-xl flex-col gap-4">
       {state.secret && (
         <RevealOnce
-          title="Copy this key now"
-          label="New API key"
+          title={t.admin.apiKeys.copyNow}
+          label={t.admin.apiKeys.newApiKey}
           value={state.secret}
-          help={`Only the prefix ${state.prefix} is stored. Strata keeps a SHA-256 hash, so this value cannot be shown again.`}
+          help={t.admin.apiKeys.storedNote(state.prefix ?? "")}
         />
       )}
 
       <form action={formAction} className="flex flex-col gap-4">
         <FormError>{state.error}</FormError>
 
-        <Field id="name" label="Name" error={fieldErrors.name} hint="Where the key will be used.">
+        <Field
+          id="name"
+          label={t.common.name}
+          error={fieldErrors.name}
+          hint={t.admin.apiKeys.nameHint}
+        >
           <Input id="name" name="name" required maxLength={200} placeholder="HaloPSA integration" />
         </Field>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">Scopes</legend>
+          <legend className="text-sm font-medium">{t.admin.apiKeys.scopes}</legend>
           {scopes.map((scope) => (
             <label key={scope} className="flex items-center gap-2 text-sm">
               <input
@@ -88,12 +96,12 @@ export function CreateApiKeyForm({ scopes }: { scopes: string[] }) {
             <p className="text-sm text-[var(--destructive)]">{fieldErrors.scopes}</p>
           )}
           <p className="text-xs text-[var(--muted-foreground)]">
-            admin implies write, write implies read.
+            {t.admin.apiKeys.scopeHint}
           </p>
         </fieldset>
 
         <div>
-          <Submit label="Create key" />
+          <Submit label={t.admin.apiKeys.create} />
         </div>
       </form>
     </div>
@@ -103,22 +111,23 @@ export function CreateApiKeyForm({ scopes }: { scopes: string[] }) {
 export function CreateWebhookForm({ events }: { events: string[] }) {
   const [state, formAction] = useActionState<WebhookState, FormData>(createWebhookAction, {});
   const fieldErrors = state.fieldErrors ?? {};
+  const t = useMessages();
 
   return (
     <div className="flex max-w-xl flex-col gap-4">
       {state.secret && (
         <RevealOnce
-          title="Signing secret"
-          label="Webhook signing secret"
+          title={t.admin.webhooks.signingSecret}
+          label={t.admin.webhooks.secretLabel}
           value={state.secret}
-          help="Verify X-Strata-Signature as sha256=HMAC-SHA256(secret, raw body)."
+          help={t.admin.webhooks.secretHint}
         />
       )}
 
       <form action={formAction} className="flex flex-col gap-4">
         <FormError>{state.error}</FormError>
 
-        <Field id="url" label="Endpoint URL" error={fieldErrors.url}>
+        <Field id="url" label={t.admin.webhooks.url} error={fieldErrors.url}>
           <Input
             id="url"
             name="url"
@@ -130,7 +139,7 @@ export function CreateWebhookForm({ events }: { events: string[] }) {
         </Field>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-medium">Events</legend>
+          <legend className="text-sm font-medium">{t.admin.webhooks.events}</legend>
           {events.map((event) => (
             <label key={event} className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="events" value={event} className="size-4 rounded border" />
@@ -143,7 +152,7 @@ export function CreateWebhookForm({ events }: { events: string[] }) {
         </fieldset>
 
         <div>
-          <Submit label="Add webhook" />
+          <Submit label={t.admin.webhooks.add} />
         </div>
       </form>
     </div>

@@ -14,7 +14,7 @@ const OPTION_B = "33333333-3333-4333-8333-333333333333";
 const OTHER = "44444444-4444-4444-8444-444444444444";
 
 const options: OptionIndex = new Map([
-  [LIST, [{ id: OPTION_A, label: "Fibre" }, { id: OPTION_B, label: "DSL" }]],
+  [LIST, [{ id: OPTION_A, label: "Fiber" }, { id: OPTION_B, label: "DSL" }]],
 ]);
 
 const DOC_A = "55555555-5555-4555-8555-555555555555";
@@ -22,7 +22,7 @@ const DOC_B = "66666666-6666-4666-8666-666666666666";
 
 const ctx = {
   options,
-  linkTargets: new Map([["field-1", new Map([[DOC_A, "Acme Fibre"]])]]),
+  linkTargets: new Map([["field-1", new Map([[DOC_A, "Acme Fiber"]])]]),
 };
 
 function field(fieldType: FieldType, overrides: Partial<FieldDefinition> = {}): FieldDefinition {
@@ -183,7 +183,7 @@ describe("flattenForSearch", () => {
       field("multi_dropdown", { id: "b" }),
     ];
     const text = flattenForSearch(fields, { a: OPTION_A, b: [OPTION_B] }, ctx);
-    expect(text).toBe("Fibre DSL");
+    expect(text).toBe("Fiber DSL");
   });
 
   it("indexes the readable text of richtext, not its markup", () => {
@@ -195,7 +195,7 @@ describe("flattenForSearch", () => {
 
   it("indexes the linked document's title, not its id", () => {
     const fields = [field("doc_link", { id: "field-1" })];
-    expect(flattenForSearch(fields, { "field-1": DOC_A }, ctx)).toBe("Acme Fibre");
+    expect(flattenForSearch(fields, { "field-1": DOC_A }, ctx)).toBe("Acme Fiber");
   });
 
   it("never indexes secrets", () => {

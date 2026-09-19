@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { FileText, MapPin } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { plural } from "@/lib/utils";
 import { canEditDocuments, canManageHierarchy, requireUser } from "@/server/auth/session";
+import { getI18n } from "@/i18n/server";
+import { plural } from "@/i18n/format";
 import { getCompany } from "@/server/services/companies";
 import { listLocations } from "@/server/services/locations";
 import { listCompanyDocumentsGrouped } from "@/server/services/documents";
@@ -38,6 +39,7 @@ export default async function CompanyPage({
     listCompanyDocumentsGrouped(id),
   ]);
 
+  const { locale, messages: t } = await getI18n();
   const writer = canManageHierarchy(user.role);
   const documentEditor = canEditDocuments(user.role);
   const archiver = writer;
@@ -49,16 +51,18 @@ export default async function CompanyPage({
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">{company.name}</h1>
             {company.isInternal && (
-              <span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-xs">Internal</span>
+              <span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-xs">
+                {t.companies.internalBadge}
+              </span>
             )}
             {company.archivedAt && (
               <span className="rounded-full border px-2 py-0.5 text-xs text-[var(--muted-foreground)]">
-                Archived
+                {t.common.archived}
               </span>
             )}
           </div>
           <p className="text-sm text-[var(--muted-foreground)]">
-            {plural(locations.length, "location")}
+            {plural(locations.length, t.units.location, t.units.locations, locale)}
           </p>
         </div>
 
@@ -68,21 +72,21 @@ export default async function CompanyPage({
             className={buttonVariants({ variant: "ghost", size: "sm" })}
             download
           >
-            Export JSON
+            {t.companies.exportJson}
           </a>
           <a
             href={`/companies/${company.id}/export?format=markdown`}
             className={buttonVariants({ variant: "ghost", size: "sm" })}
             download
           >
-            Export Markdown
+            {t.companies.exportMarkdown}
           </a>
           {writer && (
             <Link
               href={`/companies/${company.id}/edit`}
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              Edit
+              {t.common.edit}
             </Link>
           )}
           {archiver &&
@@ -90,14 +94,14 @@ export default async function CompanyPage({
               <form action={unarchiveCompanyAction}>
                 <input type="hidden" name="id" value={company.id} />
                 <Button type="submit" variant="outline" size="sm">
-                  Restore
+                  {t.common.restore}
                 </Button>
               </form>
             ) : (
               <form action={archiveCompanyAction}>
                 <input type="hidden" name="id" value={company.id} />
                 <Button type="submit" variant="outline" size="sm">
-                  Archive
+                  {t.common.archive}
                 </Button>
               </form>
             ))}
@@ -107,7 +111,7 @@ export default async function CompanyPage({
       {company.notes && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Notes</CardTitle>
+            <CardTitle className="text-base">{t.common.notes}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="whitespace-pre-wrap text-sm">{company.notes}</p>
@@ -117,7 +121,7 @@ export default async function CompanyPage({
 
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold tracking-tight">Locations</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{t.companies.locations}</h2>
           <Link
             href={
               showArchived
@@ -126,12 +130,12 @@ export default async function CompanyPage({
             }
             className={buttonVariants({ variant: "ghost", size: "sm" })}
           >
-            {showArchived ? "Hide archived" : "Show archived"}
+            {showArchived ? t.common.hideArchived : t.common.showArchived}
           </Link>
         </div>
 
         {locations.length === 0 ? (
-          <p className="text-sm text-[var(--muted-foreground)]">No locations yet.</p>
+          <p className="text-sm text-[var(--muted-foreground)]">{t.companies.noLocations}</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {locations.map((location) => (
@@ -145,7 +149,7 @@ export default async function CompanyPage({
                     {location.name}
                     {location.archivedAt && (
                       <span className="ml-2 rounded-full border px-2 py-0.5 text-xs font-normal text-[var(--muted-foreground)]">
-                        Archived
+                        {t.common.archived}
                       </span>
                     )}
                   </p>
@@ -156,14 +160,14 @@ export default async function CompanyPage({
                   )}
                 </div>
                 <span className="text-sm text-[var(--muted-foreground)]">
-                  {plural(location.documentCount, "document")}
+                  {plural(location.documentCount, t.units.document, t.units.documents, locale)}
                 </span>
                 {writer && (
                   <Link
                     href={`/companies/${company.id}/locations/${location.id}/edit`}
                     className={buttonVariants({ variant: "ghost", size: "sm" })}
                   >
-                    Edit
+                    {t.common.edit}
                   </Link>
                 )}
                 {archiver &&
@@ -172,7 +176,7 @@ export default async function CompanyPage({
                       <input type="hidden" name="id" value={location.id} />
                       <input type="hidden" name="companyId" value={company.id} />
                       <Button type="submit" variant="ghost" size="sm">
-                        Restore
+                        {t.common.restore}
                       </Button>
                     </form>
                   ) : (
@@ -180,7 +184,7 @@ export default async function CompanyPage({
                       <input type="hidden" name="id" value={location.id} />
                       <input type="hidden" name="companyId" value={company.id} />
                       <Button type="submit" variant="ghost" size="sm">
-                        Archive
+                        {t.common.archive}
                       </Button>
                     </form>
                   ))}
@@ -194,19 +198,19 @@ export default async function CompanyPage({
 
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold tracking-tight">Documents</h2>
+          <h2 className="text-lg font-semibold tracking-tight">{t.companies.documents}</h2>
           {documentEditor && !company.archivedAt && (
             <Link
               href={`/companies/${company.id}/documents/new`}
               className={buttonVariants({ size: "sm" })}
             >
-              New document
+              {t.companies.newDocument}
             </Link>
           )}
         </div>
 
         {documentGroups.length === 0 ? (
-          <p className="text-sm text-[var(--muted-foreground)]">No documents yet.</p>
+          <p className="text-sm text-[var(--muted-foreground)]">{t.companies.noDocuments}</p>
         ) : (
           <div className="flex flex-col gap-5">
             {documentGroups.map((group) => (

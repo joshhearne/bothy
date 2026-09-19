@@ -2,8 +2,10 @@ import Link from "next/link";
 import { Building2, Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { plural } from "@/lib/utils";
+
 import { canManageHierarchy, requireUser } from "@/server/auth/session";
+import { getI18n } from "@/i18n/server";
+import { plural } from "@/i18n/format";
 import { listCompanies } from "@/server/services/companies";
 import { unarchiveCompanyAction } from "./actions";
 
@@ -19,17 +21,18 @@ export default async function CompaniesPage({
   const showArchived = archived === "1";
   const companies = await listCompanies({ includeArchived: showArchived });
   const writer = canManageHierarchy(user.role);
+  const { locale, messages: t } = await getI18n();
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Companies</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t.companies.title}</h1>
         <div className="flex items-center gap-2">
           <Link
             href={showArchived ? "/companies" : { pathname: "/companies", query: { archived: "1" } }}
             className={buttonVariants({ variant: "outline", size: "sm" })}
           >
-            {showArchived ? "Hide archived" : "Show archived"}
+            {showArchived ? t.common.hideArchived : t.common.showArchived}
           </Link>
           {writer && (
             <Link
@@ -37,7 +40,7 @@ export default async function CompaniesPage({
               className={buttonVariants({ size: "sm" })}
             >
               <Plus className="size-4" aria-hidden />
-              New company
+              {t.nav.newCompany}
             </Link>
           )}
         </div>
@@ -46,16 +49,14 @@ export default async function CompaniesPage({
       {companies.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-start gap-3 p-6">
-            <p className="text-sm text-[var(--muted-foreground)]">
-              No companies yet. Create one to start documenting.
-            </p>
+            <p className="text-sm text-[var(--muted-foreground)]">{t.companies.empty}</p>
             {writer && (
               <Link
                 href="/companies/new"
                 className={buttonVariants({ size: "sm" })}
               >
                 <Plus className="size-4" aria-hidden />
-                New company
+                {t.nav.newCompany}
               </Link>
             )}
           </CardContent>
@@ -79,7 +80,10 @@ export default async function CompaniesPage({
                         {company.name}
                       </Link>
                       <p className="text-sm text-[var(--muted-foreground)]">
-                        {`${plural(company.locationCount, "location")} · ${plural(company.documentCount, "document")}`}
+                        {t.companies.counts(
+                          plural(company.locationCount, t.units.location, t.units.locations, locale),
+                          plural(company.documentCount, t.units.document, t.units.documents, locale),
+                        )}
                       </p>
                     </div>
                   </div>
@@ -87,19 +91,19 @@ export default async function CompaniesPage({
                   <div className="mt-auto flex flex-wrap items-center gap-2">
                     {company.isInternal && (
                       <span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-xs">
-                        Internal
+                        {t.companies.internalBadge}
                       </span>
                     )}
                     {company.archivedAt && (
                       <>
                         <span className="rounded-full border px-2 py-0.5 text-xs text-[var(--muted-foreground)]">
-                          Archived
+                          {t.common.archived}
                         </span>
                         {canManageHierarchy(user.role) && (
                           <form action={unarchiveCompanyAction}>
                             <input type="hidden" name="id" value={company.id} />
                             <Button type="submit" variant="ghost" size="sm">
-                              Restore
+                              {t.common.restore}
                             </Button>
                           </form>
                         )}

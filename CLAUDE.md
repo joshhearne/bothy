@@ -24,7 +24,9 @@ No coupling to any specific PSA in core code.
 - Drizzle schema in `src/server/db/schema.ts`, mirroring `db/schema.sql`. Migrations via drizzle-kit.
 - Tests: Vitest for services, Playwright for the inline-editing flows.
 - Commits signed off (`git commit -s`).
-- en-US throughout: UI copy, comments, docs, and identifiers. `<html lang="en-US">`; format dates and numbers with an explicit `en-US` locale, never the server default.
+- en-US is the source language: code, comments, docs, identifiers, and the base catalog in `src/i18n/en-US.ts`. Never hardcode interface copy in a component — add a key and read it through `getMessages()` (server) or `useMessages()` (client).
+- Other locales are overrides on the base catalog (`src/i18n/en-GB.ts`), so a translation only states what differs and can never miss a key.
+- Format dates and numbers with the reader's locale through `src/i18n/format.ts`, never the server default and never a hardcoded `en-US`.
 
 ## Build phases
 Work one phase at a time. Each phase ends with passing tests and a working compose build.

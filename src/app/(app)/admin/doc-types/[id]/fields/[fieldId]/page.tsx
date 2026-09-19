@@ -8,6 +8,7 @@ import {
   usesLinkDocType,
   usesOptionList,
 } from "@/server/fields/types";
+import { getMessages } from "@/i18n/server";
 import { EditTemplateFieldForm } from "../../../../template-field-form";
 
 export const dynamic = "force-dynamic";
@@ -28,12 +29,15 @@ export default async function EditTemplateFieldPage({
   if (!field) notFound();
 
   const [optionLists, allDocTypes] = await Promise.all([listOptionLists(), listDocTypes()]);
+  const t = await getMessages();
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Edit {field.label}</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">Template field on {docType.name}.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+        {t.companies.editHeading(field.label)}
+      </h1>
+        <p className="text-sm text-[var(--muted-foreground)]">{docType.name}</p>
       </div>
       <EditTemplateFieldForm
         docTypeId={docType.id}

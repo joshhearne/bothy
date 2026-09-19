@@ -8,6 +8,9 @@ const envSchema = z.object({
   APP_URL: z.url(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 
+  /** The locale new visitors get before they choose one of their own. */
+  APP_LOCALE: z.enum(["en-US", "en-GB"]).default("en-US"),
+
   // Optional OIDC (Entra ID, Google, Authentik, Keycloak).
   OIDC_ISSUER: z.string().optional(),
   OIDC_CLIENT_ID: z.string().optional(),

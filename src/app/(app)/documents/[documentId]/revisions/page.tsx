@@ -4,7 +4,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { FieldValue } from "@/components/fields/field-value";
 import { requireUser } from "@/server/auth/session";
 import { getDocumentDetail, listRevisions } from "@/server/services/documents";
-import { formatDateTime, renderFieldValue } from "@/server/fields/render";
+import { renderFieldValue } from "@/server/fields/render";
+import { formatDateTime } from "@/i18n/format";
+import { getI18n } from "@/i18n/server";
 
 export const dynamic = "force-dynamic";
 
@@ -20,24 +22,25 @@ export default async function RevisionsPage({
   if (!detail) notFound();
 
   const revisions = await listRevisions(documentId);
+  const { locale, messages: t } = await getI18n();
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">History</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t.documents.historyHeading}</h1>
           <p className="text-sm text-[var(--muted-foreground)]">{detail.document.title}</p>
         </div>
         <Link
           href={`/documents/${documentId}`}
           className={buttonVariants({ variant: "outline", size: "sm" })}
         >
-          Back to document
+          {t.documents.backToDocument}
         </Link>
       </div>
 
       {revisions.length === 0 ? (
-        <p className="text-sm text-[var(--muted-foreground)]">No revisions recorded.</p>
+        <p className="text-sm text-[var(--muted-foreground)]">{t.documents.noRevisions}</p>
       ) : (
         <ol className="flex flex-col gap-4">
           {revisions.map((revision, index) => (
@@ -45,8 +48,8 @@ export default async function RevisionsPage({
               <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
                 <span className="text-sm font-medium">{revision.title}</span>
                 <span className="text-sm text-[var(--muted-foreground)]">
-                  {formatDateTime(revision.createdAt)}
-                  {index === 0 ? " · current" : ""}
+                  {formatDateTime(revision.createdAt, locale)}
+                  {index === 0 ? ` · ${t.documents.current}` : ""}
                 </span>
               </div>
               <dl className="flex flex-col divide-y">
@@ -63,6 +66,7 @@ export default async function RevisionsPage({
                           revision.fieldValues?.[field.id] ?? null,
                           detail.optionLabels,
                           detail.linkedTitles,
+                          locale,
                         )}
                       />
                     </dd>
