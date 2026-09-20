@@ -189,8 +189,15 @@ Each company can carry a logo and accent of its own, set on its edit page, and
 they show on that company's pages and its documents. The shell keeps your
 branding, so it stays clear which portal you are looking at.
 
-An accent is adjusted per theme before it is used, so text on it stays readable
-in both light and dark rather than trusting that a brand color happens to work.
+Branding says which mode it was drawn for, because a logo made for a white
+background disappears on a dark one. Say whether your set is for light or dark,
+and Bothy offers the other: a second logo and, if you want it, a second color,
+so the portal stays on brand in both. A color you state for a mode is used in
+that mode exactly as you gave it; a mode you leave empty gets one derived from
+the other, adjusted until it is readable. The branding screen previews both
+themes side by side, each genuinely rendered, so you can see the one you are
+not using.
+
 Logos are PNG, JPEG, or WebP — SVG is refused, because an SVG can carry script
 and a logo is drawn on every page.
 

@@ -98,9 +98,13 @@ export const companies = pgTable("companies", {
   name: text("name").notNull(),
   isInternal: boolean("is_internal").notNull().default(false),
   notes: text("notes"), // markdown
+  brandScheme: text("brand_scheme").notNull().default("light"),
   accent: text("accent"), // #rrggbb, validated in app code
+  altAccent: text("alt_accent"),
   logoKey: text("logo_key"),
   logoMime: text("logo_mime"),
+  altLogoKey: text("alt_logo_key"),
+  altLogoMime: text("alt_logo_mime"),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
 });
@@ -114,13 +118,22 @@ export const instanceBranding = pgTable(
   {
     id: boolean("id").primaryKey().default(true),
     name: text("name"),
+    /** Which mode the primary logo and accent were drawn for. */
+    scheme: text("scheme").notNull().default("light"),
     accent: text("accent"),
+    /** An exact color for the other mode. Derived from `accent` when null. */
+    altAccent: text("alt_accent"),
     logoKey: text("logo_key"),
     logoMime: text("logo_mime"),
+    altLogoKey: text("alt_logo_key"),
+    altLogoMime: text("alt_logo_mime"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
     updatedBy: uuid("updated_by").references(() => users.id),
   },
-  (t) => [check("instance_branding_singleton", sql`${t.id}`)],
+  (t) => [
+    check("instance_branding_singleton", sql`${t.id}`),
+    check("instance_branding_scheme_check", sql`${t.scheme} IN ('light','dark')`),
+  ],
 );
 
 export const locations = pgTable("locations", {

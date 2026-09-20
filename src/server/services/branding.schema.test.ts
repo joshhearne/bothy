@@ -37,8 +37,27 @@ describe("brandingInputSchema", () => {
   it("keeps a name and a normalized color", () => {
     expect(brandingInputSchema.parse({ name: "  HearneTech Docs ", accent: "#1F6FEB" })).toEqual({
       name: "HearneTech Docs",
+      // Light unless an operator says otherwise: most logos are drawn for it.
+      scheme: "light",
       accent: "#1f6feb",
+      altAccent: null,
     });
+  });
+
+  it("takes a color for each mode, and which mode the set is for", () => {
+    const parsed = brandingInputSchema.parse({
+      name: null,
+      scheme: "dark",
+      accent: "#FFFDF0",
+      altAccent: "#0B1B3A",
+    });
+    expect(parsed.scheme).toBe("dark");
+    expect(parsed.accent).toBe("#fffdf0");
+    expect(parsed.altAccent).toBe("#0b1b3a");
+  });
+
+  it("refuses a mode that is not one of the two", () => {
+    expect(brandingInputSchema.safeParse({ name: null, scheme: "sepia" }).success).toBe(false);
   });
 
   it("treats an empty color as no color rather than an error", () => {

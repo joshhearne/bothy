@@ -82,7 +82,7 @@ export function AppShell({
   }, [open]);
 
   return (
-    <div className="flex min-h-dvh flex-col" style={brandStyle(branding.accent)}>
+    <div className="flex min-h-dvh flex-col" style={brandStyle(branding)}>
       {/* Opaque on purpose: a backdrop-filter here forms a backdrop root and
           paints through the mobile drawer's overlay. */}
       <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-[var(--background)] px-4">

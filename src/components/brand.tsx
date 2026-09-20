@@ -20,18 +20,62 @@ export function BrandMark({
 
   return (
     <span className={`flex min-w-0 items-center gap-2 ${className}`}>
-      {branding.logoUrl && (
+      <BrandLogo branding={branding} className="h-7 max-w-32" />
+      <span className="truncate font-semibold tracking-tight">{name}</span>
+    </span>
+  );
+}
+
+/**
+ * The logo for the theme in force. Both are rendered and CSS shows one, so the
+ * right logo is on screen in the first paint rather than after a script runs —
+ * and it keeps up when the reader's own machine flips to dark at sunset.
+ *
+ * With only one logo, it is shown in both themes: a faint logo beats a gap.
+ */
+export function BrandLogo({
+  branding,
+  className = "",
+}: {
+  branding: Branding;
+  className?: string;
+}) {
+  if (!branding.logoUrl && !branding.altLogoUrl) return null;
+
+  const other = branding.scheme === "light" ? "dark" : "light";
+  const slots: { scheme: "light" | "dark"; url: string | null }[] = [
+    { scheme: branding.scheme, url: branding.logoUrl },
+    { scheme: other, url: branding.altLogoUrl },
+  ];
+
+  // Whichever exists stands in for the one that does not.
+  const forLight = slots.find((slot) => slot.scheme === "light")?.url ?? null;
+  const forDark = slots.find((slot) => slot.scheme === "dark")?.url ?? null;
+  const both = forLight && forDark;
+
+  return (
+    <>
+      {(forLight ?? forDark) && (
         // Our own route, serving an image of unknown dimensions: next/image
         // would need a loader and a size it cannot know.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={branding.logoUrl}
+          src={(forLight ?? forDark) as string}
           alt=""
-          className="h-7 w-auto max-w-32 shrink-0 object-contain"
+          {...(both ? { "data-brand-logo": "light" } : {})}
+          className={`w-auto shrink-0 object-contain ${className}`}
         />
       )}
-      <span className="truncate font-semibold tracking-tight">{name}</span>
-    </span>
+      {both && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={forDark as string}
+          alt=""
+          data-brand-logo="dark"
+          className={`w-auto shrink-0 object-contain ${className}`}
+        />
+      )}
+    </>
   );
 }
 
@@ -42,8 +86,14 @@ export function BrandMark({
  *
  * An unset or unparseable color renders the children untouched.
  */
-export function brandStyle(accent: string | null | undefined): CSSProperties | undefined {
-  const tokens = brandTokens(accent);
+export function brandStyle(
+  brand: string | null | undefined | Pick<Branding, "accent" | "altAccent" | "scheme">,
+): CSSProperties | undefined {
+  const tokens = brandTokens(
+    typeof brand === "object" && brand !== null
+      ? { accent: brand.accent, altAccent: brand.altAccent, scheme: brand.scheme }
+      : brand,
+  );
   if (!tokens) return undefined;
 
   return {
@@ -54,15 +104,15 @@ export function brandStyle(accent: string | null | undefined): CSSProperties | u
 }
 
 export function BrandAccent({
-  accent,
+  brand,
   children,
   className = "",
 }: {
-  accent: string | null;
+  brand: Pick<Branding, "accent" | "altAccent" | "scheme">;
   children: ReactNode;
   className?: string;
 }) {
-  const style = brandStyle(accent);
+  const style = brandStyle(brand);
   if (!style) return <>{children}</>;
 
   return (

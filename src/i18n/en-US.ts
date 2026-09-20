@@ -259,7 +259,7 @@ export const enUS = {
       portalName: "Portal name",
       portalNameHint: "Replaces the product name in the top bar, the browser tab, and on the sign-in page.",
       accent: "Accent color",
-      accentHint: "A hex color like #1f6feb. It is adjusted per theme so text on it stays readable.",
+      accentHint: "A hex color like #1f6feb. Used exactly as given in the mode it is for.",
       accentClear: "No accent color",
       logo: "Logo",
       logoHint: "PNG, JPEG, or WebP, up to 1 MB. Shown beside the name and used as the tab icon.",
@@ -267,6 +267,19 @@ export const enUS = {
       replace: "Replace logo",
       remove: "Remove logo",
       noLogo: "No logo yet.",
+      scheme: "These assets are designed for",
+      schemeHint:
+        "A logo drawn for a light background disappears on a dark one, so say which this set is for.",
+      lightMode: "Light mode",
+      darkMode: "Dark mode",
+      accentFor: (mode: string) => `Accent color for ${mode}`,
+      logoFor: (mode: string) => `Logo for ${mode}`,
+      altAccentHint: (mode: string) =>
+        `Optional. Left empty, one is derived from your accent so it stays readable on ${mode}.`,
+      altLogoHint: (mode: string) =>
+        `Optional. Left empty, the other logo is shown on ${mode} too.`,
+      derived: "Derived",
+      previewHint: "Both themes, as a reader on each would see them.",
       save: "Save branding",
       preview: "Preview",
       previewButton: "A button in your color",

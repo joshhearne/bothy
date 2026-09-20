@@ -8,7 +8,7 @@ import { canEditDocuments, requireScopedUser } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { getDocumentDetail, listBacklinks } from "@/server/services/documents";
 import { getCompanyBranding } from "@/server/services/branding";
-import { BrandAccent } from "@/components/brand";
+import { BrandAccent, BrandLogo } from "@/components/brand";
 import { renderFieldValue } from "@/server/fields/render";
 import { formatDateTime } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
@@ -83,14 +83,11 @@ export default async function DocumentPage({
   const domainState = await getDomainCheckState(documentId, scope);
 
   return (
-    <BrandAccent accent={branding.accent} className="flex flex-col gap-8">
+    <BrandAccent brand={branding} className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
-            {branding.logoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={branding.logoUrl} alt="" className="h-5 w-auto max-w-24 object-contain" />
-            )}
+            <BrandLogo branding={branding} className="h-5 max-w-24" />
             <Link href={`/companies/${company.id}`} className="hover:underline">
               {company.name}
             </Link>

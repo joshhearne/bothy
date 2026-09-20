@@ -63,25 +63,43 @@ export function sniffImage(bytes: Buffer): { mime: string; extension: string } |
   return found ? { mime: found.mime, extension: found.extension } : null;
 }
 
+const hexColor = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .transform((value) => (value ? normalizeHex(value) : null));
+
 export const brandingInputSchema = z.object({
   name: z.string().trim().max(60).optional().nullable(),
-  accent: z
-    .string()
-    .trim()
-    .optional()
-    .nullable()
-    .transform((value) => (value ? normalizeHex(value) : null))
-    .refine((value) => value !== undefined, { message: "Use a hex color like #1f6feb" }),
+  scheme: z.enum(["light", "dark"]).default("light"),
+  accent: hexColor,
+  altAccent: hexColor,
 });
 
 export type BrandingInput = z.input<typeof brandingInputSchema>;
 
+export type BrandScheme = "light" | "dark";
+
 export type Branding = {
   name: string | null;
+  /** Which mode the primary logo and accent were drawn for. */
+  scheme: BrandScheme;
   accent: string | null;
+  /** The exact color for the other mode, when one was given. */
+  altAccent: string | null;
   /** Ready to put in an img src, with a version so a replaced logo shows up. */
   logoUrl: string | null;
+  /** The logo for the other mode, when one was uploaded. */
+  altLogoUrl: string | null;
 };
+
+/** Which of the two slots a logo or color belongs to. */
+export type BrandSlot = "primary" | "alt";
+
+export function otherScheme(scheme: BrandScheme): BrandScheme {
+  return scheme === "light" ? "dark" : "light";
+}
 
 /** A key's own uuid doubles as the cache-busting version: a new upload, a new key. */
 function version(logoKey: string | null): string {
@@ -90,30 +108,39 @@ function version(logoKey: string | null): string {
 
 export async function getInstanceBranding(): Promise<Branding> {
   const [row] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
-  if (!row) return { name: null, accent: null, logoUrl: null };
+  if (!row) {
+    return { name: null, scheme: "light", accent: null, altAccent: null, logoUrl: null, altLogoUrl: null };
+  }
 
   return {
     name: row.name,
+    scheme: (row.scheme === "dark" ? "dark" : "light") as BrandScheme,
     accent: row.accent,
+    altAccent: row.altAccent,
     logoUrl: row.logoKey ? `/api/branding/logo?v=${version(row.logoKey)}` : null,
+    altLogoUrl: row.altLogoKey
+      ? `/api/branding/logo?variant=alt&v=${version(row.altLogoKey)}`
+      : null,
   };
 }
 
 export async function setInstanceBranding(input: BrandingInput, actorId: string): Promise<void> {
   const data = brandingInputSchema.parse(input);
 
+  const values = {
+    name: data.name || null,
+    scheme: data.scheme,
+    accent: data.accent,
+    altAccent: data.altAccent,
+  };
+
   await db.transaction(async (tx) => {
     await tx
       .insert(instanceBranding)
-      .values({ id: true, name: data.name || null, accent: data.accent, updatedBy: actorId })
+      .values({ id: true, ...values, updatedBy: actorId })
       .onConflictDoUpdate({
         target: instanceBranding.id,
-        set: {
-          name: data.name || null,
-          accent: data.accent,
-          updatedAt: new Date(),
-          updatedBy: actorId,
-        },
+        set: { ...values, updatedAt: new Date(), updatedBy: actorId },
       });
 
     await writeAudit(
@@ -122,7 +149,7 @@ export async function setInstanceBranding(input: BrandingInput, actorId: string)
         action: "branding.updated",
         entity: "instance",
         entityId: null,
-        detail: { name: data.name || null, accent: data.accent },
+        detail: values,
       },
       tx,
     );
@@ -153,59 +180,88 @@ async function forget(key: string | null): Promise<void> {
   }
 }
 
-export async function setInstanceLogo(file: File, actorId: string): Promise<void> {
+export async function setInstanceLogo(
+  file: File,
+  actorId: string,
+  slot: BrandSlot = "primary",
+): Promise<void> {
   const [existing] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
   const stored = await storeLogo("instance", file);
+
+  const values =
+    slot === "alt"
+      ? { altLogoKey: stored.key, altLogoMime: stored.mime }
+      : { logoKey: stored.key, logoMime: stored.mime };
 
   await db.transaction(async (tx) => {
     await tx
       .insert(instanceBranding)
-      .values({ id: true, logoKey: stored.key, logoMime: stored.mime, updatedBy: actorId })
+      .values({ id: true, ...values, updatedBy: actorId })
       .onConflictDoUpdate({
         target: instanceBranding.id,
-        set: {
-          logoKey: stored.key,
-          logoMime: stored.mime,
-          updatedAt: new Date(),
-          updatedBy: actorId,
-        },
+        set: { ...values, updatedAt: new Date(), updatedBy: actorId },
       });
 
     await writeAudit(
-      { userId: actorId, action: "branding.logo_set", entity: "instance", entityId: null },
+      {
+        userId: actorId,
+        action: "branding.logo_set",
+        entity: "instance",
+        entityId: null,
+        detail: { slot },
+      },
       tx,
     );
   });
 
-  await forget(existing?.logoKey ?? null);
+  await forget((slot === "alt" ? existing?.altLogoKey : existing?.logoKey) ?? null);
 }
 
-export async function clearInstanceLogo(actorId: string): Promise<void> {
+export async function clearInstanceLogo(
+  actorId: string,
+  slot: BrandSlot = "primary",
+): Promise<void> {
   const [existing] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
-  if (!existing?.logoKey) return;
+  const key = slot === "alt" ? existing?.altLogoKey : existing?.logoKey;
+  if (!key) return;
+
+  const cleared =
+    slot === "alt"
+      ? { altLogoKey: null, altLogoMime: null }
+      : { logoKey: null, logoMime: null };
 
   await db.transaction(async (tx) => {
     await tx
       .update(instanceBranding)
-      .set({ logoKey: null, logoMime: null, updatedAt: new Date(), updatedBy: actorId })
+      .set({ ...cleared, updatedAt: new Date(), updatedBy: actorId })
       .where(eq(instanceBranding.id, true));
 
     await writeAudit(
-      { userId: actorId, action: "branding.logo_cleared", entity: "instance", entityId: null },
+      {
+        userId: actorId,
+        action: "branding.logo_cleared",
+        entity: "instance",
+        entityId: null,
+        detail: { slot },
+      },
       tx,
     );
   });
 
-  await forget(existing.logoKey);
+  await forget(key);
 }
 
 /** The bytes behind the instance logo, for the route that serves it. */
-export async function readInstanceLogo(): Promise<{ body: Buffer; mime: string } | null> {
+export async function readInstanceLogo(
+  slot: BrandSlot = "primary",
+): Promise<{ body: Buffer; mime: string } | null> {
   const [row] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
-  if (!row?.logoKey) return null;
+  const key = slot === "alt" ? row?.altLogoKey : row?.logoKey;
+  if (!key) return null;
 
   const storage = await getStorage();
-  return { body: await storage.get(row.logoKey), mime: row.logoMime ?? "application/octet-stream" };
+  const mime = (slot === "alt" ? row?.altLogoMime : row?.logoMime) ?? "application/octet-stream";
+  return { body: await storage.get(key), mime };
 }
 
 /* ---------- Per company ---------- */
@@ -217,7 +273,13 @@ export async function getCompanyBranding(
   assertInScope(scope, companyId);
 
   const [row] = await db
-    .select({ accent: companies.accent, logoKey: companies.logoKey })
+    .select({
+      scheme: companies.brandScheme,
+      accent: companies.accent,
+      altAccent: companies.altAccent,
+      logoKey: companies.logoKey,
+      altLogoKey: companies.altLogoKey,
+    })
     .from(companies)
     .where(eq(companies.id, companyId))
     .limit(1);
@@ -225,26 +287,34 @@ export async function getCompanyBranding(
 
   return {
     name: null,
+    scheme: (row.scheme === "dark" ? "dark" : "light") as BrandScheme,
     accent: row.accent,
-    logoUrl: row.logoKey
-      ? `/api/companies/${companyId}/logo?v=${version(row.logoKey)}`
+    altAccent: row.altAccent,
+    logoUrl: row.logoKey ? `/api/companies/${companyId}/logo?v=${version(row.logoKey)}` : null,
+    altLogoUrl: row.altLogoKey
+      ? `/api/companies/${companyId}/logo?variant=alt&v=${version(row.altLogoKey)}`
       : null,
   };
 }
 
-export async function setCompanyAccent(
+export async function setCompanyBranding(
   companyId: string,
-  accent: string | null,
+  input: { scheme?: string; accent?: string | null; altAccent?: string | null },
   actorId: string,
   scope: CompanyScope,
 ): Promise<void> {
   assertInScope(scope, companyId);
-  const value = accent ? normalizeHex(accent) : null;
+
+  const values = {
+    brandScheme: input.scheme === "dark" ? "dark" : "light",
+    accent: input.accent ? normalizeHex(input.accent) : null,
+    altAccent: input.altAccent ? normalizeHex(input.altAccent) : null,
+  };
 
   await db.transaction(async (tx) => {
     const [row] = await tx
       .update(companies)
-      .set({ accent: value })
+      .set(values)
       .where(eq(companies.id, companyId))
       .returning({ id: companies.id });
     if (!row) throw new NotFoundError("Company");
@@ -255,7 +325,7 @@ export async function setCompanyAccent(
         action: "branding.updated",
         entity: "company",
         entityId: companyId,
-        detail: { accent: value },
+        detail: values,
       },
       tx,
     );
@@ -267,23 +337,25 @@ export async function setCompanyLogo(
   file: File,
   actorId: string,
   scope: CompanyScope,
+  slot: BrandSlot = "primary",
 ): Promise<void> {
   assertInScope(scope, companyId);
 
   const [existing] = await db
-    .select({ logoKey: companies.logoKey })
+    .select({ logoKey: companies.logoKey, altLogoKey: companies.altLogoKey })
     .from(companies)
     .where(eq(companies.id, companyId))
     .limit(1);
   if (!existing) throw new NotFoundError("Company");
 
   const stored = await storeLogo(`company/${companyId}`, file);
+  const values =
+    slot === "alt"
+      ? { altLogoKey: stored.key, altLogoMime: stored.mime }
+      : { logoKey: stored.key, logoMime: stored.mime };
 
   await db.transaction(async (tx) => {
-    await tx
-      .update(companies)
-      .set({ logoKey: stored.key, logoMime: stored.mime })
-      .where(eq(companies.id, companyId));
+    await tx.update(companies).set(values).where(eq(companies.id, companyId));
 
     await writeAudit(
       {
@@ -291,33 +363,36 @@ export async function setCompanyLogo(
         action: "branding.logo_set",
         entity: "company",
         entityId: companyId,
+        detail: { slot },
       },
       tx,
     );
   });
 
-  await forget(existing.logoKey);
+  await forget((slot === "alt" ? existing.altLogoKey : existing.logoKey) ?? null);
 }
 
 export async function clearCompanyLogo(
   companyId: string,
   actorId: string,
   scope: CompanyScope,
+  slot: BrandSlot = "primary",
 ): Promise<void> {
   assertInScope(scope, companyId);
 
   const [existing] = await db
-    .select({ logoKey: companies.logoKey })
+    .select({ logoKey: companies.logoKey, altLogoKey: companies.altLogoKey })
     .from(companies)
     .where(eq(companies.id, companyId))
     .limit(1);
-  if (!existing?.logoKey) return;
+  const key = slot === "alt" ? existing?.altLogoKey : existing?.logoKey;
+  if (!key) return;
+
+  const cleared =
+    slot === "alt" ? { altLogoKey: null, altLogoMime: null } : { logoKey: null, logoMime: null };
 
   await db.transaction(async (tx) => {
-    await tx
-      .update(companies)
-      .set({ logoKey: null, logoMime: null })
-      .where(eq(companies.id, companyId));
+    await tx.update(companies).set(cleared).where(eq(companies.id, companyId));
 
     await writeAudit(
       {
@@ -325,28 +400,38 @@ export async function clearCompanyLogo(
         action: "branding.logo_cleared",
         entity: "company",
         entityId: companyId,
+        detail: { slot },
       },
       tx,
     );
   });
 
-  await forget(existing.logoKey);
+  await forget(key);
 }
 
 /** The bytes behind a company logo, for the route that serves it. */
 export async function readCompanyLogo(
   companyId: string,
   scope: CompanyScope,
+  slot: BrandSlot = "primary",
 ): Promise<{ body: Buffer; mime: string } | null> {
   assertInScope(scope, companyId);
 
   const [row] = await db
-    .select({ logoKey: companies.logoKey, logoMime: companies.logoMime })
+    .select({
+      logoKey: companies.logoKey,
+      logoMime: companies.logoMime,
+      altLogoKey: companies.altLogoKey,
+      altLogoMime: companies.altLogoMime,
+    })
     .from(companies)
     .where(eq(companies.id, companyId))
     .limit(1);
-  if (!row?.logoKey) return null;
+
+  const key = slot === "alt" ? row?.altLogoKey : row?.logoKey;
+  if (!key) return null;
 
   const storage = await getStorage();
-  return { body: await storage.get(row.logoKey), mime: row.logoMime ?? "application/octet-stream" };
+  const mime = (slot === "alt" ? row?.altLogoMime : row?.logoMime) ?? "application/octet-stream";
+  return { body: await storage.get(key), mime };
 }

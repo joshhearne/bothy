@@ -89,9 +89,23 @@ decides *where*.
 - The instance logo is served without authentication, because the sign-in page
   needs it. A company logo is not: it answers 404 outside the caller's company
   scope, like everything else about that company.
-- An accent is validated as `#rrggbb`, then re-derived per surface so text on
-  it clears WCAG AA in both palettes (`src/lib/brand-color.ts`). Only the
-  derived hex values reach a stylesheet, never the string that was typed.
+- Branding states which mode it was drawn for (`scheme`), and may carry a
+  second logo and a second color for the other mode.
+- A color stated for a mode is used in that mode **exactly as given**: an
+  operator saying "this is our dark blue for dark mode" means it. The mode
+  nobody stated is derived from the one they did, moved far enough from that
+  surface to clear WCAG AA (`src/lib/brand-color.ts`). Only hex values reach a
+  stylesheet, never the string that was typed. The accent is a fill with its
+  label colour computed against it, never text on the page background, so an
+  exact brand colour cannot make anything unreadable.
+- Both logos are rendered and CSS shows one, keyed on the theme, so the right
+  one is there in the first paint and keeps up when a reader's machine turns
+  dark at sunset. With one logo, it is shown in both.
+- The palette aliases are declared for `:root` **and any element with
+  `data-theme`**, because `light-dark()` resolves where the declaration sits
+  and a custom property inherits already resolved. That is what lets the
+  branding screen render both themes side by side for real rather than
+  illustrating them.
 - A company's accent applies to its own pages and documents; the shell keeps
   the instance's, so it stays obvious which portal you are in.
 

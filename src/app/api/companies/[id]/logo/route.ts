@@ -17,10 +17,11 @@ export async function GET(
   if (!user) return new Response("Unauthorized", { status: 401 });
 
   const { id } = await params;
+  const slot = new URL(request.url).searchParams.get("variant") === "alt" ? "alt" : "primary";
 
   let logo;
   try {
-    logo = await readCompanyLogo(id, await getCompanyScope(user));
+    logo = await readCompanyLogo(id, await getCompanyScope(user), slot);
   } catch (err) {
     if (err instanceof NotFoundError) return new Response("Not found", { status: 404 });
     throw err;

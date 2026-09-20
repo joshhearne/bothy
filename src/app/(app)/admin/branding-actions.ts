@@ -9,7 +9,7 @@ import {
   clearCompanyLogo,
   clearInstanceLogo,
   LogoTooLargeError,
-  setCompanyAccent,
+  setCompanyBranding,
   setCompanyLogo,
   setInstanceBranding,
   setInstanceLogo,
@@ -33,7 +33,12 @@ export async function saveBrandingAction(
   try {
     const user = await requireAdmin();
     await setInstanceBranding(
-      { name: text(formData, "name") ?? null, accent: text(formData, "accent") ?? null },
+      {
+        name: text(formData, "name") ?? null,
+        scheme: text(formData, "scheme") === "dark" ? "dark" : "light",
+        accent: text(formData, "accent") ?? null,
+        altAccent: text(formData, "altAccent") ?? null,
+      },
       user.id,
     );
   } catch (err) {
@@ -51,9 +56,11 @@ export async function uploadLogoAction(_prev: FormState, formData: FormData): Pr
     return { fieldErrors: { logo: "Choose an image to upload" } };
   }
 
+  const slot = text(formData, "slot") === "alt" ? "alt" : "primary";
+
   try {
     const user = await requireAdmin();
-    await setInstanceLogo(file, user.id);
+    await setInstanceLogo(file, user.id, slot);
   } catch (err) {
     return toFormState(err);
   }
@@ -62,9 +69,10 @@ export async function uploadLogoAction(_prev: FormState, formData: FormData): Pr
   return { ok: true };
 }
 
-export async function removeLogoAction(): Promise<void> {
+export async function removeLogoAction(formData: FormData): Promise<void> {
+  const slot = text(formData, "slot") === "alt" ? "alt" : "primary";
   const user = await requireAdmin();
-  await clearInstanceLogo(user.id);
+  await clearInstanceLogo(user.id, slot);
   revalidatePath("/", "layout");
 }
 
@@ -78,14 +86,28 @@ export async function saveCompanyBrandingAction(
   if (!companyId) return { error: "Missing company" };
 
   const file = formData.get("logo");
+  const altFile = formData.get("altLogo");
 
   try {
     const user = await requireAdmin();
     const scope = await getCompanyScope(user);
 
-    await setCompanyAccent(companyId, text(formData, "accent") ?? null, user.id, scope);
+    await setCompanyBranding(
+      companyId,
+      {
+        scheme: text(formData, "scheme") ?? "light",
+        accent: text(formData, "accent") ?? null,
+        altAccent: text(formData, "altAccent") ?? null,
+      },
+      user.id,
+      scope,
+    );
+
     if (file instanceof File && file.size > 0) {
-      await setCompanyLogo(companyId, file, user.id, scope);
+      await setCompanyLogo(companyId, file, user.id, scope, "primary");
+    }
+    if (altFile instanceof File && altFile.size > 0) {
+      await setCompanyLogo(companyId, altFile, user.id, scope, "alt");
     }
   } catch (err) {
     return toFormState(err);
@@ -99,7 +121,8 @@ export async function removeCompanyLogoAction(formData: FormData): Promise<void>
   const companyId = text(formData, "companyId");
   if (!companyId) return;
 
+  const slot = text(formData, "slot") === "alt" ? "alt" : "primary";
   const user = await requireAdmin();
-  await clearCompanyLogo(companyId, user.id, await getCompanyScope(user));
+  await clearCompanyLogo(companyId, user.id, await getCompanyScope(user), slot);
   revalidatePath(`/companies/${companyId}`);
 }

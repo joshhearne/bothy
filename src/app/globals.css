@@ -58,7 +58,17 @@
   --dark-sidebar: oklch(0.215 0.016 258);
   --dark-sidebar-border: oklch(0.3 0.017 258);
   --dark-selection: oklch(0.72 0.12 245 / 0.28);
+}
 
+/*
+ * The aliases are re-declared for any element that names a theme, not only
+ * :root. light-dark() resolves against the color-scheme in force where the
+ * declaration sits, and a custom property inherits already resolved — so a
+ * panel marked data-theme="dark" needs its own copy, or it would inherit the
+ * page's light colors and only look dark in the parts it overrides itself.
+ */
+:root,
+[data-theme] {
   --background: light-dark(var(--light-background), var(--dark-background));
   --foreground: light-dark(var(--light-foreground), var(--dark-foreground));
   --card: light-dark(var(--light-card), var(--dark-card));
@@ -76,22 +86,69 @@
   --selection: light-dark(var(--light-selection), var(--dark-selection));
 }
 
+
 /*
  * data-theme is server-rendered from the reader's cookie. color-scheme is what
  * light-dark() reads, and it also tells the browser how to paint the surfaces
  * we do not control: form controls, scrollbars, the canvas behind a bounce.
+ *
+ * These match any element, not only :root, because color-scheme inherits: a
+ * panel marked data-theme="dark" inside a light page really is dark, which is
+ * how the branding screen shows an admin the theme they are not looking at.
  */
 :root,
-:root[data-theme="system"] {
+[data-theme="system"] {
   color-scheme: light dark;
 }
 
-:root[data-theme="light"] {
+[data-theme="light"] {
   color-scheme: light;
 }
 
-:root[data-theme="dark"] {
+[data-theme="dark"] {
   color-scheme: dark;
+}
+
+/*
+ * Colour inherits already resolved, so a panel that names its own theme has to
+ * restate it or it would keep the surrounding page's text colour on its own
+ * background — black on black in the worst case.
+ */
+[data-theme]:not(:root) {
+  color: var(--foreground);
+}
+
+/*
+ * A logo drawn for a light background disappears on a dark one, so branding
+ * can carry one for each and the theme in force decides which is shown. With
+ * only one, it is shown in both rather than leaving a gap.
+ */
+[data-brand-logo="dark"] {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-brand-logo="light"],
+  [data-theme="system"] [data-brand-logo="light"] {
+    display: none;
+  }
+  :root:not([data-theme="light"]) [data-brand-logo="dark"],
+  [data-theme="system"] [data-brand-logo="dark"] {
+    display: block;
+  }
+}
+
+[data-theme="light"] [data-brand-logo="light"] {
+  display: block;
+}
+[data-theme="light"] [data-brand-logo="dark"] {
+  display: none;
+}
+[data-theme="dark"] [data-brand-logo="light"] {
+  display: none;
+}
+[data-theme="dark"] [data-brand-logo="dark"] {
+  display: block;
 }
 
 @layer base {

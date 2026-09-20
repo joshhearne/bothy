@@ -60,13 +60,15 @@ describe("brandTokens", () => {
     expect(contrastRatio(dark, DARK)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("darkens a near-white brand until it reads on a light background", () => {
-    const tokens = brandTokens("#fffdf0");
+  it("lightens a navy brand for the mode it was not stated for", () => {
+    // Stated for light, where navy is fine; the dark mode is ours to derive.
+    const tokens = brandTokens({ accent: "#0b1b3a", scheme: "light" });
     if (!tokens) throw new Error("unparsed");
 
-    const light = toRgb(tokens.light);
-    if (!light) throw new Error("unparsed");
-    expect(contrastRatio(light, { r: 255, g: 255, b: 255 })).toBeGreaterThanOrEqual(4.5);
+    expect(tokens.light).toBe("#0b1b3a");
+    const dark = toRgb(tokens.dark);
+    if (!dark) throw new Error("unparsed");
+    expect(contrastRatio(dark, DARK)).toBeGreaterThanOrEqual(4.5);
   });
 
   it("gives every surface a readable label on the accent itself", () => {
@@ -84,5 +86,53 @@ describe("brandTokens", () => {
         expect(contrastRatio(a, b)).toBeGreaterThanOrEqual(4.5);
       }
     }
+  });
+});
+
+describe("brandTokens with a mode declared", () => {
+  it("uses a stated color in its own mode exactly as given", () => {
+    // Near-white would be adapted if we were guessing, but the operator says
+    // it is the dark mode color, and on a dark surface it is right.
+    const tokens = brandTokens({ accent: "#fffdf0", scheme: "dark" });
+    expect(tokens?.dark).toBe("#fffdf0");
+    // The light mode is ours to derive, and near-white on white is not usable.
+    const light = toRgb(tokens?.light ?? "");
+    if (!light) throw new Error("unparsed");
+    expect(contrastRatio(light, { r: 255, g: 255, b: 255 })).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("takes an exact color for each mode when both are given", () => {
+    const tokens = brandTokens({
+      accent: "#1f6feb",
+      scheme: "light",
+      altAccent: "#7cc4ff",
+    });
+    expect(tokens?.light).toBe("#1f6feb");
+    expect(tokens?.dark).toBe("#7cc4ff");
+  });
+
+  it("derives the mode that was not stated", () => {
+    const only = brandTokens({ accent: "#000000", scheme: "light" });
+    expect(only?.light).toBe("#000000");
+    // Black would vanish on a dark background, so the derived one does not.
+    expect(only?.dark).not.toBe("#000000");
+    const dark = toRgb(only?.dark ?? "");
+    if (!dark) throw new Error("unparsed");
+    expect(contrastRatio(dark, DARK)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("works from the alternate alone, which is a half-finished brand", () => {
+    const tokens = brandTokens({ accent: null, scheme: "light", altAccent: "#7cc4ff" });
+    expect(tokens?.dark).toBe("#7cc4ff");
+    expect(tokens?.light).toBeTruthy();
+  });
+
+  it("is still null when nothing usable was given", () => {
+    expect(brandTokens({ accent: null, altAccent: null })).toBeNull();
+    expect(brandTokens({ accent: "nonsense", altAccent: "" })).toBeNull();
+  });
+
+  it("keeps the old single-color call working", () => {
+    expect(brandTokens("#1f6feb")?.light).toBe("#1f6feb");
   });
 });

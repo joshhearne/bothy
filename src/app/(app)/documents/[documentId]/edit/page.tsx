@@ -41,7 +41,7 @@ export default async function EditDocumentPage({
   const t = await getMessages();
 
   return (
-    <BrandAccent accent={branding.accent} className="flex flex-col gap-6">
+    <BrandAccent brand={branding} className="flex flex-col gap-6">
       <div>
         <p className="text-sm text-[var(--muted-foreground)]">
           {company.name}

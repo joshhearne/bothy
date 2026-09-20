@@ -122,17 +122,41 @@ export type BrandTokens = {
 };
 
 /**
- * The four values the interface needs from one brand color. Returns null for
- * anything that is not a hex color, which is the caller's signal to use the
- * built-in palette.
+ * The brand as an operator states it: a color, which mode it was drawn for,
+ * and optionally the exact color to use in the other mode.
  */
-export function brandTokens(input: string | null | undefined): BrandTokens | null {
-  if (!input) return null;
-  const rgb = toRgb(input);
-  if (!rgb) return null;
+export type BrandInput = {
+  accent: string | null | undefined;
+  /** Which mode `accent` belongs to. */
+  scheme?: "light" | "dark";
+  /** The color for the other mode. Derived from `accent` when absent. */
+  altAccent?: string | null | undefined;
+};
 
-  const light = adjustFor(rgb, LIGHT_SURFACE);
-  const dark = adjustFor(rgb, DARK_SURFACE);
+/**
+ * The four values the interface needs from a brand. A color given for a mode
+ * is used in that mode exactly as given, on the operator's word that it works
+ * there; a mode with no color of its own gets one derived from the other, far
+ * enough from that surface to stay readable.
+ *
+ * Returns null when there is no usable color at all, which is the caller's
+ * signal to leave the built-in palette alone.
+ */
+export function brandTokens(input: string | null | undefined | BrandInput): BrandTokens | null {
+  const brand: BrandInput = typeof input === "object" && input !== null ? input : { accent: input };
+  const scheme = brand.scheme === "dark" ? "dark" : "light";
+
+  const primary = toRgb(brand.accent ?? "");
+  const alternate = toRgb(brand.altAccent ?? "");
+  if (!primary && !alternate) return null;
+
+  // The stated color belongs to its own mode; the other is the alternate.
+  const statedLight = scheme === "light" ? primary : alternate;
+  const statedDark = scheme === "light" ? alternate : primary;
+
+  // With only one color, the other mode derives from it rather than going bare.
+  const light = statedLight ?? adjustFor(statedDark as Rgb, LIGHT_SURFACE);
+  const dark = statedDark ?? adjustFor(statedLight as Rgb, DARK_SURFACE);
 
   return {
     light: toHex(light),

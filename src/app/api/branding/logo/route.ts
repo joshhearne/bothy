@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
  * to show visitors, so there is nothing here to protect.
  */
 export async function GET(request: Request): Promise<Response> {
-  const logo = await readInstanceLogo().catch(() => null);
+  const slot = new URL(request.url).searchParams.get("variant") === "alt" ? "alt" : "primary";
+  const logo = await readInstanceLogo(slot).catch(() => null);
   if (!logo) return new Response("Not found", { status: 404 });
 
   // The URL carries the storage key's version, so a cached copy can only be

@@ -22,7 +22,7 @@ export default async function SignInPage() {
   return (
     <main
       className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 py-12"
-      style={brandStyle(branding.accent)}
+      style={brandStyle(branding)}
     >
       <BrandMark branding={branding} fallbackName={t.app.name} className="justify-center text-lg" />
 

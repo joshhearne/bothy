@@ -297,3 +297,18 @@ CREATE TABLE domain_checks (
   checked_at timestamptz,
   checked_by uuid REFERENCES users(id)
 );
+
+-- ---------- Branding per theme ----------
+-- A logo drawn for a light background disappears on a dark one, so branding
+-- says which mode its assets were drawn for and may carry a set for the other.
+ALTER TABLE instance_branding ADD COLUMN scheme text NOT NULL DEFAULT 'light'
+  CHECK (scheme IN ('light','dark'));
+ALTER TABLE instance_branding ADD COLUMN alt_accent text;
+ALTER TABLE instance_branding ADD COLUMN alt_logo_key text;
+ALTER TABLE instance_branding ADD COLUMN alt_logo_mime text;
+
+ALTER TABLE companies ADD COLUMN brand_scheme text NOT NULL DEFAULT 'light'
+  CHECK (brand_scheme IN ('light','dark'));
+ALTER TABLE companies ADD COLUMN alt_accent text;
+ALTER TABLE companies ADD COLUMN alt_logo_key text;
+ALTER TABLE companies ADD COLUMN alt_logo_mime text;

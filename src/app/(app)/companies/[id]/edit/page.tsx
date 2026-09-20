@@ -46,18 +46,24 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
 
         <CompanyBrandingForm
           companyId={company.id}
+          scheme={branding.scheme}
           accent={branding.accent}
+          altAccent={branding.altAccent}
           accept={LOGO_ACCEPT}
           hasLogo={branding.logoUrl !== null}
         />
 
-        {branding.logoUrl && (
-          <form action={removeCompanyLogoAction}>
-            <input type="hidden" name="companyId" value={company.id} />
-            <Button type="submit" variant="outline" size="sm">
-              {t.admin.branding.remove}
-            </Button>
-          </form>
+        {(["primary", "alt"] as const).map(
+          (slot) =>
+            (slot === "primary" ? branding.logoUrl : branding.altLogoUrl) && (
+              <form key={slot} action={removeCompanyLogoAction}>
+                <input type="hidden" name="companyId" value={company.id} />
+                <input type="hidden" name="slot" value={slot} />
+                <Button type="submit" variant="outline" size="sm">
+                  {t.admin.branding.remove}
+                </Button>
+              </form>
+            ),
         )}
       </section>
     </div>
