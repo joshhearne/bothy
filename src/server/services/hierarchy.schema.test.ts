@@ -28,8 +28,8 @@ describe("companyInputSchema", () => {
 
 describe("locationInputSchema", () => {
   it("trims name and address", () => {
-    const parsed = locationInputSchema.parse({ name: "  MOT1  ", address: "  1 High St  " });
-    expect(parsed).toEqual({ name: "MOT1", address: "1 High St" });
+    const parsed = locationInputSchema.parse({ name: "  Depot  ", address: "  1 High St  " });
+    expect(parsed).toEqual({ name: "Depot", address: "1 High St" });
   });
 
   it("rejects a blank name", () => {

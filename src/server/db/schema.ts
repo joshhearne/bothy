@@ -338,7 +338,7 @@ export const vaultProviders = pgTable(
   "vault_providers",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    name: text("name").notNull(), // "HearneTech Vaultwarden"
+    name: text("name").notNull(), // e.g. "Main Vaultwarden"
     kind: text("kind").notNull(),
     webVaultUrl: text("web_vault_url"), // for deep links
     organizationId: text("organization_id"),

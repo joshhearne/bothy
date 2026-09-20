@@ -69,7 +69,7 @@ CREATE TABLE companies (
 CREATE TABLE locations (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id  uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  name        text NOT NULL,                   -- e.g. MOT1, Corporate
+  name        text NOT NULL,                   -- e.g. Head Office, Warehouse
   address     text,
   archived_at timestamptz
 );
@@ -230,7 +230,7 @@ ALTER TABLE users ADD COLUMN can_reveal_secrets boolean NOT NULL DEFAULT false;
 -- Non-secret provider config. Credentials stay in env / Docker secrets.
 CREATE TABLE vault_providers (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name          text NOT NULL,                  -- "HearneTech Vaultwarden"
+  name          text NOT NULL,                  -- e.g. "Main Vaultwarden"
   kind          text NOT NULL CHECK (kind IN ('link','bw_serve','bitwarden_public_api')),
   web_vault_url text,                           -- for deep links
   organization_id text,                         -- Bitwarden org id

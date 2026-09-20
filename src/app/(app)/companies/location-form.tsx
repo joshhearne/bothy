@@ -52,7 +52,7 @@ export function AddLocationForm({ companyId }: { companyId: string }) {
               ref={nameRef}
               id="location-name"
               name="name"
-              placeholder="MOT1"
+              placeholder="Head Office"
               required
               maxLength={200}
               aria-invalid={!!fieldErrors.name}

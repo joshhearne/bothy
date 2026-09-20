@@ -53,7 +53,7 @@ export function VaultProviderForm({
           defaultValue={provider?.name ?? ""}
           required
           maxLength={200}
-          placeholder="HearneTech Vaultwarden"
+          placeholder="Main Vaultwarden"
         />
       </Field>
 
