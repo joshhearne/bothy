@@ -141,6 +141,15 @@ strings that differ from `src/i18n/en-US.ts`, and add the code to
 `src/i18n/locales.ts`. Anything left out falls back to en-US, so a partial
 translation is still usable.
 
+## Shared lists versus links
+
+A field that names something shared across clients — a registrar, a DNS host,
+an internet provider — is a dropdown on an instance-wide list, so nobody
+re-creates Cloudflare for the fortieth client. A field that names *that
+client's* own record — which circuit a firewall sits on — stays a link to the
+document. Lists are editable from inside any document with the "+", and what
+you add is there for every company afterwards.
+
 ## Attachments
 
 Each document takes files: images, PDF, Word, Excel, PowerPoint, CSV, Markdown,

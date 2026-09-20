@@ -112,6 +112,18 @@ decides *where*.
 - On Workers, conversion is refused with a message rather than attempted:
   `WebAssembly.compile` is not allowed there.
 
+## Shared lists versus links
+A `doc_link` field points at a document, and a document belongs to one company.
+That is right for "which circuit is this firewall on" and wrong for "who is the
+registrar": an MSP would re-create Cloudflare for every client.
+
+The rule the starter pack follows: if the answer is a *name* shared across
+clients, it is a dropdown on an instance-wide option list. If it is a
+*relationship* to that client's own record, it stays a `doc_link`. So Registrar,
+DNS Host, and ISP Provider draw on shared lists, while Firewall → WAN still
+links to that company's ISP document. An option list belongs to the doc type's
+field, never to a company, and anyone editing a document can add to it inline.
+
 ## Security baseline
 - Argon2id for local passwords
 - API keys: random 32 bytes, shown once, stored as SHA-256 hash, looked up by prefix

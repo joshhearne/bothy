@@ -55,14 +55,48 @@ test("the starter pack is seeded with its links and secrets wired up", async () 
   expect(psql(`select scope from doc_types where name = 'Vendor';`)).toBe("company");
   expect(psql(`select scope from doc_types where name = 'Switch';`)).toBe("location");
 
-  // A doc_link field points at the right doc type.
+  // A doc_link field points at the right doc type. The WAN circuit really is
+  // one company's ISP record, so it stays a link.
   expect(
     psql(
       `select d2.name from fields f join doc_types d1 on d1.id = f.doc_type_id ` +
         `join doc_types d2 on d2.id = f.link_doc_type_id ` +
-        `where d1.name = 'ISP' and f.label = 'Provider';`,
+        `where d1.name = 'Firewall' and f.label = 'WAN';`,
     ),
-  ).toBe("Vendor");
+  ).toBe("ISP");
+
+  /*
+   * Who a domain or a circuit is with is a name shared by every client, not a
+   * document per company, so these draw on shared lists. Both domain fields
+   * draw on the same one.
+   */
+  expect(
+    psql(
+      `select l.name from fields f join doc_types d on d.id = f.doc_type_id ` +
+        `join option_lists l on l.id = f.option_list_id ` +
+        `where d.name = 'Domain/DNS' and f.label in ('Registrar', 'DNS Host') ` +
+        `group by l.name;`,
+    ),
+  ).toBe("Registrars and DNS Hosts");
+
+  expect(
+    psql(
+      `select count(*) from fields f join doc_types d on d.id = f.doc_type_id ` +
+        `where d.name in ('Domain/DNS', 'ISP') ` +
+        `and f.label in ('Registrar', 'DNS Host', 'Provider') ` +
+        `and f.field_type = 'dropdown';`,
+    ),
+  ).toBe("3");
+
+  // Nothing about them is tied to a company.
+  expect(
+    psql(
+      `select count(*) from fields f join doc_types d on d.id = f.doc_type_id ` +
+        `where d.name in ('Domain/DNS', 'ISP') ` +
+        `and f.label in ('Registrar', 'DNS Host', 'Provider') ` +
+        `and f.link_doc_type_id is not null;`,
+    ),
+  ).toBe("0");
 
   // Firewall and Wi-Fi carry a secret_ref, as the pack specifies.
   expect(

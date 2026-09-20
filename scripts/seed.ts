@@ -62,6 +62,44 @@ type NewDocType = {
 
 const OPTION_LISTS: Record<string, string[]> = {
   "Vendor Types": ["ISP", "Hardware", "Software", "Distributor", "Carrier"],
+  /*
+   * Who a domain or a circuit is with is the same handful of companies for
+   * every client, so these are shared lists rather than a document per
+   * company. Both domain fields draw on one list: the firms that register
+   * domains are the firms that host DNS. Anything missing is added inline
+   * from the document with the "+", and it is there for every company after.
+   */
+  "Registrars and DNS Hosts": [
+    "Cloudflare",
+    "GoDaddy",
+    "Namecheap",
+    "Hostinger",
+    "Route 53 (AWS)",
+    "Azure DNS",
+    "Google Cloud DNS",
+    "DigitalOcean",
+    "IONOS",
+    "Gandi",
+    "Porkbun",
+    "Dynadot",
+    "Name.com",
+    "Network Solutions",
+    "Squarespace Domains",
+    "DNSimple",
+  ],
+  "Internet Providers": [
+    "AT&T",
+    "Verizon",
+    "Comcast Business",
+    "Spectrum",
+    "Cox Business",
+    "Lumen",
+    "Frontier",
+    "BT",
+    "Virgin Media O2",
+    "Vodafone",
+    "Starlink",
+  ],
   "Circuit Types": ["Fiber", "FTTC", "FTTP", "DSL", "Leased Line", "4G/5G", "Satellite"],
   "Firewall Vendors": ["Fortinet", "Palo Alto", "Sophos", "WatchGuard", "Cisco", "pfSense"],
   "Wi-Fi Security": ["WPA2-Personal", "WPA2-Enterprise", "WPA3-Personal", "WPA3-Enterprise", "Open"],
@@ -105,7 +143,7 @@ const DOC_TYPES: NewDocType[] = [
     scope: "location",
     icon: "globe",
     fields: [
-      { label: "Provider", fieldType: "doc_link", linksTo: "Vendor" },
+      { label: "Provider", fieldType: "dropdown", optionList: "Internet Providers" },
       { label: "Circuit Type", fieldType: "dropdown", optionList: "Circuit Types" },
       { label: "Circuit ID", fieldType: "text" },
       { label: "Static IPs", fieldType: "text" },
@@ -188,8 +226,8 @@ const DOC_TYPES: NewDocType[] = [
     icon: "globe-lock",
     fields: [
       { label: "Domain", fieldType: "text", required: true },
-      { label: "Registrar", fieldType: "doc_link", linksTo: "Vendor" },
-      { label: "DNS Host", fieldType: "doc_link", linksTo: "Vendor" },
+      { label: "Registrar", fieldType: "dropdown", optionList: "Registrars and DNS Hosts" },
+      { label: "DNS Host", fieldType: "dropdown", optionList: "Registrars and DNS Hosts" },
       { label: "Expiration", fieldType: "date" },
       { label: "Records Notes", fieldType: "markdown" },
     ],
@@ -216,10 +254,12 @@ async function upsertOptionList(name: string, items: string[]): Promise<string> 
     .returning({ id: optionLists.id });
   if (!list) throw new Error(`Failed to upsert option list ${name}`);
 
-  await db
-    .insert(optionItems)
-    .values(items.map((label, index) => ({ listId: list.id, label: term(label), sortOrder: index })))
-    .onConflictDoNothing({ target: [optionItems.listId, optionItems.label] });
+  if (items.length > 0) {
+    await db
+      .insert(optionItems)
+      .values(items.map((label, index) => ({ listId: list.id, label: term(label), sortOrder: index })))
+      .onConflictDoNothing({ target: [optionItems.listId, optionItems.label] });
+  }
 
   return list.id;
 }
