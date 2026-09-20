@@ -31,6 +31,15 @@ export async function signInAsAdmin(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/companies/);
 }
 
+/** Signs in as somebody other than the admin. */
+export async function signInAs(page: Page, email: string, password: string): Promise<void> {
+  await page.goto("/sign-in");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/companies/);
+}
+
 export async function createOptionList(page: Page, name: string, items: string[]): Promise<void> {
   await page.goto("/admin/option-lists");
   await page.getByLabel("List name").fill(name);

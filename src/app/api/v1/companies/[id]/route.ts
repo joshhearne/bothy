@@ -9,14 +9,14 @@ import { loadExternalRefMap } from "@/server/services/external-refs";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withApi<{ id: string }>("read", async ({ params }) => {
-  const company = await getCompanyOrThrow(params.id);
+export const GET = withApi<{ id: string }>("read", async ({ params, scope }) => {
+  const company = await getCompanyOrThrow(params.id, scope);
   const refs = await loadExternalRefMap("company", [company.id]);
   return json(serializeCompany(company, refs.get(company.id) ?? []));
 });
 
-export const PATCH = withApi<{ id: string }>("write", async ({ params, request }) => {
-  const existing = await getCompanyOrThrow(params.id);
+export const PATCH = withApi<{ id: string }>("write", async ({ params, request, scope }) => {
+  const existing = await getCompanyOrThrow(params.id, scope);
   const body = await readJson(request);
 
   const input = companyInputSchema.parse({
@@ -25,8 +25,8 @@ export const PATCH = withApi<{ id: string }>("write", async ({ params, request }
     notes: body.notes === undefined ? existing.notes : body.notes,
   });
 
-  await updateCompany(params.id, input, null);
-  const company = await getCompanyOrThrow(params.id);
+  await updateCompany(params.id, input, null, scope);
+  const company = await getCompanyOrThrow(params.id, scope);
   const refs = await loadExternalRefMap("company", [company.id]);
   return json(serializeCompany(company, refs.get(company.id) ?? []));
 });

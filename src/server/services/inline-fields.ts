@@ -6,6 +6,8 @@ import { documents, fields } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { queueEvent } from "@/server/services/webhooks";
 import { NotFoundError } from "@/server/services/companies";
+import { assertDocumentInScope } from "@/server/services/documents";
+import { assertInScope, type CompanyScope } from "@/server/auth/company-scope";
 import {
   EDITABLE_FIELD_TYPES,
   usesLinkDocType,
@@ -60,7 +62,9 @@ export async function addLocalField(
   documentId: string,
   input: z.input<typeof localFieldInputSchema>,
   actorId: string,
+  scope: CompanyScope,
 ): Promise<FieldDefinition> {
+  await assertDocumentInScope(documentId, scope);
   const data = localFieldInputSchema.parse(input);
 
   return db.transaction(async (tx) => {
@@ -121,7 +125,9 @@ export async function promoteField(
   fieldId: string,
   input: z.input<typeof localFieldInputSchema>,
   actorId: string,
+  scope: CompanyScope,
 ): Promise<FieldDefinition> {
+  await assertFieldInScope(fieldId, scope);
   const data = localFieldInputSchema.parse(input);
 
   return db.transaction(async (tx) => {
@@ -196,7 +202,9 @@ export async function setDocumentFieldOrder(
   documentId: string,
   orderedFieldIds: string[],
   actorId: string,
+  scope: CompanyScope,
 ): Promise<void> {
+  await assertDocumentInScope(documentId, scope);
   await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(documents)
@@ -227,7 +235,9 @@ export async function applyOrderToTemplate(
   docTypeId: string,
   orderedFieldIds: string[],
   actorId: string,
+  scope: CompanyScope,
 ): Promise<void> {
+  await assertDocumentInScope(documentId, scope);
   await db.transaction(async (tx) => {
     const templateFieldIds = new Set(
       (
@@ -267,7 +277,12 @@ export async function applyOrderToTemplate(
 }
 
 /** Archives a field from inside a document. Stored values stay in JSONB. */
-export async function archiveFieldInline(fieldId: string, actorId: string): Promise<void> {
+export async function archiveFieldInline(
+  fieldId: string,
+  actorId: string,
+  scope: CompanyScope,
+): Promise<void> {
+  await assertFieldInScope(fieldId, scope);
   await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(fields)
@@ -290,6 +305,25 @@ export async function archiveFieldInline(fieldId: string, actorId: string): Prom
 }
 
 /** Whether a field belongs to one document (local) or to a doc type (template). */
+/**
+ * A local field belongs to one document, so its company decides who may touch
+ * it. A template field belongs to a doc type, which is instance-wide and
+ * already admin-only, so there is nothing per-company to check.
+ */
+async function assertFieldInScope(fieldId: string, scope: CompanyScope): Promise<void> {
+  const ownership = await getFieldOwnership(fieldId);
+  if (!ownership) throw new NotFoundError("Field");
+  if (!ownership.documentId) return;
+
+  const [row] = await db
+    .select({ companyId: documents.companyId })
+    .from(documents)
+    .where(eq(documents.id, ownership.documentId))
+    .limit(1);
+  if (!row) throw new NotFoundError("Field");
+  assertInScope(scope, row.companyId, "Field");
+}
+
 export async function getFieldOwnership(
   fieldId: string,
 ): Promise<{ documentId: string | null; docTypeId: string | null } | null> {

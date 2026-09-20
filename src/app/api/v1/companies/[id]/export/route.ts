@@ -4,8 +4,8 @@ import { contentDisposition } from "@/server/storage/filename";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withApi<{ id: string }>("read", async ({ params, url }) => {
-  const data = await buildCompanyExport(params.id);
+export const GET = withApi<{ id: string }>("read", async ({ params, url, scope }) => {
+  const data = await buildCompanyExport(params.id, scope);
 
   if (url.searchParams.get("format") === "markdown") {
     return new Response(toMarkdown(data), {

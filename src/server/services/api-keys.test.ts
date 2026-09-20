@@ -1,24 +1,54 @@
 import { describe, expect, it } from "vitest";
 import { apiKeyInputSchema, hashKey, hasScope, splitKey } from "./api-keys";
 
+const COMPANY = "11111111-1111-4111-8111-111111111111";
+const OTHER = "22222222-2222-4222-8222-222222222222";
+
 describe("apiKeyInputSchema", () => {
   it("keeps a valid key definition", () => {
-    expect(apiKeyInputSchema.parse({ name: "  HaloPSA  ", scopes: ["read"] })).toEqual({
+    expect(
+      apiKeyInputSchema.parse({ name: "  HaloPSA  ", scopes: ["read"], allCompanies: true }),
+    ).toEqual({
       name: "HaloPSA",
       scopes: ["read"],
+      allCompanies: true,
+      companyIds: [],
     });
   });
 
   it("removes duplicate scopes", () => {
-    expect(apiKeyInputSchema.parse({ name: "x", scopes: ["read", "read"] }).scopes).toEqual(["read"]);
+    expect(
+      apiKeyInputSchema.parse({ name: "x", scopes: ["read", "read"], allCompanies: true }).scopes,
+    ).toEqual(["read"]);
+  });
+
+  it("takes a list of companies instead of every company", () => {
+    const parsed = apiKeyInputSchema.parse({
+      name: "x",
+      scopes: ["read"],
+      companyIds: [COMPANY, COMPANY, OTHER],
+    });
+    expect(parsed.allCompanies).toBe(false);
+    expect(parsed.companyIds).toEqual([COMPANY, OTHER]);
+  });
+
+  it("refuses a key that could see nothing at all", () => {
+    // Default-deny: a key has to say which companies it is for.
+    const result = apiKeyInputSchema.safeParse({ name: "x", scopes: ["read"] });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(["companyIds"]);
   });
 
   it("requires at least one scope", () => {
-    expect(apiKeyInputSchema.safeParse({ name: "x", scopes: [] }).success).toBe(false);
+    expect(
+      apiKeyInputSchema.safeParse({ name: "x", scopes: [], allCompanies: true }).success,
+    ).toBe(false);
   });
 
   it("rejects an unknown scope", () => {
-    expect(apiKeyInputSchema.safeParse({ name: "x", scopes: ["root"] }).success).toBe(false);
+    expect(
+      apiKeyInputSchema.safeParse({ name: "x", scopes: ["root"], allCompanies: true }).success,
+    ).toBe(false);
   });
 });
 

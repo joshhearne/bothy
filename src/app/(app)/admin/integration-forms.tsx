@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/alert";
 import { useMessages } from "@/i18n/client";
+import { CompanyAccessFieldset } from "@/components/company-access-fieldset";
 import {
   createApiKeyAction,
   createWebhookAction,
@@ -50,7 +51,13 @@ function RevealOnce({
   );
 }
 
-export function CreateApiKeyForm({ scopes }: { scopes: string[] }) {
+export function CreateApiKeyForm({
+  scopes,
+  companies,
+}: {
+  scopes: string[];
+  companies: { id: string; name: string }[];
+}) {
   const [state, formAction] = useActionState<ApiKeyState, FormData>(createApiKeyAction, {});
   const fieldErrors = state.fieldErrors ?? {};
   const t = useMessages();
@@ -99,6 +106,13 @@ export function CreateApiKeyForm({ scopes }: { scopes: string[] }) {
             {t.admin.apiKeys.scopeHint}
           </p>
         </fieldset>
+
+        <div className="flex flex-col gap-1">
+          <CompanyAccessFieldset companies={companies} hint={t.access.keyHint} />
+          {fieldErrors.companyIds && (
+            <p className="text-sm text-[var(--destructive)]">{fieldErrors.companyIds}</p>
+          )}
+        </div>
 
         <div>
           <Submit label={t.admin.apiKeys.create} />

@@ -6,15 +6,15 @@ import { createLocation, getLocationOrThrow, locationInputSchema } from "@/serve
 
 export const dynamic = "force-dynamic";
 
-export const POST = withApi("write", async ({ request }) => {
+export const POST = withApi("write", async ({ request, scope }) => {
   const body = await readJson(request);
   if (typeof body.company_id !== "string") {
     return apiError(422, "invalid_request", "company_id is required");
   }
 
-  await getCompanyOrThrow(body.company_id);
+  await getCompanyOrThrow(body.company_id, scope);
   const input = locationInputSchema.parse({ name: body.name, address: body.address ?? null });
 
-  const { id } = await createLocation(body.company_id, input, null);
-  return json(serializeLocation(await getLocationOrThrow(id)), 201);
+  const { id } = await createLocation(body.company_id, input, null, scope);
+  return json(serializeLocation(await getLocationOrThrow(id, scope)), 201);
 });

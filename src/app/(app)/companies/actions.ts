@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { checkbox, text, toFieldErrors, type FormState } from "@/lib/form";
-import { ForbiddenError, requireHierarchyManager } from "@/server/auth/session";
+import {
+  ForbiddenError,
+  getCompanyScope,
+  requireHierarchyManager,
+} from "@/server/auth/session";
 import {
   archiveCompany,
   createCompany,
@@ -31,6 +35,7 @@ export async function createCompanyAction(_prev: FormState, formData: FormData):
   let id: string;
   try {
     const user = await requireHierarchyManager();
+    const scope = await getCompanyScope(user);
     ({ id } = await createCompany(
       {
         name: text(formData, "name") ?? "",
@@ -38,6 +43,7 @@ export async function createCompanyAction(_prev: FormState, formData: FormData):
         notes: text(formData, "notes") ?? null,
       },
       user.id,
+      scope,
     ));
   } catch (err) {
     return toFormState(err);
@@ -53,6 +59,7 @@ export async function updateCompanyAction(_prev: FormState, formData: FormData):
 
   try {
     const user = await requireHierarchyManager();
+    const scope = await getCompanyScope(user);
     await updateCompany(
       id,
       {
@@ -61,6 +68,7 @@ export async function updateCompanyAction(_prev: FormState, formData: FormData):
         notes: text(formData, "notes") ?? null,
       },
       user.id,
+      scope,
     );
   } catch (err) {
     return toFormState(err);
@@ -76,7 +84,8 @@ export async function archiveCompanyAction(formData: FormData): Promise<void> {
   if (!id) return;
 
   const user = await requireHierarchyManager();
-  await archiveCompany(id, user.id);
+    const scope = await getCompanyScope(user);
+  await archiveCompany(id, user.id, scope);
 
   revalidatePath("/companies");
   revalidatePath(`/companies/${id}`);
@@ -88,7 +97,8 @@ export async function unarchiveCompanyAction(formData: FormData): Promise<void> 
   if (!id) return;
 
   const user = await requireHierarchyManager();
-  await unarchiveCompany(id, user.id);
+    const scope = await getCompanyScope(user);
+  await unarchiveCompany(id, user.id, scope);
 
   revalidatePath("/companies");
   revalidatePath(`/companies/${id}`);
@@ -103,10 +113,12 @@ export async function createLocationAction(
 
   try {
     const user = await requireHierarchyManager();
+    const scope = await getCompanyScope(user);
     await createLocation(
       companyId,
       { name: text(formData, "name") ?? "", address: text(formData, "address") ?? null },
       user.id,
+      scope,
     );
   } catch (err) {
     return toFormState(err);
@@ -126,10 +138,12 @@ export async function updateLocationAction(
 
   try {
     const user = await requireHierarchyManager();
+    const scope = await getCompanyScope(user);
     await updateLocation(
       id,
       { name: text(formData, "name") ?? "", address: text(formData, "address") ?? null },
       user.id,
+      scope,
     );
   } catch (err) {
     return toFormState(err);
@@ -145,7 +159,8 @@ export async function archiveLocationAction(formData: FormData): Promise<void> {
   if (!id || !companyId) return;
 
   const user = await requireHierarchyManager();
-  await archiveLocation(id, user.id);
+    const scope = await getCompanyScope(user);
+  await archiveLocation(id, user.id, scope);
 
   revalidatePath(`/companies/${companyId}`);
 }
@@ -156,7 +171,8 @@ export async function unarchiveLocationAction(formData: FormData): Promise<void>
   if (!id || !companyId) return;
 
   const user = await requireHierarchyManager();
-  await unarchiveLocation(id, user.id);
+    const scope = await getCompanyScope(user);
+  await unarchiveLocation(id, user.id, scope);
 
   revalidatePath(`/companies/${companyId}`);
 }

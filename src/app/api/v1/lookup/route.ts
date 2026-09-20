@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * The main PSA call: given a ticket's company id in their system, return the
  * company with its locations and a document summary.
  */
-export const GET = withApi("read", async ({ url }) => {
+export const GET = withApi("read", async ({ url, scope }) => {
   const system = url.searchParams.get("system");
   const entityParam = url.searchParams.get("entity") ?? "company";
   const externalId = url.searchParams.get("external_id");
@@ -29,19 +29,19 @@ export const GET = withApi("read", async ({ url }) => {
   }
 
   const entity = entityParam as ExternalEntity;
-  const entityId = await resolveExternalRef(system, entity, externalId);
+  const entityId = await resolveExternalRef(system, entity, externalId, scope);
   if (!entityId) return apiError(404, "not_found", "Nothing is mapped to that external id");
 
   if (entity !== "company") {
     return json({ entity, entity_id: entityId });
   }
 
-  const company = await getCompany(entityId);
+  const company = await getCompany(entityId, scope);
   if (!company) return apiError(404, "not_found", "That company no longer exists");
 
   const [locations, documents, refs] = await Promise.all([
-    listLocations(company.id),
-    listCompanyDocuments(company.id),
+    listLocations(company.id, scope),
+    listCompanyDocuments(company.id, scope),
     loadExternalRefMap("company", [company.id]),
   ]);
 

@@ -5,8 +5,8 @@ import { listCompanyDocumentsPage } from "@/server/services/documents";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withApi<{ id: string }>("read", async ({ params, url }) => {
-  await getCompanyOrThrow(params.id);
+export const GET = withApi<{ id: string }>("read", async ({ params, url, scope }) => {
+  await getCompanyOrThrow(params.id, scope);
 
   const limit = parseLimit(url.searchParams.get("limit"));
   const rows = await listCompanyDocumentsPage({
@@ -15,6 +15,7 @@ export const GET = withApi<{ id: string }>("read", async ({ params, url }) => {
     locationId: url.searchParams.get("location_id") ?? undefined,
     limit,
     cursor: decodeCursor(url.searchParams.get("cursor")),
+    scope,
   });
 
   const page = toPage(rows, limit, (row) => row.title);

@@ -7,6 +7,7 @@ import {
   canEditDocuments,
   canManageDocTypes,
   ForbiddenError,
+  getCompanyScope,
   requireUser,
   type CurrentUser,
 } from "@/server/auth/session";
@@ -85,7 +86,7 @@ export async function addLocalFieldAction(
 ): Promise<InlineResult<InlineFieldPayload>> {
   try {
     const user = await editor();
-    const field = await addLocalField(documentId, draft, user.id);
+    const field = await addLocalField(documentId, draft, user.id, await getCompanyScope(user));
     revalidatePath(`/documents/${documentId}`);
     return { ok: true, data: toPayload(field) };
   } catch (err) {
@@ -101,7 +102,7 @@ export async function promoteFieldAction(
 ): Promise<InlineResult<InlineFieldPayload>> {
   try {
     const user = await editor();
-    const field = await promoteField(fieldId, draft, user.id);
+    const field = await promoteField(fieldId, draft, user.id, await getCompanyScope(user));
     revalidatePath(`/documents/${documentId}`);
     return { ok: true, data: toPayload(field) };
   } catch (err) {
@@ -133,25 +134,26 @@ export async function reorderFieldsAction(
   documentId: string,
   docTypeId: string,
   orderedFieldIds: string[],
-  scope: "document" | "template",
+  applyTo: "document" | "template",
 ): Promise<InlineResult<{ scope: "document" | "template" }>> {
   try {
     const user = await editor();
+    const scope = await getCompanyScope(user);
 
-    if (scope === "template") {
+    if (applyTo === "template") {
       if (!canManageDocTypes(user.role)) {
         return {
           ok: false,
           error: "Only an administrator can change the order for every document of this type",
         };
       }
-      await applyOrderToTemplate(documentId, docTypeId, orderedFieldIds, user.id);
+      await applyOrderToTemplate(documentId, docTypeId, orderedFieldIds, user.id, scope);
     } else {
-      await setDocumentFieldOrder(documentId, orderedFieldIds, user.id);
+      await setDocumentFieldOrder(documentId, orderedFieldIds, user.id, scope);
     }
 
     revalidatePath(`/documents/${documentId}`);
-    return { ok: true, data: { scope } };
+    return { ok: true, data: { scope: applyTo } };
   } catch (err) {
     return toError(err);
   }
@@ -179,7 +181,7 @@ export async function archiveFieldAction(
       };
     }
 
-    await archiveFieldInline(fieldId, user.id);
+    await archiveFieldInline(fieldId, user.id, await getCompanyScope(user));
     revalidatePath(`/documents/${documentId}`);
     return { ok: true, data: { id: fieldId } };
   } catch (err) {

@@ -4,7 +4,7 @@ import { upsertExternalRef } from "@/server/services/external-refs";
 export const dynamic = "force-dynamic";
 
 /** Upsert on (system, entity, external_id). */
-export const PUT = withApi("write", async ({ request }) => {
+export const PUT = withApi("write", async ({ request, scope }) => {
   const body = await readJson(request);
   const row = await upsertExternalRef(
     {
@@ -14,6 +14,7 @@ export const PUT = withApi("write", async ({ request }) => {
       external_id: body.external_id as string,
     },
     null,
+    scope,
   );
 
   return json({

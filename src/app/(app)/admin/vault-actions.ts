@@ -3,7 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { checkbox, text, toFieldErrors, type FormState } from "@/lib/form";
-import { ForbiddenError, requireAdmin, type Role } from "@/server/auth/session";
+import {
+  ForbiddenError,
+  getCompanyScope,
+  requireAdmin,
+  type Role,
+} from "@/server/auth/session";
 import { NotFoundError } from "@/server/services/companies";
 import {
   createVaultProvider,
@@ -11,7 +16,7 @@ import {
   BITWARDEN_SYSTEM,
 } from "@/server/services/vault";
 import { removeExternalRef, upsertExternalRef } from "@/server/services/external-refs";
-import { setCanRevealSecrets, setUserRole } from "@/server/services/users";
+import { setCanRevealSecrets, setUserCompanies, setUserRole } from "@/server/services/users";
 
 function toFormState(err: unknown): FormState {
   if (err instanceof ZodError) return { fieldErrors: toFieldErrors(err) };
@@ -67,6 +72,7 @@ export async function mapCollectionAction(
         external_id: collectionId,
       },
       user.id,
+      await getCompanyScope(user),
     );
   } catch (err) {
     return toFormState(err);
@@ -80,7 +86,7 @@ export async function unmapCollectionAction(formData: FormData): Promise<void> {
   const id = text(formData, "id");
   if (!id) return;
   const user = await requireAdmin();
-  await removeExternalRef(id, user.id);
+  await removeExternalRef(id, user.id, await getCompanyScope(user));
   revalidatePath("/admin/vault");
 }
 
@@ -100,5 +106,23 @@ export async function setCanRevealAction(formData: FormData): Promise<void> {
 
   const user = await requireAdmin();
   await setCanRevealSecrets(id, checkbox(formData, "canReveal"), user.id);
+  revalidatePath("/admin/users");
+}
+
+/** Replaces one user's company grants from the admin screen. */
+export async function setUserCompaniesAction(formData: FormData): Promise<void> {
+  const id = text(formData, "id");
+  if (!id) return;
+
+  const user = await requireAdmin();
+  await setUserCompanies(
+    id,
+    {
+      allCompanies: formData.get("allCompanies") === "all",
+      companyIds: formData.getAll("companyIds").filter((v): v is string => typeof v === "string"),
+    },
+    user.id,
+  );
+
   revalidatePath("/admin/users");
 }

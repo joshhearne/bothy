@@ -5,6 +5,7 @@ import {
   type ExternalEntity,
 } from "@/server/services/external-refs";
 import { getLocation } from "@/server/services/locations";
+import { getCompanyScope, getCurrentUser } from "@/server/auth/session";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,12 @@ export async function GET(
 ) {
   const { system, entity, externalId } = await params;
 
+  // The link resolves through the reader's own access, so a mapped id cannot
+  // be used to find out which companies exist.
+  const user = await getCurrentUser();
+  if (!user) redirect("/sign-in");
+  const scope = await getCompanyScope(user);
+
   if (!(EXTERNAL_ENTITIES as readonly string[]).includes(entity)) {
     return new Response("Unknown entity", { status: 404 });
   }
@@ -26,6 +33,7 @@ export async function GET(
     system,
     entity as ExternalEntity,
     decodeURIComponent(externalId),
+    scope,
   );
   if (!entityId) return new Response("Nothing is mapped to that external id", { status: 404 });
 
@@ -37,7 +45,7 @@ export async function GET(
       redirect(`/documents/${entityId}`);
     case "location": {
       // Locations live on their company's page.
-      const location = await getLocation(entityId);
+      const location = await getLocation(entityId, scope);
       if (!location) return new Response("That location no longer exists", { status: 404 });
       redirect(`/companies/${location.companyId}`);
     }

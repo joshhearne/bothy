@@ -7,6 +7,7 @@ import { listDocTypes, listTemplateFields } from "@/server/services/doc-types";
 import { getDocumentDetail, listBacklinks, listCompanyDocuments } from "@/server/services/documents";
 import { searchDocuments } from "@/server/services/search";
 import { toolError, toolResult, type ToolResult } from "@/server/mcp/protocol";
+import type { CompanyScope } from "@/server/auth/company-scope";
 
 /**
  * Read-only tools over the documentation. Nothing here can change a record,
@@ -20,7 +21,11 @@ export type ToolDefinition = {
   title: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  run: (args: Record<string, unknown>) => Promise<ToolResult>;
+  /**
+    * The scope is the API key's: a key limited to named companies gives its
+    * model a view limited to the same ones, search included.
+    */
+  run: (args: Record<string, unknown>, scope: CompanyScope) => Promise<ToolResult>;
 };
 
 const searchArgs = z.object({
@@ -63,7 +68,7 @@ export const TOOLS: ToolDefinition[] = [
       },
       required: ["query"],
     },
-    async run(args) {
+    async run(args, scope) {
       const parsed = searchArgs.safeParse(args);
       if (!parsed.success) return invalid(parsed.error);
 
@@ -72,7 +77,7 @@ export const TOOLS: ToolDefinition[] = [
         ...(parsed.data.company_id ? { companyId: parsed.data.company_id } : {}),
         ...(parsed.data.doc_type_id ? { docTypeId: parsed.data.doc_type_id } : {}),
         limit: parsed.data.limit,
-      });
+      }, scope);
 
       return toolResult({
         query: parsed.data.query,
@@ -101,16 +106,16 @@ export const TOOLS: ToolDefinition[] = [
       properties: { document_id: { type: "string", format: "uuid" } },
       required: ["document_id"],
     },
-    async run(args) {
+    async run(args, scope) {
       const parsed = documentArgs.safeParse(args);
       if (!parsed.success) return invalid(parsed.error);
 
-      const detail = await getDocumentDetail(parsed.data.document_id);
+      const detail = await getDocumentDetail(parsed.data.document_id, scope);
       if (!detail) return toolError("No document with that id");
 
       const [company, backlinks] = await Promise.all([
-        getCompany(detail.document.companyId),
-        listBacklinks(parsed.data.document_id),
+        getCompany(detail.document.companyId, scope),
+        listBacklinks(parsed.data.document_id, scope),
       ]);
 
       // redactSecrets keeps every secret_ref out of the payload entirely.
@@ -141,7 +146,7 @@ export const TOOLS: ToolDefinition[] = [
         limit: { type: "integer", minimum: 1, maximum: 100, default: 50 },
       },
     },
-    async run(args) {
+    async run(args, scope) {
       const parsed = listCompaniesArgs.safeParse(args);
       if (!parsed.success) return invalid(parsed.error);
 
@@ -149,6 +154,7 @@ export const TOOLS: ToolDefinition[] = [
         ...(parsed.data.query ? { q: parsed.data.query } : {}),
         limit: parsed.data.limit,
         cursor: null,
+        scope,
       });
 
       return toolResult({
@@ -169,16 +175,16 @@ export const TOOLS: ToolDefinition[] = [
       properties: { company_id: { type: "string", format: "uuid" } },
       required: ["company_id"],
     },
-    async run(args) {
+    async run(args, scope) {
       const parsed = companyArgs.safeParse(args);
       if (!parsed.success) return invalid(parsed.error);
 
-      const company = await getCompany(parsed.data.company_id);
+      const company = await getCompany(parsed.data.company_id, scope);
       if (!company) return toolError("No company with that id");
 
       const [locations, documents] = await Promise.all([
-        listLocations(company.id),
-        listCompanyDocuments(company.id),
+        listLocations(company.id, scope),
+        listCompanyDocuments(company.id, scope),
       ]);
 
       return toolResult({

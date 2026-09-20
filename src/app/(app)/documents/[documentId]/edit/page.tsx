@@ -1,5 +1,9 @@
 import { notFound, redirect } from "next/navigation";
-import { canEditDocuments, canManageDocTypes, requireUser } from "@/server/auth/session";
+import {
+  canEditDocuments,
+  canManageDocTypes,
+  requireScopedUser,
+} from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { getDocumentDetail } from "@/server/services/documents";
 import { listOptionLists } from "@/server/services/option-lists";
@@ -20,14 +24,14 @@ export default async function EditDocumentPage({
 }: {
   params: Promise<{ documentId: string }>;
 }) {
-  const user = await requireUser();
+  const { user, scope } = await requireScopedUser();
   const { documentId } = await params;
   if (!canEditDocuments(user.role)) redirect(`/documents/${documentId}`);
 
-  const detail = await getDocumentDetail(documentId);
+  const detail = await getDocumentDetail(documentId, scope);
   if (!detail) notFound();
 
-  const company = await getCompany(detail.document.companyId);
+  const company = await getCompany(detail.document.companyId, scope);
   if (!company) notFound();
 
   const [optionLists, docTypes] = await Promise.all([listOptionLists(), listDocTypes()]);

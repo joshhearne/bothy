@@ -78,7 +78,7 @@ export async function POST(request: Request): Promise<Response> {
     return rpcError(400, ERROR_CODES.invalidRequest, "Send one message per request");
   }
 
-  const response = await handleMessage(message);
+  const response = await handleMessage(message, key.companies);
 
   // A notification is acknowledged with no body.
   if (!response) return new Response(null, { status: 202 });

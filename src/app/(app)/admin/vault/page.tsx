@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { canManageIntegrations, requireUser } from "@/server/auth/session";
+import { canManageIntegrations, requireScopedUser } from "@/server/auth/session";
 import { listCompanies } from "@/server/services/companies";
 import { listRefsForSystem } from "@/server/services/external-refs";
 import { BITWARDEN_SYSTEM, getActiveVault, listVaultProviders } from "@/server/services/vault";
@@ -11,12 +11,12 @@ import { unmapCollectionAction } from "../vault-actions";
 export const dynamic = "force-dynamic";
 
 export default async function VaultPage() {
-  const user = await requireUser();
+  const { user, scope } = await requireScopedUser();
   if (!canManageIntegrations(user.role)) redirect("/companies");
 
   const [providers, companies, active] = await Promise.all([
     listVaultProviders(),
-    listCompanies(),
+    listCompanies(scope),
     getActiveVault(),
   ]);
 

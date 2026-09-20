@@ -24,6 +24,7 @@ async function createKey(page: Page, name: string, scopes: string[]): Promise<st
     if (scopes.includes(scope)) await box.check();
     else await box.uncheck();
   }
+  await page.getByRole("radio", { name: "Every company" }).check();
   await page.getByRole("button", { name: "Create key" }).click();
   return (await page.getByRole("status", { name: "New API key" }).textContent()) as string;
 }

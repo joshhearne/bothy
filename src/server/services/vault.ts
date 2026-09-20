@@ -7,6 +7,7 @@ import { env } from "@/lib/env";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/companies";
 import { listRefsForSystem } from "@/server/services/external-refs";
+import { assertInScope, type CompanyScope } from "@/server/auth/company-scope";
 import { LinkVaultProvider } from "@/server/vault/link-provider";
 import { BwServeVaultProvider } from "@/server/vault/bw-serve-provider";
 import {
@@ -194,8 +195,10 @@ export async function listCompanyCollections(companyId: string): Promise<string[
  */
 export async function listCompanyVaultItems(
   companyId: string,
+  scope: CompanyScope,
   q?: string,
 ): Promise<{ items: VaultItemSummary[]; vault: ActiveVault | null }> {
+  assertInScope(scope, companyId);
   const vault = await getActiveVault();
   if (!vault || !vault.brokering) return { items: [], vault };
 
@@ -326,7 +329,9 @@ export async function createVaultItem(input: {
   uri?: string | undefined;
   password: string;
   actorId: string | null;
+  scope: CompanyScope;
 }): Promise<SecretRef> {
+  assertInScope(input.scope, input.companyId);
   const vault = await getActiveVault();
   if (!vault) throw new NotFoundError("Vault provider");
   if (!vault.brokering) throw new VaultNotBrokeredError();

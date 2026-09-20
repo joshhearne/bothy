@@ -5,6 +5,13 @@ import { db } from "@/server/db";
 import { companies, documents, locations } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { queueEvent } from "@/server/services/webhooks";
+import { ForbiddenError, NotFoundError } from "@/server/services/errors";
+import {
+  assertInScope,
+  isInScope,
+  scopeWhere,
+  type CompanyScope,
+} from "@/server/auth/company-scope";
 
 export const companyInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
@@ -23,15 +30,12 @@ export type CompanySummary = {
   documentCount: number;
 };
 
-export class NotFoundError extends Error {
-  constructor(what = "Record") {
-    super(`${what} not found`);
-    this.name = "NotFoundError";
-  }
-}
+// Re-exported: callers have imported it from here since phase 1.
+export { NotFoundError };
 
 /** Companies with their live location and document counts, internal org first. */
 export async function listCompanies(
+  scope: CompanyScope,
   { includeArchived = false }: { includeArchived?: boolean } = {},
 ): Promise<CompanySummary[]> {
   const locationCount = db
@@ -66,17 +70,19 @@ export async function listCompanies(
     .from(companies)
     .leftJoin(locationCount, eq(locationCount.companyId, companies.id))
     .leftJoin(documentCount, eq(documentCount.companyId, companies.id))
-    .where(includeArchived ? undefined : isNull(companies.archivedAt))
+    .where(and(includeArchived ? undefined : isNull(companies.archivedAt), scopeWhere(scope, companies.id)))
     .orderBy(sql`${companies.isInternal} desc`, asc(companies.name));
 }
 
-export async function getCompany(id: string) {
+/** A company the caller may see, or null. Out of scope reads as absent. */
+export async function getCompany(id: string, scope: CompanyScope) {
   const [company] = await db.select().from(companies).where(eq(companies.id, id)).limit(1);
-  return company ?? null;
+  if (!company || !isInScope(scope, company.id)) return null;
+  return company;
 }
 
-export async function getCompanyOrThrow(id: string) {
-  const company = await getCompany(id);
+export async function getCompanyOrThrow(id: string, scope: CompanyScope) {
+  const company = await getCompany(id, scope);
   if (!company) throw new NotFoundError("Company");
   return company;
 }
@@ -84,7 +90,13 @@ export async function getCompanyOrThrow(id: string) {
 export async function createCompany(
   input: CompanyInput,
   actorId: string | null,
+  scope: CompanyScope,
 ): Promise<{ id: string }> {
+  // A principal limited to named companies cannot mint one it would then be
+  // unable to see. Refusing is clearer than creating something invisible.
+  if (!scope.all) {
+    throw new ForbiddenError("This principal is limited to specific companies");
+  }
   const data = companyInputSchema.parse(input);
 
   return db.transaction(async (tx) => {
@@ -119,7 +131,9 @@ export async function updateCompany(
   id: string,
   input: CompanyInput,
   actorId: string | null,
+  scope: CompanyScope,
 ): Promise<void> {
+  assertInScope(scope, id);
   const data = companyInputSchema.parse(input);
 
   await db.transaction(async (tx) => {
@@ -146,7 +160,12 @@ export async function updateCompany(
 }
 
 /** Archive, never hard delete (CLAUDE.md). Archiving a company hides its locations too. */
-export async function archiveCompany(id: string, actorId: string): Promise<void> {
+export async function archiveCompany(
+  id: string,
+  actorId: string,
+  scope: CompanyScope,
+): Promise<void> {
+  assertInScope(scope, id);
   const at = new Date();
 
   await db.transaction(async (tx) => {
@@ -169,7 +188,12 @@ export async function archiveCompany(id: string, actorId: string): Promise<void>
   });
 }
 
-export async function unarchiveCompany(id: string, actorId: string): Promise<void> {
+export async function unarchiveCompany(
+  id: string,
+  actorId: string,
+  scope: CompanyScope,
+): Promise<void> {
+  assertInScope(scope, id);
   await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(companies)
@@ -189,11 +213,14 @@ export type CompanyPageInput = {
   q?: string | undefined;
   limit: number;
   cursor: { sort: string; id: string } | null;
+  scope: CompanyScope;
 };
 
 /** Keyset page ordered by (name, id), for GET /api/v1/companies. */
 export async function listCompaniesPage(input: CompanyPageInput) {
   const filters = [isNull(companies.archivedAt)];
+  const scoped = scopeWhere(input.scope, companies.id);
+  if (scoped) filters.push(scoped);
   if (input.q) filters.push(ilike(companies.name, `%${input.q}%`));
   if (input.cursor) {
     filters.push(

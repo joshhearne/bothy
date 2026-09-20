@@ -16,6 +16,7 @@ No coupling to any specific PSA in core code.
 - Sanitize richtext HTML server-side.
 - Never store, cache, log, export, or webhook a password, TOTP seed, or secure note. Secrets are fetched live from the vault provider on reveal only.
 - The bw-serve sidecar never publishes a port.
+- Every read of company-owned data takes a `CompanyScope`. Out of scope is "not found", never "forbidden".
 - Everything runs from `docker compose up`. No required external services beyond Postgres.
 
 ## Conventions
@@ -58,5 +59,9 @@ Bitwarden Public API add-on (collection per company, event log import) only afte
 ### Phase 7: Polish for release
 OIDC login, audit log viewer, export (JSON + markdown per company), backup/restore docs, starter doc type pack (ISP, Firewall, Switch, Wi-Fi, Printer, Server, Domain/DNS, M365 tenant, Vendor).
 
+### Phase 8: Per-company access
+Grants per user and per API key (`user_companies`, `api_key_companies`), default-deny for new rows,
+admins unrestricted. Enforced in the service layer, not in pages. See docs/ARCHITECTURE.md.
+
 ### Later
-Per-company permissions, tags, multi-tenant, importers (Hudu, IT Glue CSV).
+Tags, multi-tenant, importers (Hudu, IT Glue CSV).

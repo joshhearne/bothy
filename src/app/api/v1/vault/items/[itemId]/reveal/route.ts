@@ -10,13 +10,13 @@ import { VaultNotBrokeredError } from "@/server/vault/types";
 export const dynamic = "force-dynamic";
 
 /** Live fetch, audited, no-store. Needs the explicit secrets:reveal scope. */
-export const POST = withApi<{ itemId: string }>("secrets:reveal", async ({ params, request, key }) => {
+export const POST = withApi<{ itemId: string }>("secrets:reveal", async ({ params, request, key, scope }) => {
   const body = await readJson(request);
   if (typeof body.document_id !== "string" || typeof body.field_id !== "string") {
     return apiError(422, "invalid_request", "document_id and field_id are required");
   }
 
-  const detail = await getDocumentDetail(body.document_id);
+  const detail = await getDocumentDetail(body.document_id, scope);
   if (!detail) return apiError(404, "not_found", "Document not found");
 
   try {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
-import { canEditDocuments, requireUser } from "@/server/auth/session";
+import { canEditDocuments, requireScopedUser } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { listLocations } from "@/server/services/locations";
 import { listDocTypes, listTemplateFields } from "@/server/services/doc-types";
@@ -19,15 +19,15 @@ export default async function NewDocumentPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ docType?: string; location?: string }>;
 }) {
-  const user = await requireUser();
+  const { user, scope } = await requireScopedUser();
   const { id } = await params;
   if (!canEditDocuments(user.role)) redirect(`/companies/${id}`);
 
-  const company = await getCompany(id);
+  const company = await getCompany(id, scope);
   if (!company) notFound();
 
   const { docType: docTypeId, location: locationId } = await searchParams;
-  const [docTypes, locations] = await Promise.all([listDocTypes(), listLocations(id)]);
+  const [docTypes, locations] = await Promise.all([listDocTypes(), listLocations(id, scope)]);
 
   const t = await getMessages();
   const chosen = docTypes.find((candidate) => candidate.id === docTypeId);
@@ -121,7 +121,7 @@ export default async function NewDocumentPage({
   const [optionIndex, linkTargets, secrets] = await Promise.all([
     loadOptionIndex(templateFields.flatMap((f) => (f.optionListId ? [f.optionListId] : []))),
     loadLinkTargets(templateFields, company.id, null),
-    loadSecretItems(templateFields, company.id),
+    loadSecretItems(templateFields, company.id, scope),
   ]);
 
   return (

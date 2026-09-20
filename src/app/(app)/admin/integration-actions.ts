@@ -31,7 +31,12 @@ export async function createApiKeyAction(
     const user = await requireAdmin();
     const scopes = formData.getAll("scopes").filter((v): v is string => typeof v === "string");
     const { row, key } = await createApiKey(
-      { name: text(formData, "name") ?? "", scopes: scopes as ("read" | "write" | "admin")[] },
+      {
+        name: text(formData, "name") ?? "",
+        scopes: scopes as ("read" | "write" | "admin")[],
+        allCompanies: formData.get("allCompanies") === "all",
+        companyIds: formData.getAll("companyIds").filter((v): v is string => typeof v === "string"),
+      },
       user.id,
     );
 

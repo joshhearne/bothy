@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { text, toFieldErrors, type FormState } from "@/lib/form";
-import { ForbiddenError, requireDocumentEditor } from "@/server/auth/session";
+import {
+  ForbiddenError,
+  getCompanyScope,
+  requireDocumentEditor,
+} from "@/server/auth/session";
 import { NotFoundError } from "@/server/services/companies";
 import { listTemplateFields } from "@/server/services/doc-types";
 import {
@@ -44,6 +48,7 @@ export async function createDocumentAction(
   let documentId: string;
   try {
     const user = await requireDocumentEditor();
+    const scope = await getCompanyScope(user);
     const templateFields = await listTemplateFields(docTypeId);
 
     const result = await createDocument(
@@ -55,6 +60,7 @@ export async function createDocumentAction(
         values: readRawValues(formData, templateFields),
       },
       user.id,
+      scope,
     );
 
     if (!result.ok) return { fieldErrors: result.errors };
@@ -74,7 +80,8 @@ export async function saveDocumentAction(_prev: FormState, formData: FormData): 
   let companyId: string;
   try {
     const user = await requireDocumentEditor();
-    const detail = await getDocumentDetail(documentId);
+    const scope = await getCompanyScope(user);
+    const detail = await getDocumentDetail(documentId, scope);
     if (!detail) return { error: "Document not found" };
     companyId = detail.document.companyId;
 
@@ -82,6 +89,7 @@ export async function saveDocumentAction(_prev: FormState, formData: FormData): 
       documentId,
       { title: text(formData, "title") ?? "", values: readRawValues(formData, detail.fields) },
       user.id,
+      scope,
     );
 
     if (!result.ok) return { fieldErrors: result.errors };
@@ -100,7 +108,8 @@ export async function archiveDocumentAction(formData: FormData): Promise<void> {
   if (!documentId || !companyId) return;
 
   const user = await requireDocumentEditor();
-  await archiveDocument(documentId, user.id);
+    const scope = await getCompanyScope(user);
+  await archiveDocument(documentId, user.id, scope);
 
   revalidatePath(`/companies/${companyId}`);
   redirect(`/companies/${companyId}`);
@@ -112,7 +121,8 @@ export async function unarchiveDocumentAction(formData: FormData): Promise<void>
   if (!documentId || !companyId) return;
 
   const user = await requireDocumentEditor();
-  await unarchiveDocument(documentId, user.id);
+    const scope = await getCompanyScope(user);
+  await unarchiveDocument(documentId, user.id, scope);
 
   revalidatePath(`/companies/${companyId}`);
   revalidatePath(`/documents/${documentId}`);
@@ -130,7 +140,8 @@ export async function addAttachmentAction(
 
   try {
     const user = await requireDocumentEditor();
-    await addAttachment(documentId, file, user.id);
+    const scope = await getCompanyScope(user);
+    await addAttachment(documentId, file, user.id, scope);
   } catch (err) {
     return toFormState(err);
   }
@@ -144,7 +155,8 @@ export async function removeAttachmentAction(formData: FormData): Promise<void> 
   if (!attachmentId) return;
 
   const user = await requireDocumentEditor();
-  const { documentId } = await removeAttachment(attachmentId, user.id);
+    const scope = await getCompanyScope(user);
+  const { documentId } = await removeAttachment(attachmentId, user.id, scope);
 
   revalidatePath(`/documents/${documentId}`);
 }

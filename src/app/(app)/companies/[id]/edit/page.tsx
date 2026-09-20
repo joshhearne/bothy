@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { canManageHierarchy, requireUser } from "@/server/auth/session";
+import { canManageHierarchy, requireScopedUser } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { getMessages } from "@/i18n/server";
 import { CompanyForm } from "../../company-form";
@@ -7,11 +7,11 @@ import { CompanyForm } from "../../company-form";
 export const dynamic = "force-dynamic";
 
 export default async function EditCompanyPage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireUser();
+  const { user, scope } = await requireScopedUser();
   const { id } = await params;
   if (!canManageHierarchy(user.role)) redirect(`/companies/${id}`);
 
-  const company = await getCompany(id);
+  const company = await getCompany(id, scope);
   if (!company) notFound();
   const t = await getMessages();
 

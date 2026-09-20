@@ -92,6 +92,7 @@ export const enUS = {
   companies: {
     title: "Companies",
     empty: "No companies yet. Create one to start documenting.",
+    noneGranted: "No companies have been shared with you yet. Ask an administrator for access.",
     newHeading: "New company",
     editHeading: (name: string) => `Edit ${name}`,
     create: "Create company",
@@ -206,6 +207,16 @@ export const enUS = {
     nextPage: "Next page",
   },
 
+  access: {
+    legend: "Company access",
+    all: "Every company",
+    only: "Only the companies I choose",
+    none: "No companies exist yet.",
+    hint: "A new account starts with no access until it is granted here.",
+    keyHint: "The key sees only these companies, through the API and through MCP.",
+    save: "Save access",
+  },
+
   admin: {
     docTypes: {
       title: "Doc types",
@@ -317,13 +328,19 @@ export const enUS = {
     },
     users: {
       title: "Users",
-      subtitle: "Roles, and who may reveal a secret from the vault.",
+      subtitle: "Roles, company access, and who may reveal a secret from the vault.",
       roleFor: (email: string) => `Role for ${email}`,
       setRole: "Set role",
       mayReveal: "May reveal secrets",
       mayNotReveal: "Cannot reveal secrets",
       grant: "Grant",
       revoke: "Revoke",
+      accessFor: (email: string) => `Company access for ${email}`,
+      accessSummaryAll: "Every company",
+      accessSummaryNone: "No companies",
+      accessSummaryCount: (count: number) =>
+        count === 1 ? "1 company" : `${count} companies`,
+      adminSeesEverything: "Administrators always see every company.",
     },
     audit: {
       title: "Audit log",

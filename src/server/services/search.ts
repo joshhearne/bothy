@@ -3,6 +3,7 @@ import { z } from "zod";
 import { and, desc, eq, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/server/db";
 import { companies, docTypes, documents, locations } from "@/server/db/schema";
+import { scopeWhere, type CompanyScope } from "@/server/auth/company-scope";
 
 /**
  * Global search over `documents.search_vec`, the generated tsvector that every
@@ -44,7 +45,10 @@ function decodeCursor(cursor: string | undefined): number {
   return Number.isFinite(offset) && offset > 0 ? offset : 0;
 }
 
-export async function searchDocuments(input: SearchInput): Promise<SearchResults> {
+export async function searchDocuments(
+  input: SearchInput,
+  scope: CompanyScope,
+): Promise<SearchResults> {
   const { q, companyId, docTypeId, limit, cursor } = searchInputSchema.parse(input);
   if (q === "") return { hits: [], nextCursor: null };
 
@@ -58,6 +62,8 @@ export async function searchDocuments(input: SearchInput): Promise<SearchResults
     isNull(documents.archivedAt) as SQL,
     isNull(companies.archivedAt) as SQL,
   ];
+  const scoped = scopeWhere(scope, documents.companyId);
+  if (scoped) filters.push(scoped);
   if (companyId) filters.push(eq(documents.companyId, companyId));
   if (docTypeId) filters.push(eq(documents.docTypeId, docTypeId));
 

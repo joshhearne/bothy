@@ -6,7 +6,8 @@ import {
   type ApiScope,
   type AuthenticatedKey,
 } from "@/server/services/api-keys";
-import { NotFoundError } from "@/server/services/companies";
+import { ForbiddenError, NotFoundError } from "@/server/services/errors";
+import type { CompanyScope } from "@/server/auth/company-scope";
 import { ScopeMismatchError } from "@/server/services/documents";
 
 /** One error shape for the whole API. */
@@ -73,6 +74,8 @@ function rateLimit(keyId: string): { ok: boolean; remaining: number; resetAt: nu
 export type ApiContext<P = Record<string, string>> = {
   request: Request;
   key: AuthenticatedKey;
+  /** The companies this key may see. Every read and write is filtered by it. */
+  scope: CompanyScope;
   params: P;
   url: URL;
 };
@@ -123,6 +126,7 @@ export function withApi<P extends Record<string, string> = Record<string, string
       const response = await handler({
         request,
         key,
+        scope: key.companies,
         params,
         url: new URL(request.url),
       });
@@ -133,6 +137,7 @@ export function withApi<P extends Record<string, string> = Record<string, string
         return apiError(422, "invalid_request", "Check the request body", zodDetails(err));
       }
       if (err instanceof NotFoundError) return apiError(404, "not_found", err.message);
+      if (err instanceof ForbiddenError) return apiError(403, "forbidden", err.message);
       if (err instanceof ScopeMismatchError) return apiError(422, "invalid_request", err.message);
       if (err instanceof SyntaxError) {
         return apiError(400, "invalid_json", "The request body is not valid JSON");

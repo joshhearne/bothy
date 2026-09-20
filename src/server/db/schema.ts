@@ -43,6 +43,8 @@ export const users = pgTable(
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
     canRevealSecrets: boolean("can_reveal_secrets").notNull().default(false),
+    /** False means the user sees only what user_companies grants them. */
+    allCompanies: boolean("all_companies").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
   },
@@ -305,8 +307,46 @@ export const apiKeys = pgTable("api_keys", {
   createdBy: uuid("created_by").references(() => users.id),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  /** False means the key sees only what api_key_companies grants it. */
+  allCompanies: boolean("all_companies").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
 });
+
+/* ---------- Per-company access ---------- */
+
+export const userCompanies = pgTable(
+  "user_companies",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.companyId] }),
+    index("user_companies_company_idx").on(t.companyId),
+  ],
+);
+
+export const apiKeyCompanies = pgTable(
+  "api_key_companies",
+  {
+    apiKeyId: uuid("api_key_id")
+      .notNull()
+      .references(() => apiKeys.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.apiKeyId, t.companyId] }),
+    index("api_key_companies_company_idx").on(t.companyId),
+  ],
+);
 
 export const webhooks = pgTable("webhooks", {
   id: uuid("id").primaryKey().defaultRandom(),

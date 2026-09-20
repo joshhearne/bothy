@@ -11,12 +11,16 @@ import {
   type JsonRpcResponse,
 } from "@/server/mcp/protocol";
 import { describeTools, TOOLS_BY_NAME } from "@/server/mcp/tools";
+import type { CompanyScope } from "@/server/auth/company-scope";
 
 /**
  * Dispatches one JSON-RPC message. Returns null for a notification, which the
  * transport answers with 202 and no body.
  */
-export async function handleMessage(message: JsonRpcRequest): Promise<JsonRpcResponse | null> {
+export async function handleMessage(
+  message: JsonRpcRequest,
+  scope: CompanyScope,
+): Promise<JsonRpcResponse | null> {
   if (message.jsonrpc !== "2.0" || typeof message.method !== "string") {
     return failure(message.id ?? null, ERROR_CODES.invalidRequest, "Not a JSON-RPC 2.0 message");
   }
@@ -59,7 +63,7 @@ export async function handleMessage(message: JsonRpcRequest): Promise<JsonRpcRes
       const args = (message.params?.arguments ?? {}) as Record<string, unknown>;
 
       try {
-        return success(id, await tool.run(args));
+        return success(id, await tool.run(args, scope));
       } catch (error) {
         // A failure inside a tool is a result, not a protocol error, so the
         // model can read it. The message never carries internals.

@@ -11,15 +11,15 @@ import { loadExternalRefMap, resolveExternalRef } from "@/server/services/extern
 
 export const dynamic = "force-dynamic";
 
-export const GET = withApi("read", async ({ url }) => {
+export const GET = withApi("read", async ({ url, scope }) => {
   const system = url.searchParams.get("external_system");
   const externalId = url.searchParams.get("external_id");
 
   // Filtering by an external id resolves to at most one company.
   if (system && externalId) {
-    const companyId = await resolveExternalRef(system, "company", externalId);
+    const companyId = await resolveExternalRef(system, "company", externalId, scope);
     if (!companyId) return json({ data: [], next_cursor: null });
-    const company = await getCompanyOrThrow(companyId);
+    const company = await getCompanyOrThrow(companyId, scope);
     const refs = await loadExternalRefMap("company", [company.id]);
     return json({ data: [serializeCompany(company, refs.get(company.id) ?? [])], next_cursor: null });
   }
@@ -29,6 +29,7 @@ export const GET = withApi("read", async ({ url }) => {
     q: url.searchParams.get("q") ?? undefined,
     limit,
     cursor: decodeCursor(url.searchParams.get("cursor")),
+    scope,
   });
 
   const page = toPage(rows, limit, (row) => row.name);
@@ -43,7 +44,7 @@ export const GET = withApi("read", async ({ url }) => {
   });
 });
 
-export const POST = withApi("write", async ({ request }) => {
+export const POST = withApi("write", async ({ request, scope }) => {
   const body = await readJson(request);
   const input = companyInputSchema.parse({
     name: body.name,
@@ -51,7 +52,7 @@ export const POST = withApi("write", async ({ request }) => {
     notes: body.notes ?? null,
   });
 
-  const { id } = await createCompany(input, null);
-  const company = await getCompanyOrThrow(id);
+  const { id } = await createCompany(input, null, scope);
+  const company = await getCompanyOrThrow(id, scope);
   return json(serializeCompany(company), 201);
 });

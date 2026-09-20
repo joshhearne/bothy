@@ -6,6 +6,7 @@ import { documents, locations } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { queueEvent } from "@/server/services/webhooks";
 import { NotFoundError } from "@/server/services/companies";
+import { assertInScope, isInScope, type CompanyScope } from "@/server/auth/company-scope";
 
 export const locationInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
@@ -24,8 +25,11 @@ export type LocationSummary = {
 
 export async function listLocations(
   companyId: string,
+  scope: CompanyScope,
   { includeArchived = false }: { includeArchived?: boolean } = {},
 ): Promise<LocationSummary[]> {
+  assertInScope(scope, companyId);
+
   const documentCount = db
     .select({
       locationId: documents.locationId,
@@ -54,13 +58,15 @@ export async function listLocations(
     .orderBy(asc(locations.name));
 }
 
-export async function getLocation(id: string) {
+/** A location the caller may see, or null. Its company decides. */
+export async function getLocation(id: string, scope: CompanyScope) {
   const [location] = await db.select().from(locations).where(eq(locations.id, id)).limit(1);
-  return location ?? null;
+  if (!location || !isInScope(scope, location.companyId)) return null;
+  return location;
 }
 
-export async function getLocationOrThrow(id: string) {
-  const location = await getLocation(id);
+export async function getLocationOrThrow(id: string, scope: CompanyScope) {
+  const location = await getLocation(id, scope);
   if (!location) throw new NotFoundError("Location");
   return location;
 }
@@ -69,7 +75,9 @@ export async function createLocation(
   companyId: string,
   input: LocationInput,
   actorId: string | null,
+  scope: CompanyScope,
 ): Promise<{ id: string }> {
+  assertInScope(scope, companyId);
   const data = locationInputSchema.parse(input);
 
   return db.transaction(async (tx) => {
@@ -104,7 +112,10 @@ export async function updateLocation(
   id: string,
   input: LocationInput,
   actorId: string | null,
+  scope: CompanyScope,
 ): Promise<void> {
+  // Resolving it first is the scope check: out of scope throws "not found".
+  await getLocationOrThrow(id, scope);
   const data = locationInputSchema.parse(input);
 
   await db.transaction(async (tx) => {
@@ -134,7 +145,12 @@ export async function updateLocation(
   });
 }
 
-export async function archiveLocation(id: string, actorId: string): Promise<void> {
+export async function archiveLocation(
+  id: string,
+  actorId: string,
+  scope: CompanyScope,
+): Promise<void> {
+  await getLocationOrThrow(id, scope);
   await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(locations)
@@ -150,7 +166,12 @@ export async function archiveLocation(id: string, actorId: string): Promise<void
   });
 }
 
-export async function unarchiveLocation(id: string, actorId: string): Promise<void> {
+export async function unarchiveLocation(
+  id: string,
+  actorId: string,
+  scope: CompanyScope,
+): Promise<void> {
+  await getLocationOrThrow(id, scope);
   await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(locations)
@@ -171,7 +192,9 @@ export async function listLocationsPage(input: {
   companyId: string;
   limit: number;
   cursor: { sort: string; id: string } | null;
+  scope: CompanyScope;
 }) {
+  assertInScope(input.scope, input.companyId);
   const filters = [eq(locations.companyId, input.companyId), isNull(locations.archivedAt)];
   if (input.cursor) {
     filters.push(

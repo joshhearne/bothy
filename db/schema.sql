@@ -241,3 +241,26 @@ CREATE TABLE vault_providers (
 );
 -- Company <-> collection mapping uses external_refs (system = 'bitwarden').
 -- secret_ref field values hold only item/collection ids and cached non-secret metadata.
+
+-- ---------- Per-company access ----------
+-- A principal (user or API key) either sees every company or only the ones
+-- granted to it. New rows default to false: access is granted, never assumed.
+ALTER TABLE users ADD COLUMN all_companies boolean NOT NULL DEFAULT false;
+ALTER TABLE api_keys ADD COLUMN all_companies boolean NOT NULL DEFAULT false;
+
+CREATE TABLE user_companies (
+  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  granted_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, company_id)
+);
+CREATE INDEX user_companies_company_idx ON user_companies (company_id);
+
+CREATE TABLE api_key_companies (
+  api_key_id uuid NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
+  company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  granted_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (api_key_id, company_id)
+);
+CREATE INDEX api_key_companies_company_idx ON api_key_companies (company_id);
+-- Admins are never restricted: they are who grants access in the first place.

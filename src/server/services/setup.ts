@@ -52,6 +52,8 @@ export async function createFirstAdmin(input: FirstAdminInput): Promise<{ id: st
         role: "admin",
         emailVerified: true,
         canRevealSecrets: true,
+        // Belt and braces: an admin is unrestricted by role anyway.
+        allCompanies: true,
       })
       .returning({ id: users.id });
 

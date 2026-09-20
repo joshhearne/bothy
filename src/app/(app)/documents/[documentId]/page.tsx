@@ -4,7 +4,7 @@ import { Paperclip } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FieldValue } from "@/components/fields/field-value";
 import { SecretField } from "@/components/fields/secret-field";
-import { canEditDocuments, requireUser } from "@/server/auth/session";
+import { canEditDocuments, requireScopedUser } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { getDocumentDetail, listBacklinks } from "@/server/services/documents";
 import { renderFieldValue } from "@/server/fields/render";
@@ -32,16 +32,16 @@ export default async function DocumentPage({
 }: {
   params: Promise<{ documentId: string }>;
 }) {
-  const user = await requireUser();
+  const { user, scope } = await requireScopedUser();
   const { documentId } = await params;
 
-  const detail = await getDocumentDetail(documentId);
+  const detail = await getDocumentDetail(documentId, scope);
   if (!detail) notFound();
 
   const [company, backlinks, files] = await Promise.all([
-    getCompany(detail.document.companyId),
-    listBacklinks(documentId),
-    listAttachments(documentId),
+    getCompany(detail.document.companyId, scope),
+    listBacklinks(documentId, scope),
+    listAttachments(documentId, scope),
   ]);
   if (!company) notFound();
 

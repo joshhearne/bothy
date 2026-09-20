@@ -31,6 +31,14 @@ POST   /option-lists/:id/items
 GET    /search                     ?q=&company_id=&doc_type=
 ```
 
+## Company scope
+A key is created with either every company or a named set. Everything below is
+filtered by it: lists omit what the key may not see, and a single record it may
+not see answers `404 not_found` — the same answer a missing id gets, so a key
+cannot be used to find out which companies exist. `POST /companies` with a
+restricted key answers `403 forbidden`, since the key could not see what it
+created.
+
 ## PSA integration endpoints
 The main use case: a ticket in any PSA needs to show that client's docs.
 ```

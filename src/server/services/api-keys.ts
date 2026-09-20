@@ -3,9 +3,10 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/server/db";
-import { apiKeys } from "@/server/db/schema";
+import { apiKeyCompanies, apiKeys } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/companies";
+import { ALL_COMPANIES, only, type CompanyScope } from "@/server/auth/company-scope";
 
 /**
  * API keys, per docs/ARCHITECTURE.md: 32 random bytes, shown once, stored as a
@@ -18,13 +19,25 @@ export type ApiScope = (typeof API_SCOPES)[number];
 const PREFIX_LENGTH = 8;
 const KEY_PREFIX = "bothy_";
 
-export const apiKeyInputSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(200),
-  scopes: z
-    .array(z.enum(API_SCOPES))
-    .min(1, "Choose at least one scope")
-    .transform((scopes) => [...new Set(scopes)]),
-});
+export const apiKeyInputSchema = z
+  .object({
+    name: z.string().trim().min(1, "Name is required").max(200),
+    scopes: z
+      .array(z.enum(API_SCOPES))
+      .min(1, "Choose at least one scope")
+      .transform((scopes) => [...new Set(scopes)]),
+    allCompanies: z.boolean().default(false),
+    companyIds: z
+      .array(z.uuid())
+      .default([])
+      .transform((ids) => [...new Set(ids)]),
+  })
+  // A key limited to nothing would authenticate and then find every company
+  // missing, which reads as a broken integration rather than a locked-down one.
+  .refine((input) => input.allCompanies || input.companyIds.length > 0, {
+    message: "Choose at least one company, or give the key every company",
+    path: ["companyIds"],
+  });
 
 export type ApiKeyInput = z.input<typeof apiKeyInputSchema>;
 
@@ -33,6 +46,8 @@ export type ApiKeyRow = {
   name: string;
   prefix: string;
   scopes: string[];
+  allCompanies: boolean;
+  companyIds: string[];
   lastUsedAt: Date | null;
   revokedAt: Date | null;
   createdAt: Date;
@@ -56,18 +71,31 @@ export function splitKey(presented: string): { marker: string; body: string } {
 }
 
 export async function listApiKeys(): Promise<ApiKeyRow[]> {
-  return db
-    .select({
-      id: apiKeys.id,
-      name: apiKeys.name,
-      prefix: apiKeys.prefix,
-      scopes: apiKeys.scopes,
-      lastUsedAt: apiKeys.lastUsedAt,
-      revokedAt: apiKeys.revokedAt,
-      createdAt: apiKeys.createdAt,
-    })
-    .from(apiKeys)
-    .orderBy(asc(apiKeys.createdAt));
+  const [rows, grants] = await Promise.all([
+    db
+      .select({
+        id: apiKeys.id,
+        name: apiKeys.name,
+        prefix: apiKeys.prefix,
+        scopes: apiKeys.scopes,
+        allCompanies: apiKeys.allCompanies,
+        lastUsedAt: apiKeys.lastUsedAt,
+        revokedAt: apiKeys.revokedAt,
+        createdAt: apiKeys.createdAt,
+      })
+      .from(apiKeys)
+      .orderBy(asc(apiKeys.createdAt)),
+    db
+      .select({ apiKeyId: apiKeyCompanies.apiKeyId, companyId: apiKeyCompanies.companyId })
+      .from(apiKeyCompanies),
+  ]);
+
+  const byKey = new Map<string, string[]>();
+  for (const grant of grants) {
+    byKey.set(grant.apiKeyId, [...(byKey.get(grant.apiKeyId) ?? []), grant.companyId]);
+  }
+
+  return rows.map((row) => ({ ...row, companyIds: byKey.get(row.id) ?? [] }));
 }
 
 /** The only time the full key exists. It is never stored or logged. */
@@ -86,6 +114,7 @@ export async function createApiKey(
         prefix,
         keyHash: hashKey(key),
         scopes: data.scopes,
+        allCompanies: data.allCompanies,
         createdBy: actorId,
       })
       .returning({
@@ -93,11 +122,18 @@ export async function createApiKey(
         name: apiKeys.name,
         prefix: apiKeys.prefix,
         scopes: apiKeys.scopes,
+        allCompanies: apiKeys.allCompanies,
         lastUsedAt: apiKeys.lastUsedAt,
         revokedAt: apiKeys.revokedAt,
         createdAt: apiKeys.createdAt,
       });
     if (!row) throw new Error("Failed to create API key");
+
+    if (data.companyIds.length > 0) {
+      await tx
+        .insert(apiKeyCompanies)
+        .values(data.companyIds.map((companyId) => ({ apiKeyId: row.id, companyId })));
+    }
 
     await writeAudit(
       {
@@ -105,12 +141,18 @@ export async function createApiKey(
         action: "api_key.created",
         entity: "api_key",
         entityId: row.id,
-        detail: { name: data.name, scopes: data.scopes, prefix },
+        detail: {
+          name: data.name,
+          scopes: data.scopes,
+          prefix,
+          allCompanies: data.allCompanies,
+          companyIds: data.companyIds,
+        },
       },
       tx,
     );
 
-    return { row, key };
+    return { row: { ...row, companyIds: data.companyIds }, key };
   });
 }
 
@@ -130,7 +172,13 @@ export async function revokeApiKey(id: string, actorId: string): Promise<void> {
   });
 }
 
-export type AuthenticatedKey = { id: string; name: string; scopes: ApiScope[] };
+export type AuthenticatedKey = {
+  id: string;
+  name: string;
+  scopes: ApiScope[];
+  /** What this key may see. Built the same way a user's scope is. */
+  companies: CompanyScope;
+};
 
 /**
  * Resolves a presented key. The prefix narrows to one row, then the full hash
@@ -146,6 +194,7 @@ export async function authenticateApiKey(presented: string): Promise<Authenticat
       name: apiKeys.name,
       keyHash: apiKeys.keyHash,
       scopes: apiKeys.scopes,
+      allCompanies: apiKeys.allCompanies,
       revokedAt: apiKeys.revokedAt,
     })
     .from(apiKeys)
@@ -172,7 +221,16 @@ export async function authenticateApiKey(presented: string): Promise<Authenticat
     scopes: row.scopes.filter((scope): scope is ApiScope =>
       (API_SCOPES as readonly string[]).includes(scope),
     ),
+    companies: row.allCompanies ? ALL_COMPANIES : only(await grantedCompanyIds(row.id)),
   };
+}
+
+async function grantedCompanyIds(keyId: string): Promise<string[]> {
+  const rows = await db
+    .select({ companyId: apiKeyCompanies.companyId })
+    .from(apiKeyCompanies)
+    .where(eq(apiKeyCompanies.apiKeyId, keyId));
+  return rows.map((row) => row.companyId);
 }
 
 /**

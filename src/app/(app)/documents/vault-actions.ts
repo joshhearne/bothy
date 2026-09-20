@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { text } from "@/lib/form";
-import { requireUser, canEditDocuments, ForbiddenError } from "@/server/auth/session";
+import {
+  requireUser,
+  canEditDocuments,
+  getCompanyScope,
+  ForbiddenError,
+} from "@/server/auth/session";
 import { getDocumentDetail } from "@/server/services/documents";
 import {
   createVaultItem,
@@ -38,7 +43,8 @@ export async function revealPasswordAction(
 ): Promise<RevealResult> {
   try {
     const user = await requireUser();
-    const detail = await getDocumentDetail(documentId);
+    const scope = await getCompanyScope(user);
+    const detail = await getDocumentDetail(documentId, scope);
     if (!detail) return { ok: false, error: "Document not found" };
 
     const value = await revealPassword({
@@ -62,7 +68,8 @@ export async function revealTotpAction(
 ): Promise<RevealResult> {
   try {
     const user = await requireUser();
-    const detail = await getDocumentDetail(documentId);
+    const scope = await getCompanyScope(user);
+    const detail = await getDocumentDetail(documentId, scope);
     if (!detail) return { ok: false, error: "Document not found" };
 
     const totp = await revealTotp({
@@ -92,7 +99,8 @@ export async function createVaultItemAction(
     const user = await requireUser();
     if (!canEditDocuments(user.role)) throw new ForbiddenError();
 
-    const detail = await getDocumentDetail(documentId);
+    const scope = await getCompanyScope(user);
+    const detail = await getDocumentDetail(documentId, scope);
     if (!detail) return { ok: false, error: "Document not found" };
 
     const ref = await createVaultItem({
@@ -103,6 +111,7 @@ export async function createVaultItemAction(
       uri: input.uri || undefined,
       password: input.password,
       actorId: user.id,
+      scope,
     });
 
     revalidatePath(`/documents/${documentId}/edit`);

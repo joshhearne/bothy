@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { canManageIntegrations, requireUser } from "@/server/auth/session";
+import { canManageIntegrations, requireScopedUser } from "@/server/auth/session";
 import { API_SCOPES, listApiKeys } from "@/server/services/api-keys";
+import { listCompanies } from "@/server/services/companies";
 import { formatDateTime } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
 import { CreateApiKeyForm } from "../integration-forms";
@@ -10,10 +11,10 @@ import { revokeApiKeyAction } from "../integration-actions";
 export const dynamic = "force-dynamic";
 
 export default async function ApiKeysPage() {
-  const user = await requireUser();
+  const { user, scope } = await requireScopedUser();
   if (!canManageIntegrations(user.role)) redirect("/companies");
 
-  const keys = await listApiKeys();
+  const [keys, companies] = await Promise.all([listApiKeys(), listCompanies(scope)]);
   const { locale, messages: t } = await getI18n();
 
   return (
@@ -44,6 +45,10 @@ export default async function ApiKeysPage() {
                   </p>
                   <p className="text-sm text-[var(--muted-foreground)]">
                     <code>{key.prefix}…</code> · {key.scopes.join(", ")} ·{" "}
+                    {key.allCompanies
+                      ? t.admin.users.accessSummaryAll
+                      : t.admin.users.accessSummaryCount(key.companyIds.length)}{" "}
+                    ·{" "}
                     {key.lastUsedAt
                       ? t.admin.apiKeys.lastUsed(formatDateTime(key.lastUsedAt, locale))
                       : t.admin.apiKeys.neverUsed}
@@ -65,7 +70,10 @@ export default async function ApiKeysPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold tracking-tight">{t.admin.apiKeys.newKey}</h2>
-        <CreateApiKeyForm scopes={[...API_SCOPES]} />
+        <CreateApiKeyForm
+          scopes={[...API_SCOPES]}
+          companies={companies.map((company) => ({ id: company.id, name: company.name }))}
+        />
       </section>
     </div>
   );

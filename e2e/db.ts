@@ -36,10 +36,40 @@ export function createUser(email: string, role: "tech" | "readonly", password: s
         `values ('${email}','${role}','${role}',true) returning id;`,
     ).split("\n")[0];
 
-  if (existing) psql(`update users set role='${role}' where id='${id}';`);
+  // Unrestricted unless a test says otherwise: these accounts exist to test
+  // roles, not company access.
+  psql(`update users set role='${role}', all_companies=true where id='${id}';`);
   psql(`delete from accounts where user_id='${id}';`);
   psql(
     `insert into accounts (user_id, account_id, provider_id, password) ` +
       `values ('${id}','${id}','credential','${hash}');`,
   );
+}
+
+/** Limits a user to the named companies, or hands them every company back. */
+export function setUserCompanies(email: string, companyIds: string[] | "all"): void {
+  const id = psql(`select id from users where email='${email}';`).split("\n")[0];
+  if (!id) throw new Error(`no user ${email}`);
+
+  psql(`update users set all_companies=${companyIds === "all"} where id='${id}';`);
+  psql(`delete from user_companies where user_id='${id}';`);
+
+  if (companyIds !== "all" && companyIds.length > 0) {
+    const values = companyIds.map((companyId) => `('${id}','${companyId}')`).join(",");
+    psql(`insert into user_companies (user_id, company_id) values ${values};`);
+  }
+}
+
+/** The same, for an API key, found by the name it was created with. */
+export function setKeyCompanies(keyName: string, companyIds: string[] | "all"): void {
+  const id = psql(`select id from api_keys where name='${keyName}';`).split("\n")[0];
+  if (!id) throw new Error(`no api key ${keyName}`);
+
+  psql(`update api_keys set all_companies=${companyIds === "all"} where id='${id}';`);
+  psql(`delete from api_key_companies where api_key_id='${id}';`);
+
+  if (companyIds !== "all" && companyIds.length > 0) {
+    const values = companyIds.map((companyId) => `('${id}','${companyId}')`).join(",");
+    psql(`insert into api_key_companies (api_key_id, company_id) values ${values};`);
+  }
 }

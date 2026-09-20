@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { FileText, MapPin } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { canEditDocuments, canManageHierarchy, requireUser } from "@/server/auth/session";
+import {
+  canEditDocuments,
+  canManageHierarchy,
+  requireScopedUser,
+} from "@/server/auth/session";
 import { getI18n } from "@/i18n/server";
 import { plural } from "@/i18n/format";
 import { getCompany } from "@/server/services/companies";
@@ -26,17 +30,17 @@ export default async function CompanyPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ archived?: string }>;
 }) {
-  const user = await requireUser();
+  const { user, scope } = await requireScopedUser();
   const { id } = await params;
   const { archived } = await searchParams;
   const showArchived = archived === "1";
 
-  const company = await getCompany(id);
+  const company = await getCompany(id, scope);
   if (!company) notFound();
 
   const [locations, documentGroups] = await Promise.all([
-    listLocations(id, { includeArchived: showArchived }),
-    listCompanyDocumentsGrouped(id),
+    listLocations(id, scope, { includeArchived: showArchived }),
+    listCompanyDocumentsGrouped(id, scope),
   ]);
 
   const { locale, messages: t } = await getI18n();

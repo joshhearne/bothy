@@ -6,7 +6,7 @@ import { NotFoundError } from "@/server/services/companies";
 
 export const dynamic = "force-dynamic";
 
-export const POST = withApi("write", async ({ request }) => {
+export const POST = withApi("write", async ({ request, scope }) => {
   const body = await readJson(request);
 
   if (typeof body.company_id !== "string" || typeof body.doc_type_id !== "string") {
@@ -23,13 +23,14 @@ export const POST = withApi("write", async ({ request }) => {
       values: (body.field_values ?? {}) as Record<string, unknown>,
     },
     null,
+    scope,
   );
 
   if (!result.ok) {
     return apiError(422, "invalid_request", "Some field values were rejected", result.errors);
   }
 
-  const detail = await getDocumentDetail(result.id);
+  const detail = await getDocumentDetail(result.id, scope);
   if (!detail) throw new NotFoundError("Document");
   const refs = await loadExternalRefMap("document", [detail.document.id]);
 

@@ -3,7 +3,7 @@ import { FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-import { requireUser } from "@/server/auth/session";
+import { requireScopedUser } from "@/server/auth/session";
 import { listCompanies } from "@/server/services/companies";
 import { listDocTypes } from "@/server/services/doc-types";
 import { searchDocuments, snippetToSegments } from "@/server/services/search";
@@ -17,17 +17,17 @@ export default async function SearchPage({
 }: {
   searchParams: Promise<{ q?: string; company?: string; docType?: string; cursor?: string }>;
 }) {
-  await requireUser();
+  const { scope } = await requireScopedUser();
   const params = await searchParams;
   const q = params.q?.trim() ?? "";
 
-  const [companies, docTypes] = await Promise.all([listCompanies(), listDocTypes()]);
+  const [companies, docTypes] = await Promise.all([listCompanies(scope), listDocTypes()]);
   const results = await searchDocuments({
     q,
     companyId: params.company || undefined,
     docTypeId: params.docType || undefined,
     cursor: params.cursor,
-  });
+  }, scope);
 
   const { locale, messages: t } = await getI18n();
 

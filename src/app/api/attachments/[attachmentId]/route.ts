@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/server/auth/session";
+import { getCompanyScope, getCurrentUser } from "@/server/auth/session";
 import { getAttachment } from "@/server/services/attachments";
 import { getStorage } from "@/server/storage";
 import { contentDisposition } from "@/server/storage/filename";
@@ -17,7 +17,7 @@ export async function GET(
   if (!user) return new Response("Unauthorized", { status: 401 });
 
   const { attachmentId } = await params;
-  const attachment = await getAttachment(attachmentId);
+  const attachment = await getAttachment(attachmentId, await getCompanyScope(user));
   if (!attachment) return new Response("Not found", { status: 404 });
 
   let body: Buffer;

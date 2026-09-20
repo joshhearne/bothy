@@ -29,6 +29,7 @@ async function createKey(page: Page, name: string, scopes: string[]): Promise<st
     else await box.uncheck();
   }
 
+  await page.getByRole("radio", { name: "Every company" }).check();
   await page.getByRole("button", { name: "Create key" }).click();
   const revealed = page.getByRole("status", { name: "New API key" });
   await expect(revealed).toContainText("bothy_");
@@ -160,7 +161,7 @@ test("documents round-trip with resolved values and a partial merge", async ({ r
   expect((await revisions.json()).data.length).toBe(2);
 });
 
-test("external refs, lookup, and the deep link all agree", async ({ request }) => {
+test("external refs, lookup, and the deep link all agree", async ({ request, browser }) => {
   const externalId = `halo-${Date.now()}`;
 
   const put = await request.put("/api/v1/external-refs", {
@@ -194,12 +195,21 @@ test("external refs, lookup, and the deep link all agree", async ({ request }) =
   );
   expect(missing.status()).toBe(404);
 
-  // The deep link needs no API key, just a browser session.
-  const redirect = await request.get(`/go/halopsa/company/${externalId}`, {
+  // The deep link needs no API key, but it does need a session: it resolves
+  // through the reader's own company access, so an anonymous caller cannot use
+  // it to turn an external id into a company id.
+  const anonymous = await request.get(`/go/halopsa/company/${externalId}`, {
     maxRedirects: 0,
   });
-  expect(redirect.status()).toBe(307);
-  expect(redirect.headers()["location"]).toContain(`/companies/${companyId}`);
+  expect(anonymous.status()).toBe(307);
+  expect(anonymous.headers()["location"]).toContain("/sign-in");
+
+  const page = await browser.newPage();
+  await signInAsAdmin(page);
+  const followed = await page.goto(`/go/halopsa/company/${externalId}`);
+  expect(followed?.status()).toBe(200);
+  expect(page.url()).toContain(`/companies/${companyId}`);
+  await page.close();
 });
 
 test("the OpenAPI document describes the API", async ({ request }) => {
@@ -235,6 +245,10 @@ test("the OpenAPI document describes the API", async ({ request }) => {
 });
 
 test("a queued webhook is delivered, signed, and recorded", async ({ request, browser }) => {
+  // The worker polls every 15 seconds and the poll below waits 60, so the test
+  // needs more than the default 60 or it dies before its own deadline.
+  test.setTimeout(150_000);
+
   // The receiver runs on the stack's network: the app container has no route
   // back to the host running these tests.
   const network = process.env.E2E_DOCKER_NETWORK ?? "bothy-test_public";

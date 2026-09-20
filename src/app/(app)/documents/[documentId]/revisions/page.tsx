@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { buttonVariants } from "@/components/ui/button";
 import { FieldValue } from "@/components/fields/field-value";
-import { requireUser } from "@/server/auth/session";
+import { requireScopedUser } from "@/server/auth/session";
 import { getDocumentDetail, listRevisions } from "@/server/services/documents";
 import { renderFieldValue } from "@/server/fields/render";
 import { formatDateTime } from "@/i18n/format";
@@ -15,13 +15,13 @@ export default async function RevisionsPage({
 }: {
   params: Promise<{ documentId: string }>;
 }) {
-  await requireUser();
+  const { scope } = await requireScopedUser();
   const { documentId } = await params;
 
-  const detail = await getDocumentDetail(documentId);
+  const detail = await getDocumentDetail(documentId, scope);
   if (!detail) notFound();
 
-  const revisions = await listRevisions(documentId);
+  const revisions = await listRevisions(documentId, scope);
   const { locale, messages: t } = await getI18n();
 
   return (

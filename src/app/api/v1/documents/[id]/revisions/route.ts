@@ -5,11 +5,11 @@ import { NotFoundError } from "@/server/services/companies";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withApi<{ id: string }>("read", async ({ params, url }) => {
-  const detail = await getDocumentDetail(params.id);
+export const GET = withApi<{ id: string }>("read", async ({ params, url, scope }) => {
+  const detail = await getDocumentDetail(params.id, scope);
   if (!detail) throw new NotFoundError("Document");
 
-  const revisions = await listRevisions(params.id, parseLimit(url.searchParams.get("limit")));
+  const revisions = await listRevisions(params.id, scope, parseLimit(url.searchParams.get("limit")));
 
   return json({
     data: revisions.map((revision) => ({

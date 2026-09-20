@@ -7,14 +7,15 @@ import { loadExternalRefMap } from "@/server/services/external-refs";
 
 export const dynamic = "force-dynamic";
 
-export const GET = withApi<{ id: string }>("read", async ({ params, url }) => {
-  await getCompanyOrThrow(params.id);
+export const GET = withApi<{ id: string }>("read", async ({ params, url, scope }) => {
+  await getCompanyOrThrow(params.id, scope);
 
   const limit = parseLimit(url.searchParams.get("limit"));
   const rows = await listLocationsPage({
     companyId: params.id,
     limit,
     cursor: decodeCursor(url.searchParams.get("cursor")),
+    scope,
   });
 
   const page = toPage(rows, limit, (row) => row.name);

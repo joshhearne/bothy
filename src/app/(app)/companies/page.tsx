@@ -3,7 +3,7 @@ import { Building2, Plus } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-import { canManageHierarchy, requireUser } from "@/server/auth/session";
+import { canManageHierarchy, requireScopedUser } from "@/server/auth/session";
 import { getI18n } from "@/i18n/server";
 import { plural } from "@/i18n/format";
 import { listCompanies } from "@/server/services/companies";
@@ -16,10 +16,10 @@ export default async function CompaniesPage({
 }: {
   searchParams: Promise<{ archived?: string }>;
 }) {
-  const user = await requireUser();
+  const { user, scope } = await requireScopedUser();
   const { archived } = await searchParams;
   const showArchived = archived === "1";
-  const companies = await listCompanies({ includeArchived: showArchived });
+  const companies = await listCompanies(scope, { includeArchived: showArchived });
   const writer = canManageHierarchy(user.role);
   const { locale, messages: t } = await getI18n();
 
@@ -49,7 +49,9 @@ export default async function CompaniesPage({
       {companies.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-start gap-3 p-6">
-            <p className="text-sm text-[var(--muted-foreground)]">{t.companies.empty}</p>
+            <p className="text-sm text-[var(--muted-foreground)]">
+              {scope.all ? t.companies.empty : t.companies.noneGranted}
+            </p>
             {writer && (
               <Link
                 href="/companies/new"

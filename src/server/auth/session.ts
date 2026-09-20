@@ -3,8 +3,13 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 
-export const ROLES = ["admin", "tech", "readonly"] as const;
-export type Role = (typeof ROLES)[number];
+import { ROLES, type Role } from "@/server/auth/roles";
+import { ForbiddenError } from "@/server/services/errors";
+import { companyScopeForUser } from "@/server/services/users";
+import type { CompanyScope } from "@/server/auth/company-scope";
+
+export { ROLES };
+export type { Role };
 
 export type CurrentUser = {
   id: string;
@@ -39,13 +44,23 @@ export async function requireUser(): Promise<CurrentUser> {
   return user;
 }
 
-/** Thrown by services when the caller's role is not enough. */
-export class ForbiddenError extends Error {
-  constructor(message = "You do not have permission to do that") {
-    super(message);
-    this.name = "ForbiddenError";
-  }
+/**
+ * Which companies this user may see. Admins are never restricted; everyone
+ * else gets what `user_companies` grants them, read fresh from the database so
+ * a revoked grant applies on the next request rather than the next sign-in.
+ */
+export async function getCompanyScope(user: CurrentUser): Promise<CompanyScope> {
+  return companyScopeForUser(user);
 }
+
+/** The pair every company-aware page needs: who is asking, and what they may see. */
+export async function requireScopedUser(): Promise<{ user: CurrentUser; scope: CompanyScope }> {
+  const user = await requireUser();
+  return { user, scope: await getCompanyScope(user) };
+}
+
+/** Thrown by services when the caller's role is not enough. */
+export { ForbiddenError } from "@/server/services/errors";
 
 /*
  * Permissions v1, straight from docs/ARCHITECTURE.md:

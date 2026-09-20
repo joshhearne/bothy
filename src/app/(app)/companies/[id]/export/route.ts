@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/server/auth/session";
+import { getCompanyScope, getCurrentUser } from "@/server/auth/session";
 import { buildCompanyExport, exportFilename, toMarkdown } from "@/server/services/export";
 import { contentDisposition } from "@/server/storage/filename";
 import { NotFoundError } from "@/server/services/companies";
@@ -17,7 +17,7 @@ export async function GET(
 
   let data;
   try {
-    data = await buildCompanyExport(id);
+    data = await buildCompanyExport(id, await getCompanyScope(user));
   } catch (err) {
     if (err instanceof NotFoundError) return new Response("Not found", { status: 404 });
     throw err;

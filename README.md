@@ -136,6 +136,23 @@ strings that differ from `src/i18n/en-US.ts`, and add the code to
 `src/i18n/locales.ts`. Anything left out falls back to en-US, so a partial
 translation is still usable.
 
+## Who can see which companies
+
+Roles say what somebody may do; company access says where. A user or an API key
+either sees every company or only the ones granted to it, under **Admin →
+Users** and on the key itself. Administrators are never restricted — they are
+who grants access.
+
+A newly created account starts with no companies until an admin grants some, so
+an SSO user who signs in for the first time cannot read anything by default.
+Upgrading an existing install changes nothing: everyone who is already there
+keeps the access they had.
+
+Anything outside the granted set answers "not found" rather than "you are not
+allowed", because saying a company exists but is not yours is itself a
+disclosure. The rule holds across search, backlinks, exports, attachments, deep
+links, the REST API, and the MCP tools, which inherit their key's companies.
+
 ## Appearance
 
 Light and dark are one palette, selected by `color-scheme` and resolved with

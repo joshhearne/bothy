@@ -54,7 +54,28 @@ API responses return resolved values (option labels, linked doc titles, rendered
 - tech: create/edit docs, add local fields, promote fields, add dropdown options
 - readonly: view only
 
-Per-company access control is a later phase.
+## Per-company access (v2)
+A principal — a signed-in user or an API key — either sees every company or
+only the ones granted to it. The role decides what it may *do*; the grant
+decides *where*.
+
+- `users.all_companies` / `user_companies`, and `api_keys.all_companies` /
+  `api_key_companies`. A new row defaults to false: access is granted, never
+  assumed.
+- Administrators are never restricted. They are who grants access.
+- A user's scope is read from the database on every request, not from the
+  session, so revoking a grant applies to the next page load.
+- Out of scope reads as **not found**, never as forbidden. Saying a company
+  exists but is not yours is itself a disclosure. The one exception is creating
+  a company with a restricted key, which is a 403 that says why, because the
+  alternative is a company the key could never see.
+- Enforcement lives in the service layer: every read of company-owned data
+  takes a `CompanyScope`, list queries filter in SQL, and single-record reads
+  assert. A restricted principal with no grants matches no row, rather than
+  producing an empty `IN ()`.
+- It reaches search, backlinks, revisions, attachments, exports, the vault item
+  picker, external-ref mapping, `/lookup`, `/go/...` deep links, and the MCP
+  tools, which inherit the key's companies.
 
 ## Security baseline
 - Argon2id for local passwords

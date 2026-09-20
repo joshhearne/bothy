@@ -5,6 +5,8 @@ import { attachments, documents } from "@/server/db/schema";
 import { env } from "@/lib/env";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/companies";
+import { assertDocumentInScope } from "@/server/services/documents";
+import { type CompanyScope } from "@/server/auth/company-scope";
 import { buildStorageKey, getStorage } from "@/server/storage";
 import { sanitizeFilename } from "@/server/storage/filename";
 import { formatNumber } from "@/i18n/format";
@@ -36,7 +38,11 @@ export function maxUploadBytes(): number {
   return env.MAX_UPLOAD_MB * 1024 * 1024;
 }
 
-export async function listAttachments(documentId: string): Promise<AttachmentRow[]> {
+export async function listAttachments(
+  documentId: string,
+  scope: CompanyScope,
+): Promise<AttachmentRow[]> {
+  await assertDocumentInScope(documentId, scope);
   return db
     .select({
       id: attachments.id,
@@ -50,9 +56,20 @@ export async function listAttachments(documentId: string): Promise<AttachmentRow
     .orderBy(asc(attachments.createdAt));
 }
 
-export async function getAttachment(id: string) {
+/**
+ * An attachment the caller may download. The scope belongs to the document it
+ * hangs off, so the check is the same one the document itself gets.
+ */
+export async function getAttachment(id: string, scope: CompanyScope) {
   const [row] = await db.select().from(attachments).where(eq(attachments.id, id)).limit(1);
-  return row ?? null;
+  if (!row) return null;
+
+  try {
+    await assertDocumentInScope(row.documentId, scope);
+  } catch {
+    return null;
+  }
+  return row;
 }
 
 /**
@@ -63,7 +80,9 @@ export async function addAttachment(
   documentId: string,
   file: File,
   actorId: string,
+  scope: CompanyScope,
 ): Promise<AttachmentRow> {
+  await assertDocumentInScope(documentId, scope);
   if (file.size === 0) throw new EmptyUploadError();
   if (file.size > maxUploadBytes()) throw new UploadTooLargeError(env.MAX_UPLOAD_MB);
 
@@ -119,8 +138,12 @@ export async function addAttachment(
   });
 }
 
-export async function removeAttachment(id: string, actorId: string): Promise<{ documentId: string }> {
-  const row = await getAttachment(id);
+export async function removeAttachment(
+  id: string,
+  actorId: string,
+  scope: CompanyScope,
+): Promise<{ documentId: string }> {
+  const row = await getAttachment(id, scope);
   if (!row) throw new NotFoundError("Attachment");
 
   await db.transaction(async (tx) => {

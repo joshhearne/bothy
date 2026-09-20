@@ -3,6 +3,7 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/server/db";
 import { docTypes, documents, locations } from "@/server/db/schema";
 import { getCompanyOrThrow } from "@/server/services/companies";
+import { assertInScope, type CompanyScope } from "@/server/auth/company-scope";
 import { getDocumentDetail } from "@/server/services/documents";
 import { serializeFieldValues, type ApiFieldValue } from "@/server/api/serializers";
 import { formatDate } from "@/i18n/format";
@@ -36,8 +37,11 @@ export type CompanyExport = {
   note: string;
 };
 
-export async function buildCompanyExport(companyId: string): Promise<CompanyExport> {
-  const company = await getCompanyOrThrow(companyId);
+export async function buildCompanyExport(
+  companyId: string,
+  scope: CompanyScope,
+): Promise<CompanyExport> {
+  const company = await getCompanyOrThrow(companyId, scope);
 
   const [companyLocations, documentRows] = await Promise.all([
     db
@@ -56,7 +60,7 @@ export async function buildCompanyExport(companyId: string): Promise<CompanyExpo
   const exported: ExportedDocument[] = [];
 
   for (const row of documentRows) {
-    const detail = await getDocumentDetail(row.id);
+    const detail = await getDocumentDetail(row.id, scope);
     if (!detail) continue;
 
     exported.push({
@@ -89,7 +93,11 @@ export async function buildCompanyExport(companyId: string): Promise<CompanyExpo
 }
 
 /** Doc types a company has documents of, in the order the export lists them. */
-export async function listExportableDocTypes(companyId: string): Promise<string[]> {
+export async function listExportableDocTypes(
+  companyId: string,
+  scope: CompanyScope,
+): Promise<string[]> {
+  assertInScope(scope, companyId);
   const rows = await db
     .selectDistinct({ name: docTypes.name })
     .from(documents)

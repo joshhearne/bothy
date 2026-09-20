@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { canManageDocTypes, canManageHierarchy, requireUser } from "@/server/auth/session";
+import {
+  canManageDocTypes,
+  canManageHierarchy,
+  requireScopedUser,
+} from "@/server/auth/session";
 import { isSetupComplete } from "@/server/services/setup";
 import { listCompanies } from "@/server/services/companies";
 import { signOutAction } from "@/app/sign-in/actions";
@@ -10,8 +14,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   if (!(await isSetupComplete())) redirect("/setup");
-  const user = await requireUser();
-  const companies = await listCompanies();
+  const { user, scope } = await requireScopedUser();
+  const companies = await listCompanies(scope);
   const theme = await getTheme();
 
   return (

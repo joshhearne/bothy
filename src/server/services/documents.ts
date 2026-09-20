@@ -14,6 +14,12 @@ import { writeAudit } from "@/server/services/audit";
 import { queueEvent } from "@/server/services/webhooks";
 import { serializeDocument } from "@/server/api/serializers";
 import { NotFoundError } from "@/server/services/companies";
+import {
+  assertInScope,
+  isInScope,
+  scopeWhere,
+  type CompanyScope,
+} from "@/server/auth/company-scope";
 import { listTemplateFields } from "@/server/services/doc-types";
 import { loadOptionIndex, loadOptionLabels } from "@/server/services/option-lists";
 import type { FieldDefinition } from "@/server/fields/types";
@@ -46,7 +52,11 @@ export type DocumentGroup = {
 };
 
 /** Active documents belonging to a company, with their doc type and location joined. */
-export async function listCompanyDocuments(companyId: string): Promise<DocumentListItem[]> {
+export async function listCompanyDocuments(
+  companyId: string,
+  scope: CompanyScope,
+): Promise<DocumentListItem[]> {
+  assertInScope(scope, companyId);
   return db
     .select({
       id: documents.id,
@@ -93,8 +103,11 @@ export function groupByDocType(rows: DocumentListItem[]): DocumentGroup[] {
   return [...groups.values()];
 }
 
-export async function listCompanyDocumentsGrouped(companyId: string): Promise<DocumentGroup[]> {
-  return groupByDocType(await listCompanyDocuments(companyId));
+export async function listCompanyDocumentsGrouped(
+  companyId: string,
+  scope: CompanyScope,
+): Promise<DocumentGroup[]> {
+  return groupByDocType(await listCompanyDocuments(companyId, scope));
 }
 
 /**
@@ -228,8 +241,16 @@ export type Backlink = {
   fieldLabel: string;
 };
 
-/** Documents pointing at this one, for the "Linked from" section. */
-export async function listBacklinks(documentId: string): Promise<Backlink[]> {
+/**
+ * Documents pointing at this one, for the "Linked from" section. A link may
+ * come from a company the reader has no access to, so the scope is applied
+ * here too: otherwise a backlink would disclose a document's title, its doc
+ * type, and the fact that the company exists.
+ */
+export async function listBacklinks(
+  documentId: string,
+  scope: CompanyScope,
+): Promise<Backlink[]> {
   return db
     .select({
       documentId: documents.id,
@@ -241,7 +262,13 @@ export async function listBacklinks(documentId: string): Promise<Backlink[]> {
     .innerJoin(documents, eq(documents.id, documentLinks.fromDoc))
     .innerJoin(docTypes, eq(docTypes.id, documents.docTypeId))
     .innerJoin(fields, eq(fields.id, documentLinks.fieldId))
-    .where(and(eq(documentLinks.toDoc, documentId), isNull(documents.archivedAt)))
+    .where(
+      and(
+        eq(documentLinks.toDoc, documentId),
+        isNull(documents.archivedAt),
+        scopeWhere(scope, documents.companyId),
+      ),
+    )
     .orderBy(asc(docTypes.name), asc(documents.title));
 }
 
@@ -261,13 +288,14 @@ export type VaultContext = {
 export async function loadSecretItems(
   fieldList: FieldDefinition[],
   companyId: string,
+  scope: CompanyScope,
 ): Promise<{ index: SecretItemIndex; vault: VaultContext | null }> {
   const index: SecretItemIndex = new Map();
   const secretFields = fieldList.filter((field) => field.fieldType === "secret_ref");
   if (secretFields.length === 0) return { index, vault: null };
 
   const [{ items, vault }, collectionIds] = await Promise.all([
-    listCompanyVaultItems(companyId),
+    listCompanyVaultItems(companyId, scope),
     listCompanyCollections(companyId),
   ]);
 
@@ -312,14 +340,33 @@ export type DocumentDetail = {
   vault: VaultContext | null;
 };
 
-export async function getDocumentDetail(id: string): Promise<DocumentDetail | null> {
+/**
+ * Throws "not found" unless the document belongs to a company in scope. The
+ * mutations take a document id and nothing else, so this is where they learn
+ * whose document it is.
+ */
+export async function assertDocumentInScope(id: string, scope: CompanyScope): Promise<string> {
+  const [row] = await db
+    .select({ companyId: documents.companyId })
+    .from(documents)
+    .where(eq(documents.id, id))
+    .limit(1);
+  if (!row) throw new NotFoundError("Document");
+  assertInScope(scope, row.companyId, "Document");
+  return row.companyId;
+}
+
+export async function getDocumentDetail(
+  id: string,
+  scope: CompanyScope,
+): Promise<DocumentDetail | null> {
   const [row] = await db
     .select({ document: documents, docType: docTypes })
     .from(documents)
     .innerJoin(docTypes, eq(docTypes.id, documents.docTypeId))
     .where(eq(documents.id, id))
     .limit(1);
-  if (!row) return null;
+  if (!row || !isInScope(scope, row.document.companyId)) return null;
 
   const [templateFields, localFields] = await Promise.all([
     listTemplateFields(row.docType.id),
@@ -350,7 +397,7 @@ export async function getDocumentDetail(id: string): Promise<DocumentDetail | nu
   const [linkTargets, linkedTitles, secrets] = await Promise.all([
     loadLinkTargets(ordered, row.document.companyId, row.document.id),
     loadLinkedTitles(linkedIds),
-    loadSecretItems(ordered, row.document.companyId),
+    loadSecretItems(ordered, row.document.companyId, scope),
   ]);
 
   return {
@@ -423,7 +470,9 @@ export async function createDocument(
     values?: Record<string, unknown>;
   },
   actorId: string | null,
+  scope: CompanyScope,
 ): Promise<SaveResult> {
+  assertInScope(scope, input.companyId);
   const { title } = documentInputSchema.parse({ title: input.title });
   await assertScope(input.docTypeId, input.companyId, input.locationId);
 
@@ -431,7 +480,7 @@ export async function createDocument(
   const [optionIndex, linkTargets, secrets] = await Promise.all([
     loadOptionIndex(templateFields.flatMap((f) => (f.optionListId ? [f.optionListId] : []))),
     loadLinkTargets(templateFields, input.companyId, null),
-    loadSecretItems(templateFields, input.companyId),
+    loadSecretItems(templateFields, input.companyId, scope),
   ]);
   const ctx: ValidationContext = {
     options: optionIndex,
@@ -502,8 +551,9 @@ export async function saveDocument(
   id: string,
   input: { title?: string; values?: Record<string, unknown> },
   actorId: string | null,
+  scope: CompanyScope,
 ): Promise<SaveResult> {
-  const detail = await getDocumentDetail(id);
+  const detail = await getDocumentDetail(id, scope);
   if (!detail) throw new NotFoundError("Document");
 
   const errors: Record<string, string> = {};
@@ -574,7 +624,12 @@ export async function saveDocument(
   return { ok: true, id };
 }
 
-export async function archiveDocument(id: string, actorId: string): Promise<void> {
+export async function archiveDocument(
+  id: string,
+  actorId: string,
+  scope: CompanyScope,
+): Promise<void> {
+  await assertDocumentInScope(id, scope);
   await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(documents)
@@ -592,7 +647,12 @@ export async function archiveDocument(id: string, actorId: string): Promise<void
   });
 }
 
-export async function unarchiveDocument(id: string, actorId: string): Promise<void> {
+export async function unarchiveDocument(
+  id: string,
+  actorId: string,
+  scope: CompanyScope,
+): Promise<void> {
+  await assertDocumentInScope(id, scope);
   await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(documents)
@@ -617,7 +677,12 @@ export type RevisionRow = {
 };
 
 /** Newest first. Each row is the state the document was left in by that save. */
-export async function listRevisions(documentId: string, limit = 50): Promise<RevisionRow[]> {
+export async function listRevisions(
+  documentId: string,
+  scope: CompanyScope,
+  limit = 50,
+): Promise<RevisionRow[]> {
+  await assertDocumentInScope(documentId, scope);
   return db
     .select({
       id: documentRevisions.id,
@@ -652,7 +717,9 @@ export async function listCompanyDocumentsPage(input: {
   locationId?: string | undefined;
   limit: number;
   cursor: { sort: string; id: string } | null;
+  scope: CompanyScope;
 }) {
+  assertInScope(input.scope, input.companyId);
   const filters = [eq(documents.companyId, input.companyId), isNull(documents.archivedAt)];
   if (input.docTypeId) filters.push(eq(documents.docTypeId, input.docTypeId));
   if (input.locationId) filters.push(eq(documents.locationId, input.locationId));

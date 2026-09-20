@@ -7,12 +7,13 @@ export const dynamic = "force-dynamic";
  * Metadata only, scoped to the collections mapped to the company. No password,
  * no TOTP seed, ever.
  */
-export const GET = withApi("read", async ({ url }) => {
+export const GET = withApi("read", async ({ url, scope }) => {
   const companyId = url.searchParams.get("company_id");
   if (!companyId) return apiError(422, "invalid_request", "company_id is required");
 
   const { items, vault } = await listCompanyVaultItems(
     companyId,
+    scope,
     url.searchParams.get("q") ?? undefined,
   );
 
