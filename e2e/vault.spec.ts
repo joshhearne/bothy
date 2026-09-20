@@ -216,11 +216,11 @@ test("a user without the permission cannot reveal", async ({ page }) => {
   if (!admin) throw new Error("no browser");
   await signInAsAdmin(admin);
   await admin.goto("/admin/users");
-  await admin
-    .getByRole("listitem")
-    .filter({ hasText: TECH.email })
-    .getByRole("button", { name: "Grant" })
-    .click();
+  const row = admin.getByRole("listitem").filter({ hasText: TECH.email });
+  await row.getByRole("button", { name: "Grant" }).click();
+
+  // Wait for the grant to be applied, not merely requested.
+  await expect(row.getByText("May reveal secrets")).toBeVisible();
   await admin.close();
 
   await page.reload();

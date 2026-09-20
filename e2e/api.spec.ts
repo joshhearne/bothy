@@ -303,11 +303,12 @@ test("a revoked key stops working", async ({ request, browser }) => {
   expect(before.status()).toBe(200);
 
   await page.goto("/admin/api-keys");
-  await page
-    .getByRole("listitem")
-    .filter({ hasText: "doomed key" })
-    .getByRole("button", { name: "Revoke" })
-    .click();
+  const row = page.getByRole("listitem").filter({ hasText: "doomed key" });
+  await row.getByRole("button", { name: "Revoke" }).click();
+
+  // The click only dispatches the action; wait for the result to land before
+  // asking the API, or the key may still be live.
+  await expect(row.getByText("Revoked")).toBeVisible();
   await page.close();
 
   const after = await request.get("/api/v1/doc-types", { headers: auth(doomed) });
