@@ -21,12 +21,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLocale, useMessages } from "@/i18n/client";
-import { LocaleSwitcher } from "@/components/locale-switcher";
+import { UserMenu } from "@/components/user-menu";
 
 export type SidebarCompany = { id: string; name: string; isInternal: boolean };
 
 export type AppShellProps = {
-  user: { email: string; role: string };
+  user: { name: string; email: string; role: string };
   companies: SidebarCompany[];
   canCreateCompanies: boolean;
   canManageDocTypes: boolean;
@@ -92,19 +92,8 @@ export function AppShell({
           {t.app.name}
         </Link>
 
-        <div className="ml-auto flex items-center gap-3">
-          <span className="hidden text-sm text-[var(--muted-foreground)] sm:inline">
-            {user.email}
-          </span>
-          <span className="rounded-full border px-2 py-0.5 text-xs text-[var(--muted-foreground)]">
-            {user.role}
-          </span>
-          <LocaleSwitcher locale={locale} />
-          <form action={signOut}>
-            <Button type="submit" variant="outline" size="sm">
-              {t.app.signOut}
-            </Button>
-          </form>
+        <div className="ml-auto flex items-center">
+          <UserMenu user={user} locale={locale} signOut={signOut} />
         </div>
       </header>
 

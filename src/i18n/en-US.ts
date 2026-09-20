@@ -13,6 +13,10 @@ export const enUS = {
     search: "Search",
     searchDocuments: "Search documents",
     language: "Language",
+    account: "Account",
+    accountMenuFor: (name: string) => `Account menu for ${name}`,
+    signedInAs: "Signed in as",
+    closeAccount: "Close account menu",
   },
 
   nav: {

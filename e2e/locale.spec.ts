@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { signInAsAdmin } from "./support";
+import { openAccountMenu, signInAsAdmin } from "./support";
 
 /**
  * The interface ships en-US and offers en-GB as a translation. Switching is a
@@ -20,6 +20,7 @@ test("en-US is what a new visitor gets", async ({ page }) => {
 
 test("switching to en-GB changes the spelling everywhere it appears", async ({ page }) => {
   await page.goto("/companies/new");
+  await openAccountMenu(page);
   await page.getByLabel("Language").selectOption("en-GB");
 
   await expect(page.locator("html")).toHaveAttribute("lang", "en-GB");
@@ -33,6 +34,7 @@ test("switching to en-GB changes the spelling everywhere it appears", async ({ p
 
 test("the choice survives a reload and a different page", async ({ page }) => {
   await page.goto("/companies/new");
+  await openAccountMenu(page);
   await page.getByLabel("Language").selectOption("en-GB");
   await expect(page.getByText("This is my own organisation")).toBeVisible();
 
@@ -44,10 +46,12 @@ test("the choice survives a reload and a different page", async ({ page }) => {
 test("dates follow the locale", async ({ page }) => {
   // Seeded audit entries give us a date to read.
   await page.goto("/admin/audit");
+  await openAccountMenu(page);
   await page.getByLabel("Language").selectOption("en-US");
   await expect(page.locator("html")).toHaveAttribute("lang", "en-US");
   const american = await page.locator("tbody tr").first().locator("td").first().innerText();
 
+  await openAccountMenu(page);
   await page.getByLabel("Language").selectOption("en-GB");
   // The switch reloads the tree; wait for it before reading the cell again.
   await expect(page.locator("html")).toHaveAttribute("lang", "en-GB");
@@ -61,9 +65,11 @@ test("dates follow the locale", async ({ page }) => {
 
 test("switching back to en-US restores American spelling", async ({ page }) => {
   await page.goto("/companies/new");
+  await openAccountMenu(page);
   await page.getByLabel("Language").selectOption("en-GB");
   await expect(page.getByText("This is my own organisation")).toBeVisible();
 
+  await openAccountMenu(page);
   await page.getByLabel("Language").selectOption("en-US");
   await expect(page.getByText("This is my own organization")).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "en-US");

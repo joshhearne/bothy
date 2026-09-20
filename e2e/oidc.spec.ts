@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import { psql } from "./db";
-import { signInAsAdmin } from "./support";
+import { openAccountMenu, signInAsAdmin } from "./support";
 import { CLIENT_ID, ISSUER, startMockOidc, stopMockOidc } from "./mock-oidc";
 
 /**
@@ -105,6 +105,8 @@ test("a new user can sign in through the provider", async ({ page }) => {
   await signInAtProvider(page, SSO_EMAIL);
 
   await expect(page).toHaveURL(/\/companies/);
+  // Identity lives in the account menu now.
+  await openAccountMenu(page);
   await expect(page.getByText(SSO_EMAIL)).toBeVisible();
 
   // Provisioned with the default role and no secret access.

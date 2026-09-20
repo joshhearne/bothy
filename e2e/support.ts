@@ -114,3 +114,17 @@ export async function dragFieldAbove(page: Page, sourceIndex: number, targetInde
   await expect(page.getByRole("group", { name: "Apply new field order" })).toBeVisible();
   await page.waitForTimeout(150);
 }
+
+/**
+ * Opens the account flyout, where a reader's own settings live. Retries
+ * because changing the language refreshes the tree, which closes the menu.
+ */
+export async function openAccountMenu(page: Page): Promise<void> {
+  const trigger = page.getByRole("button", { name: /^Account menu for / });
+  const panel = page.getByRole("dialog", { name: "Account" });
+
+  await expect(async () => {
+    if ((await panel.count()) === 0) await trigger.click();
+    await expect(panel).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
+}

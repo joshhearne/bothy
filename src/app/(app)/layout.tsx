@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell
-      user={{ email: user.email, role: user.role }}
+      user={{ name: user.name, email: user.email, role: user.role }}
       canCreateCompanies={canManageHierarchy(user.role)}
       canManageDocTypes={canManageDocTypes(user.role)}
       signOut={signOutAction}
