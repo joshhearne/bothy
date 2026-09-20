@@ -297,13 +297,15 @@ test("a queued webhook is delivered, signed, and recorded", async ({ request, br
 test("a revoked key stops working", async ({ request, browser }) => {
   const page = await browser.newPage();
   await signInAsAdmin(page);
-  const doomed = await createKey(page, unique("doomed key"), ["read"]);
+  // The name has to be unique: the database persists between runs locally.
+  const doomedName = unique("doomed key");
+  const doomed = await createKey(page, doomedName, ["read"]);
 
   const before = await request.get("/api/v1/doc-types", { headers: auth(doomed) });
   expect(before.status()).toBe(200);
 
   await page.goto("/admin/api-keys");
-  const row = page.getByRole("listitem").filter({ hasText: "doomed key" });
+  const row = page.getByRole("listitem").filter({ hasText: doomedName });
   await row.getByRole("button", { name: "Revoke" }).click();
 
   // The click only dispatches the action; wait for the result to land before
