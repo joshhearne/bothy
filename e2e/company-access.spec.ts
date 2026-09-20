@@ -119,6 +119,7 @@ async function setCompanyAccess(
   email: string,
   company: string,
   granted: boolean,
+  expected: string,
 ): Promise<void> {
   await admin.goto("/admin/users");
   const row = admin.getByRole("listitem").filter({ hasText: email });
@@ -130,12 +131,11 @@ async function setCompanyAccess(
   else await box.uncheck();
 
   await row.getByRole("button", { name: "Save access" }).click();
-}
 
-async function accessSummary(admin: Page, email: string): Promise<string> {
-  await admin.goto("/admin/users");
-  const row = admin.getByRole("listitem").filter({ hasText: email });
-  return (await row.locator("summary").innerText()).trim();
+  // The summary is rendered by the page the save revalidates, so waiting for
+  // it is what proves the grant landed. Leaving before it does cancels the
+  // request, which only shows up on a slow machine.
+  await expect(row.locator("summary")).toContainText(expected);
 }
 
 test("granting and revoking take effect without signing in again", async ({ page, browser }) => {
@@ -146,15 +146,13 @@ test("granting and revoking take effect without signing in again", async ({ page
   const admin = await browser.newPage();
   await signInAsAdmin(admin);
 
-  await setCompanyAccess(admin, TECH.email, THEIRS, true);
-  expect(await accessSummary(admin, TECH.email)).toContain("2 companies");
+  await setCompanyAccess(admin, TECH.email, THEIRS, true, "2 companies");
 
   // The same session, no new sign-in: the scope is read per request.
   await page.reload();
   await expect(list.getByRole("link", { name: THEIRS })).toBeVisible();
 
-  await setCompanyAccess(admin, TECH.email, THEIRS, false);
-  expect(await accessSummary(admin, TECH.email)).toContain("1 company");
+  await setCompanyAccess(admin, TECH.email, THEIRS, false, "1 company");
   await admin.close();
 
   await page.reload();
