@@ -32,7 +32,7 @@ export type ReceivedRequest = { headers: Record<string, string>; body: string };
 
 export function startHookReceiver(network: string): string {
   stopHookReceiver();
-  const name = `strata-e2e-hook-${Date.now().toString(36)}`;
+  const name = `bothy-e2e-hook-${Date.now().toString(36)}`;
   docker([
     "run", "-d", "--name", name, "--network", network,
     "node:22-alpine", "node", "-e", RECEIVER_SCRIPT,

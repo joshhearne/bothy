@@ -16,7 +16,7 @@ export const oidcConfigured = Boolean(
 );
 
 export const auth = betterAuth({
-  appName: "Strata",
+  appName: "Bothy",
   baseURL: env.APP_URL,
   secret: env.AUTH_SECRET,
 

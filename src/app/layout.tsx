@@ -4,7 +4,7 @@ import { getLocale } from "@/i18n/server";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Strata",
+  title: "Bothy",
   description: "Self-hosted structured IT documentation",
 };
 

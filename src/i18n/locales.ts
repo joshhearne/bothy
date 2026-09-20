@@ -18,4 +18,4 @@ export function isLocale(value: unknown): value is Locale {
 }
 
 /** The cookie a reader's own choice is remembered in. */
-export const LOCALE_COOKIE = "strata-locale";
+export const LOCALE_COOKIE = "bothy-locale";

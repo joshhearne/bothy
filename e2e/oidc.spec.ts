@@ -6,10 +6,10 @@ import { CLIENT_ID, ISSUER, startMockOidc, stopMockOidc } from "./mock-oidc";
 
 /**
  * Single sign-on, end to end against a real OIDC provider: discovery, the
- * authorization redirect, the code exchange, and the account Strata creates.
+ * authorization redirect, the code exchange, and the account Bothy creates.
  */
 
-const PROJECT = process.env.E2E_COMPOSE_PROJECT ?? "strata-test";
+const PROJECT = process.env.E2E_COMPOSE_PROJECT ?? "bothy-test";
 const NETWORK = process.env.E2E_DOCKER_NETWORK ?? `${PROJECT}_public`;
 const REPO = process.env.E2E_REPO ?? process.cwd();
 const SSO_EMAIL = "sso-user@example.com";
@@ -29,7 +29,7 @@ function restartApp(withOidc: boolean): void {
       ? {
           OIDC_ISSUER: ISSUER,
           OIDC_CLIENT_ID: CLIENT_ID,
-          OIDC_CLIENT_SECRET: "strata-e2e-secret",
+          OIDC_CLIENT_SECRET: "bothy-e2e-secret",
         }
       : {}),
   };
@@ -80,7 +80,7 @@ test.afterAll(() => {
   restartApp(false);
 });
 
-/** Fills the provider's login form with a subject and the claims Strata needs. */
+/** Fills the provider's login form with a subject and the claims Bothy needs. */
 async function signInAtProvider(page: Page, email: string) {
   await expect(page).toHaveURL(/mock-oidc:8080\/default\/authorize/);
   await page.locator('input[name="username"]').fill(email);

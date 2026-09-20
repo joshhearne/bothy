@@ -17,6 +17,13 @@ export type ApiScope = (typeof API_SCOPES)[number];
 
 const PREFIX_LENGTH = 8;
 
+/**
+ * Keys issued before the rename carry the old marker. They are still valid, so
+ * both are accepted; new keys are only ever minted with the current one.
+ */
+const KEY_PREFIX = "bothy_";
+const LEGACY_KEY_PREFIXES = ["strata_"];
+
 export const apiKeyInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   scopes: z
@@ -41,10 +48,20 @@ export function hashKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
 }
 
-/** `strata_<prefix><secret>`: the prefix is stored, the rest never is. */
+/** `bothy_<prefix><secret>`: the prefix is stored, the rest never is. */
 function generateKey(): { key: string; prefix: string } {
   const body = randomBytes(32).toString("base64url");
-  return { key: `strata_${body}`, prefix: body.slice(0, PREFIX_LENGTH) };
+  return { key: `${KEY_PREFIX}${body}`, prefix: body.slice(0, PREFIX_LENGTH) };
+}
+
+/** Splits a presented key into the marker it was issued with and its body. */
+export function splitKey(presented: string): { marker: string; body: string } {
+  for (const marker of [KEY_PREFIX, ...LEGACY_KEY_PREFIXES]) {
+    if (presented.startsWith(marker)) {
+      return { marker, body: presented.slice(marker.length) };
+    }
+  }
+  return { marker: "", body: presented };
 }
 
 export async function listApiKeys(): Promise<ApiKeyRow[]> {
@@ -129,7 +146,7 @@ export type AuthenticatedKey = { id: string; name: string; scopes: ApiScope[] };
  * is compared in constant time so a wrong key leaks nothing through timing.
  */
 export async function authenticateApiKey(presented: string): Promise<AuthenticatedKey | null> {
-  const body = presented.startsWith("strata_") ? presented.slice("strata_".length) : presented;
+  const { marker, body } = splitKey(presented);
   if (body.length < PREFIX_LENGTH) return null;
 
   const [row] = await db
@@ -146,7 +163,8 @@ export async function authenticateApiKey(presented: string): Promise<Authenticat
 
   if (!row || row.revokedAt) return null;
 
-  const presentedHash = Buffer.from(hashKey(`strata_${body}`), "hex");
+  // Hash exactly what was issued, so an older key still matches its stored hash.
+  const presentedHash = Buffer.from(hashKey(`${marker}${body}`), "hex");
   const storedHash = Buffer.from(row.keyHash, "hex");
   if (presentedHash.length !== storedHash.length) return null;
   if (!timingSafeEqual(presentedHash, storedHash)) return null;

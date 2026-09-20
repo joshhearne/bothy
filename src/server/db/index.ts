@@ -6,11 +6,11 @@ import * as schema from "./schema";
 
 declare global {
   // Reuse the pool across dev hot reloads instead of leaking a pool per reload.
-  var __strataPool: Pool | undefined;
+  var __bothyPool: Pool | undefined;
 }
 
-const pool = globalThis.__strataPool ?? new Pool({ connectionString: env.DATABASE_URL, max: 10 });
-if (env.NODE_ENV !== "production") globalThis.__strataPool = pool;
+const pool = globalThis.__bothyPool ?? new Pool({ connectionString: env.DATABASE_URL, max: 10 });
+if (env.NODE_ENV !== "production") globalThis.__bothyPool = pool;
 
 export const db = drizzle(pool, { schema });
 export { schema };

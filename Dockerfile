@@ -24,18 +24,18 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 RUN addgroup -S -g 1001 nodejs \
- && adduser -S -u 1001 -G nodejs strata \
+ && adduser -S -u 1001 -G nodejs bothy \
  && mkdir -p /data/uploads \
- && chown -R strata:nodejs /data/uploads
+ && chown -R bothy:nodejs /data/uploads
 
-COPY --from=builder --chown=strata:nodejs /app/public ./public
-COPY --from=builder --chown=strata:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=strata:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=strata:nodejs /app/drizzle ./drizzle
-COPY --from=builder --chown=strata:nodejs /app/dist ./dist
-COPY --chown=strata:nodejs docker/entrypoint.sh /app/entrypoint.sh
+COPY --from=builder --chown=bothy:nodejs /app/public ./public
+COPY --from=builder --chown=bothy:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=bothy:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=bothy:nodejs /app/drizzle ./drizzle
+COPY --from=builder --chown=bothy:nodejs /app/dist ./dist
+COPY --chown=bothy:nodejs docker/entrypoint.sh /app/entrypoint.sh
 
-USER strata
+USER bothy
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"

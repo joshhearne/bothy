@@ -124,14 +124,14 @@ describe("toMarkdown", () => {
 
 describe("exportFilename", () => {
   it("slugs the company name", () => {
-    expect(exportFilename("Acme Ltd", "json")).toMatch(/^strata-acme-ltd-\d{4}-\d{2}-\d{2}\.json$/);
+    expect(exportFilename("Acme Ltd", "json")).toMatch(/^bothy-acme-ltd-\d{4}-\d{2}-\d{2}\.json$/);
   });
 
   it("strips punctuation that breaks filenames", () => {
-    expect(exportFilename("A/B \\ C:*?", "md")).toMatch(/^strata-a-b-c-/);
+    expect(exportFilename("A/B \\ C:*?", "md")).toMatch(/^bothy-a-b-c-/);
   });
 
   it("falls back when nothing usable is left", () => {
-    expect(exportFilename("///", "md")).toMatch(/^strata-company-/);
+    expect(exportFilename("///", "md")).toMatch(/^bothy-company-/);
   });
 });

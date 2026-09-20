@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { apiKeyInputSchema, hashKey, hasScope } from "./api-keys";
+import { apiKeyInputSchema, hashKey, hasScope, splitKey } from "./api-keys";
 
 describe("apiKeyInputSchema", () => {
   it("keeps a valid key definition", () => {
@@ -24,11 +24,25 @@ describe("apiKeyInputSchema", () => {
 
 describe("hashKey", () => {
   it("is a hex sha256", () => {
-    expect(hashKey("strata_abc")).toMatch(/^[0-9a-f]{64}$/);
+    expect(hashKey("bothy_abc")).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("never contains the key", () => {
-    expect(hashKey("strata_secret")).not.toContain("secret");
+    expect(hashKey("bothy_secret")).not.toContain("secret");
+  });
+});
+
+describe("splitKey", () => {
+  it("recognises a current key", () => {
+    expect(splitKey("bothy_abc123")).toEqual({ marker: "bothy_", body: "abc123" });
+  });
+
+  it("still recognises a key issued before the rename", () => {
+    expect(splitKey("strata_abc123")).toEqual({ marker: "strata_", body: "abc123" });
+  });
+
+  it("treats anything else as a bare body", () => {
+    expect(splitKey("abc123")).toEqual({ marker: "", body: "abc123" });
   });
 });
 

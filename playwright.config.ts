@@ -1,8 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Drives a running Strata instance. Start one first, for example:
- *   APP_PORT=3090 docker compose -p strata-test up -d
+ * Drives a running Bothy instance. Start one first, for example:
+ *   APP_PORT=3090 docker compose -p bothy-test up -d
  * then: E2E_BASE_URL=http://127.0.0.1:3090 npm run test:e2e
  */
 export default defineConfig({

@@ -37,7 +37,7 @@ jobs:
         run: npm run build
         env:
           # src/lib/env.ts validates at import, which happens during the build.
-          DATABASE_URL: postgres://strata:build@localhost:5432/strata
+          DATABASE_URL: postgres://bothy:build@localhost:5432/bothy
           AUTH_SECRET: build-time-placeholder-value-unused-at-runtime
           APP_URL: http://localhost:3000
 
@@ -85,7 +85,7 @@ jobs:
           cp .env.example .env
           {
             echo "POSTGRES_PASSWORD=ci-postgres-password"
-            echo "DATABASE_URL=postgres://strata:ci-postgres-password@db:5432/strata"
+            echo "DATABASE_URL=postgres://bothy:ci-postgres-password@db:5432/bothy"
             echo "AUTH_SECRET=$(openssl rand -base64 32)"
             echo "APP_PORT=3090"
             echo "APP_URL=http://127.0.0.1:3090"
@@ -94,14 +94,14 @@ jobs:
 
       - name: Start the stack
         run: |
-          APP_PORT=3090 docker compose -p strata-test up -d --build
+          APP_PORT=3090 docker compose -p bothy-test up -d --build
           for _ in $(seq 1 60); do
-            status=$(docker inspect --format '{{.State.Health.Status}}' strata-test-app-1 2>/dev/null || echo starting)
+            status=$(docker inspect --format '{{.State.Health.Status}}' bothy-test-app-1 2>/dev/null || echo starting)
             [ "$status" = "healthy" ] && exit 0
             sleep 3
           done
           echo "::error::The app never became healthy"
-          docker compose -p strata-test logs app
+          docker compose -p bothy-test logs app
           exit 1
 
       - name: Run Playwright
@@ -109,12 +109,12 @@ jobs:
         env:
           E2E_BASE_URL: http://127.0.0.1:3090
           E2E_REPO: ${{ github.workspace }}
-          E2E_COMPOSE_PROJECT: strata-test
-          E2E_DOCKER_NETWORK: strata-test_public
+          E2E_COMPOSE_PROJECT: bothy-test
+          E2E_DOCKER_NETWORK: bothy-test_public
 
       - name: Container logs on failure
         if: failure()
-        run: docker compose -p strata-test logs --tail 200
+        run: docker compose -p bothy-test logs --tail 200
 
       - name: Upload the Playwright report
         if: failure()
@@ -129,5 +129,5 @@ jobs:
       - name: Tear down
         if: always()
         run: |
-          docker compose -p strata-test down -v || true
+          docker compose -p bothy-test down -v || true
           docker rm -f mock-oidc bw-serve || true

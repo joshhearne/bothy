@@ -34,7 +34,7 @@ describe("mergeMessages", () => {
 describe("catalogs", () => {
   it("resolves every supported locale", () => {
     for (const locale of LOCALES) {
-      expect(messagesFor(locale).app.name).toBe("Strata");
+      expect(messagesFor(locale).app.name).toBe("Bothy");
     }
   });
 

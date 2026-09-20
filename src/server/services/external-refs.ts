@@ -6,7 +6,7 @@ import { externalRefs } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 
 /**
- * Maps Strata records to ids in any external system, so a ticket in a PSA can
+ * Maps Bothy records to ids in any external system, so a ticket in a PSA can
  * find "its" company. See docs/API.md, PSA integration endpoints.
  */
 
@@ -90,7 +90,7 @@ export async function listExternalRefs(
     .where(and(eq(externalRefs.entity, entity), eq(externalRefs.entityId, entityId)));
 }
 
-/** Resolves an external id back to the Strata record it names. */
+/** Resolves an external id back to the Bothy record it names. */
 export async function resolveExternalRef(
   system: string,
   entity: ExternalEntity,

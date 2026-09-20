@@ -1,13 +1,15 @@
 import { execFileSync } from "node:child_process";
 
-const PROJECT = process.env.E2E_COMPOSE_PROJECT ?? "strata-test";
+const PROJECT = process.env.E2E_COMPOSE_PROJECT ?? "bothy-test";
+/** The role the test stack's database was created with. */
+const DB_USER = process.env.E2E_DB_USER ?? "bothy";
 const CWD = process.env.E2E_REPO ?? process.cwd();
 
 /** Runs SQL against the stack under test. Used for assertions the UI cannot show. */
 export function psql(sql: string): string {
   return execFileSync(
     "docker",
-    ["compose", "-p", PROJECT, "exec", "-T", "db", "psql", "-U", "strata", "-d", "strata",
+    ["compose", "-p", PROJECT, "exec", "-T", "db", "psql", "-U", DB_USER, "-d", DB_USER,
      "-v", "ON_ERROR_STOP=1", "-tAc", sql],
     { cwd: CWD, encoding: "utf8" },
   ).trim();

@@ -7,7 +7,7 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     // Services import the validated env at module load; give them a valid one.
     env: {
-      DATABASE_URL: "postgres://strata:test@localhost:5432/strata_test",
+      DATABASE_URL: "postgres://bothy:test@localhost:5432/bothy_test",
       AUTH_SECRET: "test-secret-value-at-least-32-characters-long",
       APP_URL: "http://localhost:3000",
       NODE_ENV: "test",

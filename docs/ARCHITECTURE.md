@@ -59,6 +59,6 @@ Per-company access control is a later phase.
 ## Security baseline
 - Argon2id for local passwords
 - API keys: random 32 bytes, shown once, stored as SHA-256 hash, looked up by prefix
-- Webhooks signed with HMAC-SHA256 in `X-Strata-Signature`
+- Webhooks signed with HMAC-SHA256 in `X-Bothy-Signature`
 - Server-side HTML sanitization for richtext (DOMPurify via jsdom or sanitize-html)
 - CSRF protection on session routes, rate limiting on auth and API

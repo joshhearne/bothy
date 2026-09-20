@@ -1,4 +1,4 @@
--- Strata data model (PostgreSQL 16+)
+-- Bothy data model (PostgreSQL 16+)
 -- One instance = one MSP or internal IT team. Companies are clients (or yourself).
 --
 -- Reference model. src/server/db/schema.ts mirrors this file; the migrations in

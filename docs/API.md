@@ -57,5 +57,5 @@ Payload:
 ```json
 { "event": "document.updated", "occurred_at": "...", "data": { ... resolved document ... } }
 ```
-Headers: `X-Strata-Event`, `X-Strata-Delivery`, `X-Strata-Signature: sha256=<hmac>`.
+Headers: `X-Bothy-Event`, `X-Bothy-Delivery`, `X-Bothy-Signature: sha256=<hmac>`.
 Retries with exponential backoff, up to 8 attempts.

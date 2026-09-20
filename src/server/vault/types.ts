@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Vault integration. Strata never stores a password, TOTP seed, or secure note
+ * Vault integration. Bothy never stores a password, TOTP seed, or secure note
  * (CLAUDE.md); it stores a reference and brokers access, per
  * docs/VAULT_INTEGRATION.md.
  */

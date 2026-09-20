@@ -3,7 +3,7 @@
 Guidance for Claude Code working in this repo. Read docs/ARCHITECTURE.md and docs/API.md first.
 
 ## Project
-Strata: self-hosted, AGPL-3.0 structured IT documentation (Hudu/IT Glue alternative).
+Bothy: self-hosted, AGPL-3.0 structured IT documentation (Hudu/IT Glue alternative).
 Standalone product. Integrates with any PSA through the REST API, external refs, and webhooks.
 No coupling to any specific PSA in core code.
 

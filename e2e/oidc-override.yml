@@ -9,5 +9,5 @@ services:
       # set before the redirect is not sent back with the callback.
       APP_URL: ${APP_URL:-http://127.0.0.1:3090}
       OIDC_ISSUER: ${OIDC_ISSUER:-http://mock-oidc:8080/default}
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-strata-e2e}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-strata-e2e-secret}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-bothy-e2e}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-bothy-e2e-secret}

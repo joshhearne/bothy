@@ -1,7 +1,12 @@
-# Strata (working name)
+# Bothy
 
 Self-hosted, open-source structured IT documentation for internal IT teams and MSPs.
 A lightweight alternative to Hudu and IT Glue.
+
+> A bothy is a simple shelter in the hills, left unlocked and kept stocked by
+> whoever passes through, for whoever comes next. That is what good client
+> documentation is: not a record you keep for yourself, but something you
+> maintain for the person who picks up the ticket after you.
 
 - Companies > Locations > Documents hierarchy
 - Documents built from templates (doc types) with typed fields
@@ -10,7 +15,7 @@ A lightweight alternative to Hudu and IT Glue.
 - Link documents to each other, with backlinks on the target
 - Full-text search across every document, no extra service
 - Attachments on a local volume or any S3-compatible bucket
-- Credentials stay in your own Bitwarden or Vaultwarden; Strata brokers access
+- Credentials stay in your own Bitwarden or Vaultwarden; Bothy brokers access
 - Local accounts or OIDC single sign-on, with an append-only audit trail
 - en-US and en-GB interface, switchable per reader
 - Per-company export as JSON or Markdown
@@ -41,19 +46,19 @@ The spec is generated from the same Zod schemas the endpoints validate with and
 served at `/api/v1/openapi.json`.
 
 ```bash
-curl -H "Authorization: Bearer $STRATA_KEY" http://localhost:3080/api/v1/companies
-curl -H "Authorization: Bearer $STRATA_KEY" \
+curl -H "Authorization: Bearer $BOTHY_KEY" http://localhost:3080/api/v1/companies
+curl -H "Authorization: Bearer $BOTHY_KEY" \
   "http://localhost:3080/api/v1/lookup?system=halopsa&entity=company&external_id=123"
 ```
 
-Webhooks are signed with HMAC-SHA256 in `X-Strata-Signature` (`sha256=<hex>` over
+Webhooks are signed with HMAC-SHA256 in `X-Bothy-Signature` (`sha256=<hex>` over
 the raw body) and retried with exponential backoff up to 8 attempts by a worker
-inside the app container. Set `STRATA_DISABLE_WEBHOOK_WORKER=true` to turn that
+inside the app container. Set `BOTHY_DISABLE_WEBHOOK_WORKER=true` to turn that
 worker off, for example on a second replica.
 
 ## Secrets
 
-Strata never stores a password, TOTP seed, or secure note. A `secret_ref` field
+Bothy never stores a password, TOTP seed, or secure note. A `secret_ref` field
 holds a reference plus non-secret metadata; the value itself is fetched live
 from your own Bitwarden or Vaultwarden when someone with `can_reveal_secrets`
 asks for it, and every reveal is audited.
@@ -69,10 +74,25 @@ If the sidecar is locked or unreachable, secret fields degrade to link mode and
 say so.
 
 **Worth being plain about:** in `bw_serve` mode, anyone who fully compromises
-the Strata host can read everything the service account can read. That is the
+the Bothy host can read everything the service account can read. That is the
 same tradeoff Hudu and IT Glue make. Scope the service account to the
-collections Strata should see, keep the sidecar internal, and stay on `link`
+collections Bothy should see, keep the sidecar internal, and stay on `link`
 mode if that risk is unacceptable. See `docs/VAULT_INTEGRATION.md`.
+
+## Upgrading from Strata
+
+The project was called Strata before release. If you ran it under that name:
+
+- Keep your existing database by pinning the role it was created with:
+  `POSTGRES_USER=strata` and `POSTGRES_DB=strata` in `.env`, with `DATABASE_URL`
+  unchanged. Fresh installs default to `bothy`.
+- API keys issued as `strata_…` still authenticate. New keys are `bothy_…`.
+- Webhook headers are now `X-Bothy-Event`, `X-Bothy-Delivery`, and
+  `X-Bothy-Signature`. Update any receiver that checks them by name.
+- The worker switch is `BOTHY_DISABLE_WEBHOOK_WORKER`.
+- If you rename the directory the stack runs from, set
+  `COMPOSE_PROJECT_NAME=strata` in `.env` first, or Compose will look for new
+  volumes and start you with an empty database.
 
 ## Backups
 
@@ -119,11 +139,14 @@ End-to-end tests drive the inline editing flows in a real browser against a
 running instance:
 
 ```bash
-APP_PORT=3090 docker compose -p strata-test up -d     # a throwaway stack
+APP_PORT=3090 docker compose -p bothy-test up -d     # a throwaway stack
 npx playwright install chromium                       # first time only
 E2E_BASE_URL=http://127.0.0.1:3090 npm run test:e2e
-docker compose -p strata-test down -v
+docker compose -p bothy-test down -v
 ```
+
+The tests read the database directly. If your `.env` pins a different role
+(see "Upgrading from Strata"), pass it along: `E2E_DB_USER=strata`.
 
 `db/schema.sql` is the reference data model, `src/server/db/schema.ts` mirrors it,
 and the SQL in `drizzle/` is what actually runs. Change all three together:

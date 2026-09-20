@@ -4,7 +4,7 @@
  */
 export const enUS = {
   app: {
-    name: "Strata",
+    name: "Bothy",
     signOut: "Sign out",
     openNavigation: "Open navigation",
     closeNavigation: "Close navigation",
@@ -53,7 +53,7 @@ export const enUS = {
   },
 
   setup: {
-    heading: "Welcome to Strata",
+    heading: "Welcome to Bothy",
     description: "Create the first administrator account. This is the only time sign-up is open.",
     yourName: "Your name",
     email: "Email",
@@ -66,7 +66,7 @@ export const enUS = {
   },
 
   signIn: {
-    heading: "Sign in to Strata",
+    heading: "Sign in to Bothy",
     localOnly: "Use your local account.",
     withSso: "Use single sign-on or a local account.",
     email: "Email",
@@ -256,7 +256,7 @@ export const enUS = {
       copyNow: "Copy this key now",
       newApiKey: "New API key",
       storedNote: (prefix: string) =>
-        `Only the prefix ${prefix} is stored. Strata keeps a SHA-256 hash, so this value cannot be shown again.`,
+        `Only the prefix ${prefix} is stored. Bothy keeps a SHA-256 hash, so this value cannot be shown again.`,
       lastUsed: (when: string) => `last used ${when}`,
       neverUsed: "never used",
     },
@@ -273,7 +273,7 @@ export const enUS = {
       disable: "Disable",
       signingSecret: "Signing secret",
       secretLabel: "Webhook signing secret",
-      secretHint: "Verify X-Strata-Signature as sha256=HMAC-SHA256(secret, raw body).",
+      secretHint: "Verify X-Bothy-Signature as sha256=HMAC-SHA256(secret, raw body).",
       delivered: (when: string) => `delivered ${when}`,
       retrying: (when: string) => `retrying after ${when}`,
       notDelivered: "not delivered",
@@ -281,7 +281,7 @@ export const enUS = {
     vault: {
       title: "Vault",
       subtitle:
-        "Strata stores references, never passwords. Credentials stay in your Bitwarden or Vaultwarden.",
+        "Bothy stores references, never passwords. Credentials stay in your Bitwarden or Vaultwarden.",
       providers: "Providers",
       noProvider: "No provider configured yet.",
       addProvider: "Add a provider",

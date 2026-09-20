@@ -1,7 +1,7 @@
 # Vault integration: Bitwarden and Vaultwarden
 
-Strata never stores passwords. Credentials live in the admin's own Bitwarden or Vaultwarden.
-Strata stores references and brokers access.
+Bothy never stores passwords. Credentials live in the admin's own Bitwarden or Vaultwarden.
+Bothy stores references and brokers access.
 
 ## Why this approach
 - Bitwarden vault data is end-to-end encrypted. No server-side API returns plaintext items.
@@ -18,15 +18,15 @@ Strata stores references and brokers access.
 
 ## Architecture (bw_serve)
 ```
-browser -> Strata app -> (internal docker network only) -> bw-serve sidecar -> Bitwarden/Vaultwarden
+browser -> Bothy app -> (internal docker network only) -> bw-serve sidecar -> Bitwarden/Vaultwarden
 ```
 - Sidecar runs the official `@bitwarden/cli`, logs in with a dedicated service account (API key), unlocks, and runs `bw serve`.
 - `bw serve` has NO authentication. It must never publish a port. Internal network only.
-- Strata calls `/sync` on a schedule (default 5 min) and before item creation.
+- Bothy calls `/sync` on a schedule (default 5 min) and before item creation.
 
 ## Service account
 - A dedicated Bitwarden/Vaultwarden user, member of the MSP org.
-- Access only to client collections Strata should see. "Can view" unless item creation is enabled.
+- Access only to client collections Bothy should see. "Can view" unless item creation is enabled.
 - Login via API key (`BW_CLIENTID`/`BW_CLIENTSECRET`). Master password via Docker secret file, not a plain env var.
 
 ## Data model
@@ -48,6 +48,6 @@ browser -> Strata app -> (internal docker network only) -> bw-serve sidecar -> B
 - If the sidecar is down or locked, secret fields degrade to `link` mode and show a warning.
 
 ## Honest risk statement (put in the docs)
-In `bw_serve` mode, anyone who fully compromises the Strata host can read everything the service account can read.
+In `bw_serve` mode, anyone who fully compromises the Bothy host can read everything the service account can read.
 That is the same tradeoff Hudu and IT Glue make. Scope the service account tightly, keep the sidecar internal,
 and use `link` mode if that risk is unacceptable.

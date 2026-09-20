@@ -5,13 +5,13 @@
 const INTERVAL_MS = 15_000;
 
 declare global {
-  var __strataWebhookWorker: NodeJS.Timeout | undefined;
+  var __bothyWebhookWorker: NodeJS.Timeout | undefined;
 }
 
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
-  if (process.env.STRATA_DISABLE_WEBHOOK_WORKER === "true") return;
-  if (globalThis.__strataWebhookWorker) return;
+  if (process.env.BOTHY_DISABLE_WEBHOOK_WORKER === "true") return;
+  if (globalThis.__bothyWebhookWorker) return;
 
   const { deliverDueWebhooks } = await import("@/server/services/webhooks");
 
@@ -22,7 +22,7 @@ export async function register(): Promise<void> {
     try {
       await deliverDueWebhooks();
     } catch (error) {
-      console.error("strata: webhook worker failed", error);
+      console.error("bothy: webhook worker failed", error);
     } finally {
       running = false;
     }
@@ -31,7 +31,7 @@ export async function register(): Promise<void> {
   const timer = setInterval(() => void tick(), INTERVAL_MS);
   // Never hold the process open just for the poller.
   timer.unref();
-  globalThis.__strataWebhookWorker = timer;
+  globalThis.__bothyWebhookWorker = timer;
 
-  console.log("strata: webhook worker started");
+  console.log("bothy: webhook worker started");
 }

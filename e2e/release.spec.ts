@@ -91,7 +91,7 @@ test("seeding twice does not duplicate anything", async () => {
 
   // The container runs the seed on every start; run it again by hand.
   const { execFileSync } = await import("node:child_process");
-  execFileSync("docker", ["compose", "-p", "strata-test", "exec", "-T", "app", "node", "/app/dist/seed.js"], {
+  execFileSync("docker", ["compose", "-p", "bothy-test", "exec", "-T", "app", "node", "/app/dist/seed.js"], {
     cwd: process.env.E2E_REPO ?? process.cwd(),
     stdio: "ignore",
   });
@@ -103,7 +103,7 @@ test("a company exports as JSON without any secret", async ({ page }) => {
   const response = await page.request.get(`/companies/${companyId}/export`);
   expect(response.status()).toBe(200);
   expect(response.headers()["content-disposition"]).toContain("attachment");
-  expect(response.headers()["content-disposition"]).toContain("strata-release-co-");
+  expect(response.headers()["content-disposition"]).toContain("bothy-release-co-");
   expect(response.headers()["cache-control"]).toContain("no-store");
 
   const data = await response.json();

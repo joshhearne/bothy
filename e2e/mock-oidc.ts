@@ -10,8 +10,8 @@ const NAME = "mock-oidc";
 const PORT = 8080;
 
 export const ISSUER = `http://${NAME}:${PORT}/default`;
-export const CLIENT_ID = "strata-e2e";
-export const CLIENT_SECRET = "strata-e2e-secret";
+export const CLIENT_ID = "bothy-e2e";
+export const CLIENT_SECRET = "bothy-e2e-secret";
 
 function docker(args: string[]): string {
   try {
