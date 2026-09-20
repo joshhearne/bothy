@@ -103,10 +103,15 @@ over MCP can change a record either; the tools are read-only by construction.
 
 ## Running it on Cloudflare
 
-The container is the primary way to run Bothy, and the only one that can broker
-secrets on its own. It also runs as a Cloudflare Worker at
-`https://bothy.yourdomain.com`, with Postgres behind Hyperdrive, attachments in
-R2, and webhook retries on a Cron Trigger:
+Two ways. Put the container behind a **Cloudflare Tunnel** and it is published
+at `https://bothy.yourdomain.com` with no port open to the internet: install
+`cloudflared` on the host, point a public hostname at `127.0.0.1:3080`, set
+`APP_URL` to the hostname, and set `APP_BIND=127.0.0.1` so nothing but the
+tunnel can reach it. Everything else — the vault sidecar included — stays as it
+is.
+
+Or run it as a **Cloudflare Worker** with no server at all, with Postgres behind
+Hyperdrive, attachments in R2, and webhook retries on a Cron Trigger:
 
 ```bash
 npm run cf:build && npm run cf:deploy

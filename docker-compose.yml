@@ -2,7 +2,9 @@ services:
   app:
     build: .
     restart: unless-stopped
-    env_file: .env
+    # ENV_FILE lets a second stack on this host (a test copy, a staging copy)
+    # run from its own file without touching the deployment's .env.
+    env_file: ${ENV_FILE:-.env}
     environment:
       NODE_ENV: production
       # Set true to load the starter doc types on boot (see scripts/seed.ts).
@@ -12,8 +14,10 @@ services:
       # link keeps secret fields as deep links; bw_serve brokers through the
       # sidecar started by the `vault` profile.
       VAULT_MODE: ${VAULT_MODE:-link}
-    # Host port only. The container always listens on 3000.
-    ports: ["${APP_PORT:-3080}:3000"]
+    # Host port only. The container always listens on 3000. Set APP_BIND to
+    # 127.0.0.1 when a reverse proxy or tunnel on this host is the only thing
+    # that should reach it.
+    ports: ["${APP_BIND:-0.0.0.0}:${APP_PORT:-3080}:3000"]
     volumes: ["uploads:/data/uploads"]
     networks: [public, internal]
     depends_on:
