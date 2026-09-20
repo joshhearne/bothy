@@ -20,6 +20,14 @@ Bothy stores references and brokers access.
 ```
 browser -> Bothy app -> (internal docker network only) -> bw-serve sidecar -> Bitwarden/Vaultwarden
 ```
+
+Running on Cloudflare, the sidecar stays on the operator's own network and the
+Worker reaches it through a tunnel that only Cloudflare Access can traverse:
+```
+browser -> Bothy Worker -> Cloudflare Access (service token) -> tunnel -> bw-serve -> Bitwarden/Vaultwarden
+```
+Access does the job the private network does above: `bw serve` is never
+reachable without the service token. See docs/CLOUDFLARE.md.
 - Sidecar runs the official `@bitwarden/cli`, logs in with a dedicated service account (API key), unlocks, and runs `bw serve`.
 - `bw serve` has NO authentication. It must never publish a port. Internal network only.
 - Bothy calls `/sync` on a schedule (default 5 min) and before item creation.

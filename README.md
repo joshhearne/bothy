@@ -19,6 +19,7 @@ A lightweight alternative to Hudu and IT Glue.
 - Local accounts or OIDC single sign-on, with an append-only audit trail
 - en-US and en-GB interface, switchable per reader
 - MCP endpoint so AI assistants can read your documentation, never your secrets
+- Runs as a Docker container, or as a Cloudflare Worker with no server at all
 - Per-company export as JSON or Markdown
 - REST API + signed webhooks for any PSA or ticketing system
 - Deep links and an id mapping so a ticket can jump straight to its client
@@ -99,6 +100,22 @@ Five read-only tools: `search_documents`, `get_document`, `list_companies`,
 MCP response, and there is deliberately no reveal tool — revealing a credential
 stays a decision a person makes in Bothy, where it is audited. Nothing exposed
 over MCP can change a record either; the tools are read-only by construction.
+
+## Running it on Cloudflare
+
+The container is the primary way to run Bothy, and the only one that can broker
+secrets on its own. It also runs as a Cloudflare Worker at
+`https://bothy.yourdomain.com`, with Postgres behind Hyperdrive, attachments in
+R2, and webhook retries on a Cron Trigger:
+
+```bash
+npm run cf:build && npm run cf:deploy
+```
+
+`docs/CLOUDFLARE.md` has the full walkthrough, including how to keep brokered
+secrets by running the vault sidecar on your own network behind a Cloudflare
+Tunnel. Both deployments share a schema and hash format, so you can move
+between them.
 
 ## Backups
 

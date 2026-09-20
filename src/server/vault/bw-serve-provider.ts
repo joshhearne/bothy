@@ -8,11 +8,16 @@ import {
 } from "@/server/vault/types";
 
 /**
- * Talks to the `bw serve` sidecar over the internal docker network.
+ * Talks to the `bw serve` sidecar.
  *
- * `bw serve` has no authentication, which is why the sidecar never publishes a
- * port (docs/VAULT_INTEGRATION.md). Nothing here logs a response body: a reveal
- * response contains the secret itself.
+ * `bw serve` has no authentication of its own. In the Docker deployment it is
+ * reachable only on the internal network and never publishes a port. In a
+ * Cloudflare deployment the sidecar stays on the operator's own network and is
+ * reached through a Cloudflare Tunnel fronted by Access, with a service token
+ * on every request — so an unauthenticated caller is stopped at the edge and
+ * never reaches the vault.
+ *
+ * Nothing here logs a response body: a reveal response contains the secret.
  */
 
 type BwEnvelope<T> = { success: boolean; data?: T; message?: string };
@@ -49,14 +54,28 @@ export class BwServeVaultProvider implements VaultProvider {
   constructor(
     private readonly baseUrl: string,
     private readonly webVaultUrl: string | null,
+    /** Cloudflare Access service token, when the sidecar is behind a tunnel. */
+    private readonly accessToken?: { clientId: string; clientSecret: string } | undefined,
   ) {}
+
+  private authHeaders(): Record<string, string> {
+    if (!this.accessToken) return {};
+    return {
+      "CF-Access-Client-Id": this.accessToken.clientId,
+      "CF-Access-Client-Secret": this.accessToken.clientSecret,
+    };
+  }
 
   private async call<T>(path: string, init?: RequestInit): Promise<T> {
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl.replace(/\/$/, "")}${path}`, {
         ...init,
-        headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+        headers: {
+          "Content-Type": "application/json",
+          ...this.authHeaders(),
+          ...(init?.headers ?? {}),
+        },
         signal: AbortSignal.timeout(TIMEOUT_MS),
         cache: "no-store",
       });
@@ -65,6 +84,8 @@ export class BwServeVaultProvider implements VaultProvider {
     }
 
     if (response.status === 401 || response.status === 403) {
+      // Either the vault is locked, or Access refused the service token. Both
+      // mean the same thing here: we cannot broker, so degrade to link mode.
       throw new VaultUnavailableError("locked");
     }
 

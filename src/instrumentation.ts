@@ -10,6 +10,10 @@ declare global {
 
 export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  // On Workers a Cron Trigger drives delivery; there is no long-lived process
+  // to hold a timer.
+  const { isWorkers } = await import("@/lib/runtime");
+  if (isWorkers()) return;
   if (process.env.BOTHY_DISABLE_WEBHOOK_WORKER === "true") return;
   if (globalThis.__bothyWebhookWorker) return;
 

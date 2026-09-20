@@ -16,3 +16,6 @@ secrets/
 dist/
 test-results/
 playwright-report/
+.open-next/
+.wrangler/
+.dev.vars

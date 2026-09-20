@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bothy",
+  // The custom entrypoint adds the scheduled handler; it re-exports the
+  // generated fetch handler unchanged.
+  "main": "worker.ts",
+  "compatibility_date": "2026-09-01",
+  // nodejs_compat gives node:crypto, node:buffer, and the Postgres driver.
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // Retries are attempted every five minutes; backoff is enforced in the
+  // delivery query, so a tick with nothing due is cheap.
+  "triggers": { "crons": ["*/5 * * * *"] },
+
+  "vars": {
+    "APP_LOCALE": "en-US",
+    "STORAGE_DRIVER": "r2",
+    "VAULT_MODE": "link"
+  },
+
+  "r2_buckets": [{ "binding": "BOTHY_UPLOADS", "bucket_name": "bothy-uploads" }],
+
+  // Created with: wrangler hyperdrive create bothy --connection-string=...
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "replace-with-your-hyperdrive-id" }]
+
+  // Secrets, set with `wrangler secret put`:
+  //   AUTH_SECRET, CRON_SECRET, APP_URL
+  //   OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET   (optional)
+  //   BW_SERVE_URL, BW_SERVE_ACCESS_CLIENT_ID, BW_SERVE_ACCESS_CLIENT_SECRET (optional)
+}

@@ -1,8 +1,8 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, extname, join, resolve, sep } from "node:path";
+import { extname } from "node:path";
 import { env } from "@/lib/env";
+import { isWorkers } from "@/lib/runtime";
 
 /**
  * Attachment storage. Local volume by default, S3-compatible when configured,
@@ -22,37 +22,9 @@ export function buildStorageKey(documentId: string, filename: string): string {
 }
 
 /** Defense in depth: a key must stay inside the storage root. */
-function assertSafeKey(key: string): void {
+export function assertSafeKey(key: string): void {
   if (key.includes("..") || key.startsWith("/") || key.includes("\0")) {
     throw new Error("Unsafe storage key");
-  }
-}
-
-class LocalDriver implements StorageDriver {
-  readonly kind = "local" as const;
-  constructor(private readonly root: string) {}
-
-  private pathFor(key: string): string {
-    assertSafeKey(key);
-    const full = resolve(join(this.root, key));
-    if (full !== resolve(this.root) && !full.startsWith(resolve(this.root) + sep)) {
-      throw new Error("Unsafe storage key");
-    }
-    return full;
-  }
-
-  async put(key: string, body: Buffer): Promise<void> {
-    const path = this.pathFor(key);
-    await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, body, { mode: 0o640 });
-  }
-
-  get(key: string): Promise<Buffer> {
-    return readFile(this.pathFor(key));
-  }
-
-  async delete(key: string): Promise<void> {
-    await rm(this.pathFor(key), { force: true });
   }
 }
 
@@ -101,6 +73,13 @@ let driver: StorageDriver | undefined;
 export async function getStorage(): Promise<StorageDriver> {
   if (driver) return driver;
 
+  if (env.STORAGE_DRIVER === "r2") {
+    const { R2Driver } = await import("@/server/storage/r2-driver");
+    const r2 = await R2Driver.create();
+    driver = r2;
+    return r2;
+  }
+
   if (env.STORAGE_DRIVER === "s3") {
     const { S3Client } = await import("@aws-sdk/client-s3");
     driver = new S3Driver(
@@ -115,6 +94,11 @@ export async function getStorage(): Promise<StorageDriver> {
       }),
     );
   } else {
+    if (isWorkers()) {
+      throw new Error("Workers have no filesystem: set STORAGE_DRIVER to r2 or s3");
+    }
+    // Imported lazily so node:fs never reaches a Workers bundle.
+    const { LocalDriver } = await import("@/server/storage/local-driver");
     driver = new LocalDriver(env.STORAGE_PATH);
   }
 

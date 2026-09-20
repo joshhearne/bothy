@@ -116,7 +116,15 @@ export async function updateVaultProvider(
 
 function buildProvider(row: VaultProviderRow): VaultProvider {
   if (row.kind === "bw_serve" && env.VAULT_MODE === "bw_serve" && env.BW_SERVE_URL) {
-    return new BwServeVaultProvider(env.BW_SERVE_URL, row.webVaultUrl);
+    const accessToken =
+      env.BW_SERVE_ACCESS_CLIENT_ID && env.BW_SERVE_ACCESS_CLIENT_SECRET
+        ? {
+            clientId: env.BW_SERVE_ACCESS_CLIENT_ID,
+            clientSecret: env.BW_SERVE_ACCESS_CLIENT_SECRET,
+          }
+        : undefined;
+
+    return new BwServeVaultProvider(env.BW_SERVE_URL, row.webVaultUrl, accessToken);
   }
   return new LinkVaultProvider(row.webVaultUrl);
 }

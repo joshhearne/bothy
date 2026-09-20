@@ -39,6 +39,8 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    ".open-next",
+    "node_modules",
+    "worker.ts"
   ]
 }

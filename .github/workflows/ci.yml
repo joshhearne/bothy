@@ -63,6 +63,26 @@ jobs:
             exit 1
           fi
 
+  workers:
+    name: Cloudflare build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build for Workers
+        run: npm run cf:build
+        env:
+          DATABASE_URL: postgres://bothy:build@localhost:5432/bothy
+          AUTH_SECRET: build-time-placeholder-value-unused-at-runtime
+          APP_URL: http://localhost:3000
+
   e2e:
     name: End to end
     runs-on: ubuntu-latest

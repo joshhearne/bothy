@@ -8,6 +8,12 @@ const envSchema = z.object({
   APP_URL: z.url(),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 
+  /**
+   * Shared secret for the webhook delivery endpoint, which a scheduler calls
+   * when the in-process worker is not running (Workers, or system cron).
+   */
+  CRON_SECRET: z.string().min(16).optional(),
+
   /** The locale new visitors get before they choose one of their own. */
   APP_LOCALE: z.enum(["en-US", "en-GB"]).default("en-US"),
 
@@ -16,7 +22,7 @@ const envSchema = z.object({
   OIDC_CLIENT_ID: z.string().optional(),
   OIDC_CLIENT_SECRET: z.string().optional(),
 
-  STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+  STORAGE_DRIVER: z.enum(["local", "s3", "r2"]).default("local"),
   STORAGE_PATH: z.string().default("/data/uploads"),
   MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(1024).default(25),
 
@@ -31,6 +37,12 @@ const envSchema = z.object({
   BW_SERVE_URL: z.string().default("http://bw-serve:8087"),
   BW_WEB_VAULT_URL: z.string().optional(),
   BW_SYNC_INTERVAL_MIN: z.coerce.number().int().min(1).max(1440).default(5),
+  /**
+   * Cloudflare Access service token, for reaching a bw-serve sidecar that sits
+   * behind a tunnel rather than on a private docker network.
+   */
+  BW_SERVE_ACCESS_CLIENT_ID: z.string().optional(),
+  BW_SERVE_ACCESS_CLIENT_SECRET: z.string().optional(),
 })
   .superRefine((value, ctx) => {
     // All three or none: a half-configured provider fails at sign-in, not boot.
@@ -40,6 +52,14 @@ const envSchema = z.object({
         code: "custom",
         path: ["OIDC_ISSUER"],
         message: "Set OIDC_ISSUER, OIDC_CLIENT_ID, and OIDC_CLIENT_SECRET together, or none of them",
+      });
+    }
+    const accessToken = [value.BW_SERVE_ACCESS_CLIENT_ID, value.BW_SERVE_ACCESS_CLIENT_SECRET];
+    if (accessToken.some(Boolean) && !accessToken.every(Boolean)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["BW_SERVE_ACCESS_CLIENT_ID"],
+        message: "Set both Access service token halves, or neither",
       });
     }
     if (value.VAULT_MODE === "bw_serve" && !value.BW_SERVE_URL) {
