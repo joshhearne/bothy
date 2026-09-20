@@ -4,6 +4,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { FieldValue } from "@/components/fields/field-value";
 import { requireScopedUser } from "@/server/auth/session";
 import { getDocumentDetail, listRevisions } from "@/server/services/documents";
+import { getCompanyBranding } from "@/server/services/branding";
+import { BrandAccent } from "@/components/brand";
 import { renderFieldValue } from "@/server/fields/render";
 import { formatDateTime } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
@@ -22,10 +24,11 @@ export default async function RevisionsPage({
   if (!detail) notFound();
 
   const revisions = await listRevisions(documentId, scope);
+  const branding = await getCompanyBranding(detail.document.companyId, scope);
   const { locale, messages: t } = await getI18n();
 
   return (
-    <div className="flex flex-col gap-6">
+    <BrandAccent accent={branding.accent} className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t.documents.historyHeading}</h1>
@@ -77,6 +80,6 @@ export default async function RevisionsPage({
           ))}
         </ol>
       )}
-    </div>
+    </BrandAccent>
   );
 }

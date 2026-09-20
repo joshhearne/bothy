@@ -11,6 +11,7 @@ import {
   ScrollText,
   ListTree,
   Menu,
+  Palette,
   Plus,
   Search,
   ShieldCheck,
@@ -23,6 +24,8 @@ import { cn } from "@/lib/utils";
 import { useLocale, useMessages } from "@/i18n/client";
 import { UserMenu } from "@/components/user-menu";
 import { type Theme } from "@/lib/theme";
+import { BrandMark, brandStyle } from "@/components/brand";
+import type { Branding } from "@/server/services/branding";
 
 export type SidebarCompany = { id: string; name: string; isInternal: boolean };
 
@@ -32,6 +35,9 @@ export type AppShellProps = {
   canCreateCompanies: boolean;
   canManageDocTypes: boolean;
   theme: Theme;
+  branding: Branding;
+  /** Rendered by the server layout: the footer reads messages of its own. */
+  footer: React.ReactNode;
   signOut: () => Promise<void>;
   children: React.ReactNode;
 };
@@ -47,6 +53,8 @@ export function AppShell({
   canCreateCompanies,
   canManageDocTypes,
   theme,
+  branding,
+  footer,
   signOut,
   children,
 }: AppShellProps) {
@@ -74,7 +82,7 @@ export function AppShell({
   }, [open]);
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-dvh flex-col" style={brandStyle(branding.accent)}>
       {/* Opaque on purpose: a backdrop-filter here forms a backdrop root and
           paints through the mobile drawer's overlay. */}
       <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-[var(--background)] px-4">
@@ -91,8 +99,8 @@ export function AppShell({
           <Menu className="size-5" aria-hidden />
         </Button>
 
-        <Link href="/companies" className="font-semibold tracking-tight">
-          {t.app.name}
+        <Link href="/companies" className="min-w-0">
+          <BrandMark branding={branding} fallbackName={t.app.name} />
         </Link>
 
         <div className="ml-auto flex items-center">
@@ -110,7 +118,10 @@ export function AppShell({
           />
         </aside>
 
-        <main className="min-w-0 flex-1 p-4 md:p-8">{children}</main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <main className="min-w-0 flex-1 p-4 md:p-8">{children}</main>
+          {footer}
+        </div>
       </div>
 
       {/* Mobile: the same navigation as a drawer, above the sticky bar. */}
@@ -251,6 +262,14 @@ function SidebarNav({
             onNavigate={onNavigate}
           >
             {t.nav.docTypes}
+          </NavLink>
+          <NavLink
+            href="/admin/branding"
+            icon={Palette}
+            active={pathname.startsWith("/admin/branding")}
+            onNavigate={onNavigate}
+          >
+            {t.nav.branding}
           </NavLink>
           <NavLink
             href="/admin/option-lists"

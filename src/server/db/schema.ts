@@ -98,9 +98,30 @@ export const companies = pgTable("companies", {
   name: text("name").notNull(),
   isInternal: boolean("is_internal").notNull().default(false),
   notes: text("notes"), // markdown
+  accent: text("accent"), // #rrggbb, validated in app code
+  logoKey: text("logo_key"),
+  logoMime: text("logo_mime"),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
 });
+
+/**
+ * Instance branding: one row, held to one row by a boolean primary key that
+ * may only be true. A logo is a storage key, never an uploaded filename.
+ */
+export const instanceBranding = pgTable(
+  "instance_branding",
+  {
+    id: boolean("id").primaryKey().default(true),
+    name: text("name"),
+    accent: text("accent"),
+    logoKey: text("logo_key"),
+    logoMime: text("logo_mime"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+    updatedBy: uuid("updated_by").references(() => users.id),
+  },
+  (t) => [check("instance_branding_singleton", sql`${t.id}`)],
+);
 
 export const locations = pgTable("locations", {
   id: uuid("id").primaryKey().defaultRandom(),

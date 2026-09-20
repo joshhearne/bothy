@@ -23,6 +23,8 @@ export const enUS = {
     accountMenuFor: (name: string) => `Account menu for ${name}`,
     signedInAs: "Signed in as",
     closeAccount: "Close account menu",
+    poweredBy: (product: string) => `Powered by ${product}`,
+    source: "Source code",
   },
 
   nav: {
@@ -33,6 +35,7 @@ export const enUS = {
     internal: "internal",
     admin: "Admin",
     docTypes: "Doc types",
+    branding: "Branding",
     optionLists: "Option lists",
     apiKeys: "API keys",
     webhooks: "Webhooks",
@@ -44,6 +47,7 @@ export const enUS = {
   common: {
     save: "Save",
     saving: "Saving…",
+    clear: "Clear",
     cancel: "Cancel",
     edit: "Edit",
     archive: "Archive",
@@ -218,6 +222,27 @@ export const enUS = {
   },
 
   admin: {
+    branding: {
+      title: "Branding",
+      subtitle: "Your name, your logo, and one accent color, everywhere people look.",
+      portalName: "Portal name",
+      portalNameHint: "Replaces the product name in the top bar, the browser tab, and on the sign-in page.",
+      accent: "Accent color",
+      accentHint: "A hex color like #1f6feb. It is adjusted per theme so text on it stays readable.",
+      accentClear: "No accent color",
+      logo: "Logo",
+      logoHint: "PNG, JPEG, or WebP, up to 1 MB. Shown beside the name and used as the tab icon.",
+      upload: "Upload logo",
+      replace: "Replace logo",
+      remove: "Remove logo",
+      noLogo: "No logo yet.",
+      save: "Save branding",
+      preview: "Preview",
+      previewButton: "A button in your color",
+      companyHeading: "This company's branding",
+      companyHint: "Shown on this company's pages and its documents. The rest of the interface keeps yours.",
+    },
+
     docTypes: {
       title: "Doc types",
       subtitle: "Templates documents are built from.",

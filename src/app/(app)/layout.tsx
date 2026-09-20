@@ -9,6 +9,8 @@ import { isSetupComplete } from "@/server/services/setup";
 import { listCompanies } from "@/server/services/companies";
 import { signOutAction } from "@/app/sign-in/actions";
 import { getTheme } from "@/server/theme";
+import { getInstanceBranding } from "@/server/services/branding";
+import { AppFooter } from "@/components/app-footer";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!(await isSetupComplete())) redirect("/setup");
   const { user, scope } = await requireScopedUser();
   const companies = await listCompanies(scope);
-  const theme = await getTheme();
+  const [theme, branding] = await Promise.all([getTheme(), getInstanceBranding()]);
 
   return (
     <AppShell
@@ -24,6 +26,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       canCreateCompanies={canManageHierarchy(user.role)}
       canManageDocTypes={canManageDocTypes(user.role)}
       theme={theme}
+      branding={branding}
+      footer={<AppFooter />}
       signOut={signOutAction}
       companies={companies.map((company) => ({
         id: company.id,

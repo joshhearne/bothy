@@ -4,6 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { auth, oidcConfigured } from "@/lib/auth";
 import { isSetupComplete } from "@/server/services/setup";
 import { getMessages } from "@/i18n/server";
+import { getInstanceBranding } from "@/server/services/branding";
+import { BrandMark, brandStyle } from "@/components/brand";
+import { AppFooter } from "@/components/app-footer";
 import { SignInForm } from "./sign-in-form";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +17,15 @@ export default async function SignInPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (session) redirect("/");
 
-  const t = await getMessages();
+  const [t, branding] = await Promise.all([getMessages(), getInstanceBranding()]);
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md items-center px-4 py-12">
+    <main
+      className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-6 px-4 py-12"
+      style={brandStyle(branding.accent)}
+    >
+      <BrandMark branding={branding} fallbackName={t.app.name} className="justify-center text-lg" />
+
       <Card className="w-full">
         <CardHeader>
           <CardTitle>{t.signIn.heading}</CardTitle>
@@ -29,6 +37,8 @@ export default async function SignInPage() {
           <SignInForm ssoEnabled={oidcConfigured} />
         </CardContent>
       </Card>
+
+      <AppFooter />
     </main>
   );
 }

@@ -6,6 +6,8 @@ import {
 } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { getDocumentDetail } from "@/server/services/documents";
+import { getCompanyBranding } from "@/server/services/branding";
+import { BrandAccent } from "@/components/brand";
 import { listOptionLists } from "@/server/services/option-lists";
 import {
   EDITABLE_FIELD_TYPES,
@@ -33,12 +35,13 @@ export default async function EditDocumentPage({
 
   const company = await getCompany(detail.document.companyId, scope);
   if (!company) notFound();
+  const branding = await getCompanyBranding(company.id, scope);
 
   const [optionLists, docTypes] = await Promise.all([listOptionLists(), listDocTypes()]);
   const t = await getMessages();
 
   return (
-    <div className="flex flex-col gap-6">
+    <BrandAccent accent={branding.accent} className="flex flex-col gap-6">
       <div>
         <p className="text-sm text-[var(--muted-foreground)]">
           {company.name}
@@ -90,6 +93,6 @@ export default async function EditDocumentPage({
           isLocal: field.documentId !== null,
         }))}
       />
-    </div>
+    </BrandAccent>
   );
 }

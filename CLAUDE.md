@@ -17,6 +17,7 @@ No coupling to any specific PSA in core code.
 - Never store, cache, log, export, or webhook a password, TOTP seed, or secure note. Secrets are fetched live from the vault provider on reveal only.
 - The bw-serve sidecar never publishes a port.
 - Every read of company-owned data takes a `CompanyScope`. Out of scope is "not found", never "forbidden".
+- An uploaded file's type comes from its own bytes, never from what the browser claimed.
 - Everything runs from `docker compose up`. No required external services beyond Postgres.
 
 ## Conventions
@@ -62,6 +63,10 @@ OIDC login, audit log viewer, export (JSON + markdown per company), backup/resto
 ### Phase 8: Per-company access
 Grants per user and per API key (`user_companies`, `api_key_companies`), default-deny for new rows,
 admins unrestricted. Enforced in the service layer, not in pages. See docs/ARCHITECTURE.md.
+
+### Phase 9: Branding
+Instance name/logo/accent and the same per company. Accent is validated hex, re-derived per surface
+for contrast; logos are raster only, sniffed by magic bytes. See docs/ARCHITECTURE.md.
 
 ### Later
 Tags, multi-tenant, importers (Hudu, IT Glue CSV).

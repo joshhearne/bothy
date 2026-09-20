@@ -7,6 +7,8 @@ import { SecretField } from "@/components/fields/secret-field";
 import { canEditDocuments, requireScopedUser } from "@/server/auth/session";
 import { getCompany } from "@/server/services/companies";
 import { getDocumentDetail, listBacklinks } from "@/server/services/documents";
+import { getCompanyBranding } from "@/server/services/branding";
+import { BrandAccent } from "@/components/brand";
 import { renderFieldValue } from "@/server/fields/render";
 import { formatDateTime } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
@@ -48,11 +50,17 @@ export default async function DocumentPage({
   const editor = canEditDocuments(user.role);
   const { locale, messages: t } = await getI18n();
 
+  const branding = await getCompanyBranding(company.id, scope);
+
   return (
-    <div className="flex flex-col gap-8">
+    <BrandAccent accent={branding.accent} className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm text-[var(--muted-foreground)]">
+          <p className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+            {branding.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={branding.logoUrl} alt="" className="h-5 w-auto max-w-24 object-contain" />
+            )}
             <Link href={`/companies/${company.id}`} className="hover:underline">
               {company.name}
             </Link>
@@ -207,6 +215,6 @@ export default async function DocumentPage({
           </ul>
         </section>
       )}
-    </div>
+    </BrandAccent>
   );
 }

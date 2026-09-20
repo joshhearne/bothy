@@ -7,6 +7,10 @@ services:
     env_file: ${ENV_FILE:-.env}
     environment:
       NODE_ENV: production
+      # Explicit so a second stack can override it from the shell. Without this
+      # the env_file value always wins, and a deployment's public APP_URL leaks
+      # into a test stack, where it turns on Secure cookies over plain http.
+      APP_URL: ${APP_URL}
       # Set true to load the starter doc types on boot (see scripts/seed.ts).
       SEED_ON_START: ${SEED_ON_START:-false}
       # Wording for the starter content: en-US or en-GB.

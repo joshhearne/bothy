@@ -77,6 +77,24 @@ decides *where*.
   picker, external-ref mapping, `/lookup`, `/go/...` deep links, and the MCP
   tools, which inherit the key's companies.
 
+## Branding
+- `instance_branding` holds one row: a portal name, an accent color, and a logo
+  key. `companies.accent` / `companies.logo_key` hold the same per client.
+- The name replaces the product name in the top bar, the tab title, and the
+  sign-in page. The AGPL notice and the source link move to the footer, which
+  branding does not touch.
+- A logo is stored under a key we generate and served back with the type
+  sniffed from its own bytes. PNG, JPEG, and WebP only: an SVG is a document
+  that can carry script, and a logo is drawn on every page including sign-in.
+- The instance logo is served without authentication, because the sign-in page
+  needs it. A company logo is not: it answers 404 outside the caller's company
+  scope, like everything else about that company.
+- An accent is validated as `#rrggbb`, then re-derived per surface so text on
+  it clears WCAG AA in both palettes (`src/lib/brand-color.ts`). Only the
+  derived hex values reach a stylesheet, never the string that was typed.
+- A company's accent applies to its own pages and documents; the shell keeps
+  the instance's, so it stays obvious which portal you are in.
+
 ## Security baseline
 - Argon2id for local passwords
 - API keys: random 32 bytes, shown once, stored as SHA-256 hash, looked up by prefix

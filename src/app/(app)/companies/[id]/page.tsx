@@ -13,6 +13,8 @@ import { plural } from "@/i18n/format";
 import { getCompany } from "@/server/services/companies";
 import { listLocations } from "@/server/services/locations";
 import { listCompanyDocumentsGrouped } from "@/server/services/documents";
+import { getCompanyBranding } from "@/server/services/branding";
+import { BrandAccent } from "@/components/brand";
 import { AddLocationForm } from "../location-form";
 import {
   archiveCompanyAction,
@@ -38,6 +40,7 @@ export default async function CompanyPage({
   const company = await getCompany(id, scope);
   if (!company) notFound();
 
+  const branding = await getCompanyBranding(id, scope);
   const [locations, documentGroups] = await Promise.all([
     listLocations(id, scope, { includeArchived: showArchived }),
     listCompanyDocumentsGrouped(id, scope),
@@ -49,10 +52,18 @@ export default async function CompanyPage({
   const archiver = writer;
 
   return (
-    <div className="flex flex-col gap-8">
+    <BrandAccent accent={branding.accent} className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
+            {branding.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={branding.logoUrl}
+                alt=""
+                className="h-8 w-auto max-w-40 shrink-0 object-contain"
+              />
+            )}
             <h1 className="text-2xl font-semibold tracking-tight">{company.name}</h1>
             {company.isInternal && (
               <span className="rounded-full bg-[var(--muted)] px-2 py-0.5 text-xs">
@@ -251,6 +262,6 @@ export default async function CompanyPage({
           </div>
         )}
       </section>
-    </div>
+    </BrandAccent>
   );
 }

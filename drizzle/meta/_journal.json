@@ -15,6 +15,13 @@
       "when": 1789914202307,
       "tag": "0001_per_company_access",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789920793834,
+      "tag": "0002_branding",
+      "breakpoints": true
     }
   ]
 }

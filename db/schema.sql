@@ -264,3 +264,19 @@ CREATE TABLE api_key_companies (
 );
 CREATE INDEX api_key_companies_company_idx ON api_key_companies (company_id);
 -- Admins are never restricted: they are who grants access in the first place.
+
+-- ---------- Branding ----------
+-- One row, ever: the boolean primary key can only be true.
+CREATE TABLE instance_branding (
+  id           boolean PRIMARY KEY DEFAULT true CHECK (id),
+  name         text,                            -- replaces the wordmark
+  accent       text,                            -- #rrggbb, validated in app code
+  logo_key     text,                            -- storage key, never a filename
+  logo_mime    text,
+  updated_at   timestamptz NOT NULL DEFAULT now(),
+  updated_by   uuid REFERENCES users(id)
+);
+
+ALTER TABLE companies ADD COLUMN accent    text;
+ALTER TABLE companies ADD COLUMN logo_key  text;
+ALTER TABLE companies ADD COLUMN logo_mime text;

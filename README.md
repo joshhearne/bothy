@@ -141,6 +141,24 @@ strings that differ from `src/i18n/en-US.ts`, and add the code to
 `src/i18n/locales.ts`. Anything left out falls back to en-US, so a partial
 translation is still usable.
 
+## Branding
+
+**Admin → Branding** sets a portal name, a logo, and one accent color. The name
+replaces the product name in the top bar, the browser tab, and on the sign-in
+page; the logo appears beside it and doubles as the tab icon.
+
+Each company can carry a logo and accent of its own, set on its edit page, and
+they show on that company's pages and its documents. The shell keeps your
+branding, so it stays clear which portal you are looking at.
+
+An accent is adjusted per theme before it is used, so text on it stays readable
+in both light and dark rather than trusting that a brand color happens to work.
+Logos are PNG, JPEG, or WebP — SVG is refused, because an SVG can carry script
+and a logo is drawn on every page.
+
+The footer carries what branding does not replace: what the software is, its
+license, and a link to the source, which is what AGPL-3.0 asks for.
+
 ## Who can see which companies
 
 Roles say what somebody may do; company access says where. A user or an API key
