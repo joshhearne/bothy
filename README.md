@@ -18,6 +18,7 @@ A lightweight alternative to Hudu and IT Glue.
 - Credentials stay in your own Bitwarden or Vaultwarden; Bothy brokers access
 - Local accounts or OIDC single sign-on, with an append-only audit trail
 - en-US and en-GB interface, switchable per reader
+- MCP endpoint so AI assistants can read your documentation, never your secrets
 - Per-company export as JSON or Markdown
 - REST API + signed webhooks for any PSA or ticketing system
 - Deep links and an id mapping so a ticket can jump straight to its client
@@ -78,6 +79,26 @@ the Bothy host can read everything the service account can read. That is the
 same tradeoff Hudu and IT Glue make. Scope the service account to the
 collections Bothy should see, keep the sidecar internal, and stay on `link`
 mode if that risk is unacceptable. See `docs/VAULT_INTEGRATION.md`.
+
+## AI access (MCP)
+
+Bothy speaks the [Model Context Protocol](https://modelcontextprotocol.io) at
+`/api/mcp`, so an assistant can answer "what is the firewall admin URL for this
+client?" from your documentation rather than guessing. It uses the same API
+keys as the REST API, so access is granted and revoked in one place.
+
+```bash
+claude mcp add --transport http bothy https://bothy.example.com/api/mcp \
+  --header "Authorization: Bearer $BOTHY_KEY"
+```
+
+Five read-only tools: `search_documents`, `get_document`, `list_companies`,
+`get_company`, and `list_doc_types`. A key needs only the `read` scope.
+
+**No assistant can read a credential.** Secret fields are stripped from every
+MCP response, and there is deliberately no reveal tool — revealing a credential
+stays a decision a person makes in Bothy, where it is audited. Nothing exposed
+over MCP can change a record either; the tools are read-only by construction.
 
 ## Backups
 
