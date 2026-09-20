@@ -124,6 +124,32 @@ DNS Host, and ISP Provider draw on shared lists, while Firewall → WAN still
 links to that company's ISP document. An option list belongs to the doc type's
 field, never to a company, and anyone editing a document can add to it inline.
 
+## Domain checks
+A record whose doc type marks a field as holding a domain can look that domain
+up: DNS records, the TLS certificate, the registry's own registration record
+over RDAP, and whether SPF, DMARC and DKIM are published.
+
+- `fields.domain_role` is one of `domain`, `expiry`, `registrar`, `dns_host`.
+  The feature is therefore not wired to one doc type's labels: point it at a
+  field on a doc type of your own and it works there.
+- Checks run when somebody asks and the result is kept in `domain_checks`, so
+  reading a page costs no lookups. Nothing runs in the background.
+- Running one needs the document-editing permission, because it is outbound
+  traffic sent on the instance's behalf, and the whole instance shares one
+  budget of 30 runs a minute.
+- **The domain is user input, so a lookup is an SSRF vector.** Names resolve
+  first, anything that is not a public address is dropped, and the TLS
+  connection is made to the vetted address with the name presented for SNI —
+  which also closes DNS rebinding. See `src/server/domain/addresses.ts`.
+- A finding never edits the record on its own. RDAP's registrar and expiry and
+  the NS answer are offered beside the field, and accepting one is an ordinary
+  save with a revision and an audit entry. A name that is not yet in a shared
+  dropdown is added to it rather than refused, and an existing option wins even
+  when the wording differs, so "GoDaddy.com, LLC" fills in the "GoDaddy"
+  already on the list.
+- DNS and TLS need Node, so on Workers those sections report that they are
+  unavailable rather than failing. RDAP is plain HTTPS and works anywhere.
+
 ## Security baseline
 - Argon2id for local passwords
 - API keys: random 32 bytes, shown once, stored as SHA-256 hash, looked up by prefix

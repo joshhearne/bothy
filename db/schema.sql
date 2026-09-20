@@ -280,3 +280,20 @@ CREATE TABLE instance_branding (
 ALTER TABLE companies ADD COLUMN accent    text;
 ALTER TABLE companies ADD COLUMN logo_key  text;
 ALTER TABLE companies ADD COLUMN logo_mime text;
+
+-- ---------- Domain checks ----------
+-- A field can declare what it means to a domain lookup, so the feature is not
+-- wired to one doc type's labels.
+ALTER TABLE fields ADD COLUMN domain_role text
+  CHECK (domain_role IS NULL OR domain_role IN ('domain','expiry','registrar','dns_host'));
+
+CREATE TABLE domain_checks (
+  document_id uuid PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+  dns        boolean NOT NULL DEFAULT false,
+  tls        boolean NOT NULL DEFAULT false,
+  rdap       boolean NOT NULL DEFAULT false,
+  email      boolean NOT NULL DEFAULT false,
+  result     jsonb,                          -- last result, public data only
+  checked_at timestamptz,
+  checked_by uuid REFERENCES users(id)
+);

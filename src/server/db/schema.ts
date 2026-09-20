@@ -233,9 +233,19 @@ export const fields = pgTable(
     linkDocTypeId: uuid("link_doc_type_id").references((): typeof docTypes.id => docTypes.id),
     required: boolean("required").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
+    /**
+     * What this field means to a domain check: which field holds the domain,
+     * and which ones a lookup can offer to fill in. Null for ordinary fields,
+     * which is nearly all of them.
+     */
+    domainRole: text("domain_role"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
   (t) => [
+    check(
+      "fields_domain_role_check",
+      sql`${t.domainRole} IS NULL OR ${t.domainRole} IN ('domain','expiry','registrar','dns_host')`,
+    ),
     check(
       "fields_field_type_check",
       sql`${t.fieldType} IN ('text','markdown','richtext','number','date','url','ip','boolean','dropdown','multi_dropdown','doc_link','secret_ref')`,
@@ -331,6 +341,25 @@ export const apiKeys = pgTable("api_keys", {
   /** False means the key sees only what api_key_companies grants it. */
   allCompanies: boolean("all_companies").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+});
+
+/**
+ * Per-document domain checks: which lookups this record runs, and what the
+ * last run found. One row per document, created when somebody first turns a
+ * check on.
+ */
+export const domainChecks = pgTable("domain_checks", {
+  documentId: uuid("document_id")
+    .primaryKey()
+    .references(() => documents.id, { onDelete: "cascade" }),
+  dns: boolean("dns").notNull().default(false),
+  tls: boolean("tls").notNull().default(false),
+  rdap: boolean("rdap").notNull().default(false),
+  email: boolean("email").notNull().default(false),
+  /** The last result, as rendered. Never anything secret: these are public records. */
+  result: jsonb("result"),
+  checkedAt: timestamp("checked_at", { withTimezone: true }),
+  checkedBy: uuid("checked_by").references(() => users.id),
 });
 
 /* ---------- Per-company access ---------- */

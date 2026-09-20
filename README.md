@@ -141,6 +141,23 @@ strings that differ from `src/i18n/en-US.ts`, and add the code to
 `src/i18n/locales.ts`. Anything left out falls back to en-US, so a partial
 translation is still usable.
 
+## Domain checks
+
+A domain record can look itself up: DNS records and who is answering for the
+domain, the TLS certificate and how long it has left, the registry's own
+registration record, and whether SPF, DMARC and DKIM are published. Tick the
+checks you want on a record, press **Check now**, and the result is kept until
+you ask again — nothing runs in the background and reading a page costs no
+lookups.
+
+What it finds is offered, never applied: RDAP knows the registrar and the
+expiry date, and the answer sits beside the field with a **Use this** button.
+Accepting one is an ordinary edit, with a revision and an audit entry.
+
+A domain is typed by a person, so a lookup is treated as untrusted: names are
+resolved first, anything resolving inside your network is refused, and the
+connection is made to the address that was checked.
+
 ## Shared lists versus links
 
 A field that names something shared across clients — a registrar, a DNS host,

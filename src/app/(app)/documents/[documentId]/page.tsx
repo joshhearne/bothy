@@ -13,6 +13,8 @@ import { renderFieldValue } from "@/server/fields/render";
 import { formatDateTime } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
 import { formatBytes, listAttachments } from "@/server/services/attachments";
+import { getDomainCheckState } from "@/server/services/domain-checks";
+import { DomainPanel } from "../domain-panel";
 import { env } from "@/lib/env";
 import { ACCEPTED_UPLOAD_TYPES } from "@/server/uploads/accept";
 import { AttachmentUpload } from "../attachment-upload";
@@ -23,6 +25,32 @@ import {
 } from "../actions";
 
 export const dynamic = "force-dynamic";
+
+/** What a field currently holds, as stored. */
+function valueOf(
+  detail: { document: { fieldValues: Record<string, unknown> | null } },
+  fieldId: string | undefined,
+): string | null {
+  if (!fieldId) return null;
+  const value = detail.document.fieldValues?.[fieldId];
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+/**
+ * The same, but as a person reads it: a dropdown stores an option id, and a
+ * suggestion arrives as the name on the option.
+ */
+function labelOf(
+  detail: {
+    document: { fieldValues: Record<string, unknown> | null };
+    optionLabels: Map<string, string>;
+  },
+  fieldId: string | undefined,
+): string | null {
+  const value = valueOf(detail, fieldId);
+  if (!value) return null;
+  return detail.optionLabels.get(value) ?? value;
+}
 
 /** Deep link into the web vault, for link mode and degraded fallbacks. */
 function webVaultItemUrl(base: string | null | undefined, itemId: string): string | null {
@@ -52,6 +80,7 @@ export default async function DocumentPage({
   const { locale, messages: t } = await getI18n();
 
   const branding = await getCompanyBranding(company.id, scope);
+  const domainState = await getDomainCheckState(documentId, scope);
 
   return (
     <BrandAccent accent={branding.accent} className="flex flex-col gap-8">
@@ -154,6 +183,20 @@ export default async function DocumentPage({
             </div>
           ))}
         </dl>
+      )}
+
+      {domainState.targets.domain && (
+        <DomainPanel
+          documentId={detail.document.id}
+          state={domainState}
+          editor={editor && !detail.document.archivedAt}
+          current={{
+            expiry: valueOf(detail, domainState.targets.expiry),
+            registrar: labelOf(detail, domainState.targets.registrar),
+            dnsHost: labelOf(detail, domainState.targets.dns_host),
+          }}
+          checkedAt={domainState.checkedAt?.toISOString() ?? null}
+        />
       )}
 
       <section className="flex flex-col gap-3">

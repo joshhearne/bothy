@@ -46,6 +46,8 @@ type FieldType = (typeof fields.$inferInsert)["fieldType"];
 type NewField = {
   label: string;
   fieldType: FieldType;
+  /** What this field means to a domain check, when it means anything. */
+  domainRole?: "domain" | "expiry" | "registrar" | "dns_host";
   /** Dropdown types name the shared list they draw from. */
   optionList?: string;
   /** doc_link fields name the doc type they point at. */
@@ -225,10 +227,20 @@ const DOC_TYPES: NewDocType[] = [
     scope: "company",
     icon: "globe-lock",
     fields: [
-      { label: "Domain", fieldType: "text", required: true },
-      { label: "Registrar", fieldType: "dropdown", optionList: "Registrars and DNS Hosts" },
-      { label: "DNS Host", fieldType: "dropdown", optionList: "Registrars and DNS Hosts" },
-      { label: "Expiration", fieldType: "date" },
+      { label: "Domain", fieldType: "text", required: true, domainRole: "domain" },
+      {
+        label: "Registrar",
+        fieldType: "dropdown",
+        optionList: "Registrars and DNS Hosts",
+        domainRole: "registrar",
+      },
+      {
+        label: "DNS Host",
+        fieldType: "dropdown",
+        optionList: "Registrars and DNS Hosts",
+        domainRole: "dns_host",
+      },
+      { label: "Expiration", fieldType: "date", domainRole: "expiry" },
       { label: "Records Notes", fieldType: "markdown" },
     ],
   },
@@ -313,6 +325,7 @@ try {
         required: field.required ?? false,
         optionListId: field.optionList ? listIds.get(field.optionList) : undefined,
         linkDocTypeId: field.linksTo ? docTypeIds.get(field.linksTo) : undefined,
+        domainRole: field.domainRole,
       })),
     );
   }

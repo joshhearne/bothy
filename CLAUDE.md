@@ -18,6 +18,7 @@ No coupling to any specific PSA in core code.
 - The bw-serve sidecar never publishes a port.
 - Every read of company-owned data takes a `CompanyScope`. Out of scope is "not found", never "forbidden".
 - An uploaded file's type comes from its own bytes, never from what the browser claimed.
+- A lookup aimed at a user-supplied name resolves first, refuses non-public addresses, and connects to the address it checked.
 - Everything runs from `docker compose up`. No required external services beyond Postgres.
 
 ## Conventions
@@ -72,5 +73,9 @@ for contrast; logos are raster only, sniffed by magic bytes. See docs/ARCHITECTU
 Accepted types decided by magic bytes; HEIC/HEIF converted to JPEG; macro-enabled and legacy
 Office refused. See docs/ARCHITECTURE.md.
 
+### Phase 11: Domain checks
+DNS, TLS, RDAP and email posture per domain record, run on request and stored. Field roles
+(`fields.domain_role`) decide which field holds the domain. See docs/ARCHITECTURE.md.
+
 ### Later
-Tags, multi-tenant, importers (Hudu, IT Glue CSV).
+Tags, multi-tenant, importers (Hudu, IT Glue CSV), scheduled re-checks with expiry webhooks.
