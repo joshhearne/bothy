@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { I18nProvider } from "@/i18n/client";
 import { getLocale } from "@/i18n/server";
+import { getTheme } from "@/server/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,10 +10,10 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const locale = await getLocale();
+  const [locale, theme] = await Promise.all([getLocale(), getTheme()]);
 
   return (
-    <html lang={locale}>
+    <html lang={locale} data-theme={theme}>
       <body className="min-h-dvh antialiased">
         <I18nProvider locale={locale}>
           {children}

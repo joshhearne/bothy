@@ -7,6 +7,8 @@ import { initialsFor } from "@/lib/initials";
 import { useMessages } from "@/i18n/client";
 import { LOCALE_NAMES, LOCALES, type Locale } from "@/i18n/locales";
 import { setLocaleAction } from "@/app/locale-actions";
+import { setThemeAction } from "@/app/theme-actions";
+import { THEMES, type Theme } from "@/lib/theme";
 
 /**
  * The only thing in the top bar besides the wordmark: one button carrying the
@@ -15,10 +17,12 @@ import { setLocaleAction } from "@/app/locale-actions";
 export function UserMenu({
   user,
   locale,
+  theme,
   signOut,
 }: {
   user: { name: string; email: string; role: string };
   locale: Locale;
+  theme: Theme;
   signOut: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -26,6 +30,7 @@ export function UserMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const localeFormRef = useRef<HTMLFormElement>(null);
+  const themeFormRef = useRef<HTMLFormElement>(null);
   const t = useMessages();
 
   const initials = initialsFor(user.name, user.email);
@@ -53,6 +58,10 @@ export function UserMenu({
       document.removeEventListener("pointerdown", onPointerDown);
     };
   }, [open]);
+
+  // Both settings apply on change: a menu this small has nothing to submit.
+  const select =
+    "h-9 w-full rounded-md border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
 
   return (
     <div ref={containerRef} className="relative">
@@ -86,7 +95,7 @@ export function UserMenu({
             </span>
           </div>
 
-          <form ref={localeFormRef} action={setLocaleAction} className="flex flex-col gap-1 py-3">
+          <form ref={localeFormRef} action={setLocaleAction} className="flex flex-col gap-1 pt-3">
             <label htmlFor="locale" className="text-sm font-medium">
               {t.app.language}
             </label>
@@ -95,11 +104,30 @@ export function UserMenu({
               name="locale"
               defaultValue={locale}
               onChange={() => localeFormRef.current?.requestSubmit()}
-              className="h-9 w-full rounded-md border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+              className={select}
             >
               {LOCALES.map((option) => (
                 <option key={option} value={option}>
                   {LOCALE_NAMES[option]}
+                </option>
+              ))}
+            </select>
+          </form>
+
+          <form ref={themeFormRef} action={setThemeAction} className="flex flex-col gap-1 py-3">
+            <label htmlFor="theme" className="text-sm font-medium">
+              {t.app.theme}
+            </label>
+            <select
+              id="theme"
+              name="theme"
+              defaultValue={theme}
+              onChange={() => themeFormRef.current?.requestSubmit()}
+              className={select}
+            >
+              {THEMES.map((option) => (
+                <option key={option} value={option}>
+                  {t.app.themes[option]}
                 </option>
               ))}
             </select>

@@ -126,8 +126,8 @@ volume, and store `.env` with them.
 ## Language
 
 The interface ships in en-US, with en-GB available as a translation. Readers
-pick their own in the header; `APP_LOCALE` sets what a new visitor gets, and
-`SEED_LOCALE` sets the wording of the seeded starter content (so a British
+pick their own in the account menu; `APP_LOCALE` sets what a new visitor gets,
+and `SEED_LOCALE` sets the wording of the seeded starter content (so a British
 install gets "Fibre" rather than "Fiber"). Dates and numbers follow the same
 choice.
 
@@ -135,6 +135,16 @@ Adding a language means one file: copy `src/i18n/en-GB.ts`, override only the
 strings that differ from `src/i18n/en-US.ts`, and add the code to
 `src/i18n/locales.ts`. Anything left out falls back to en-US, so a partial
 translation is still usable.
+
+## Appearance
+
+Light and dark are one palette, selected by `color-scheme` and resolved with
+`light-dark()`, so there is no second set of styles to keep in step. The
+account menu offers System, Light, and Dark; System follows the operating
+system and is what a new reader gets.
+
+The choice is a cookie read on the server, so the right palette is in the first
+byte of HTML — no script, and no flash of the wrong colors on load.
 
 ## Single sign-on
 

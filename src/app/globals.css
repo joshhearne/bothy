@@ -20,44 +20,78 @@
   --radius-sm: calc(var(--radius) - 4px);
 }
 
+/**
+ * Both palettes are named once, then aliased through light-dark(), which
+ * resolves against the used color-scheme. The reader's choice sets that
+ * scheme on <html>, so every token flips without a single dark: utility.
+ */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.21 0.02 258);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.02 258);
-  --muted: oklch(0.968 0.006 258);
-  --muted-foreground: oklch(0.55 0.02 258);
-  --primary: oklch(0.45 0.13 250);
-  --primary-foreground: oklch(0.985 0 0);
-  --border: oklch(0.922 0.006 258);
-  --input: oklch(0.922 0.006 258);
-  --ring: oklch(0.45 0.13 250);
-  --destructive: oklch(0.58 0.21 27);
+
+  --light-background: oklch(1 0 0);
+  --light-foreground: oklch(0.21 0.02 258);
+  --light-card: oklch(1 0 0);
+  --light-card-foreground: oklch(0.21 0.02 258);
+  --light-muted: oklch(0.968 0.006 258);
+  --light-muted-foreground: oklch(0.55 0.02 258);
+  --light-primary: oklch(0.45 0.13 250);
+  --light-primary-foreground: oklch(0.985 0 0);
+  --light-border: oklch(0.922 0.006 258);
+  --light-ring: oklch(0.45 0.13 250);
+  --light-destructive: oklch(0.58 0.21 27);
   /* A second neutral layer, so navigation reads as chrome, not content. */
-  --sidebar: oklch(0.979 0.004 258);
-  --sidebar-border: oklch(0.915 0.006 258);
-  --selection: oklch(0.45 0.13 250 / 0.18);
+  --light-sidebar: oklch(0.979 0.004 258);
+  --light-sidebar-border: oklch(0.915 0.006 258);
+  --light-selection: oklch(0.45 0.13 250 / 0.18);
+
+  --dark-background: oklch(0.18 0.015 258);
+  --dark-foreground: oklch(0.97 0.005 258);
+  --dark-card: oklch(0.22 0.017 258);
+  --dark-card-foreground: oklch(0.97 0.005 258);
+  --dark-muted: oklch(0.27 0.017 258);
+  --dark-muted-foreground: oklch(0.72 0.015 258);
+  --dark-primary: oklch(0.72 0.12 245);
+  --dark-primary-foreground: oklch(0.18 0.015 258);
+  --dark-border: oklch(0.32 0.017 258);
+  --dark-ring: oklch(0.72 0.12 245);
+  --dark-destructive: oklch(0.65 0.19 27);
+  --dark-sidebar: oklch(0.215 0.016 258);
+  --dark-sidebar-border: oklch(0.3 0.017 258);
+  --dark-selection: oklch(0.72 0.12 245 / 0.28);
+
+  --background: light-dark(var(--light-background), var(--dark-background));
+  --foreground: light-dark(var(--light-foreground), var(--dark-foreground));
+  --card: light-dark(var(--light-card), var(--dark-card));
+  --card-foreground: light-dark(var(--light-card-foreground), var(--dark-card-foreground));
+  --muted: light-dark(var(--light-muted), var(--dark-muted));
+  --muted-foreground: light-dark(var(--light-muted-foreground), var(--dark-muted-foreground));
+  --primary: light-dark(var(--light-primary), var(--dark-primary));
+  --primary-foreground: light-dark(var(--light-primary-foreground), var(--dark-primary-foreground));
+  --border: light-dark(var(--light-border), var(--dark-border));
+  --input: var(--border);
+  --ring: light-dark(var(--light-ring), var(--dark-ring));
+  --destructive: light-dark(var(--light-destructive), var(--dark-destructive));
+  --sidebar: light-dark(var(--light-sidebar), var(--dark-sidebar));
+  --sidebar-border: light-dark(var(--light-sidebar-border), var(--dark-sidebar-border));
+  --selection: light-dark(var(--light-selection), var(--dark-selection));
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.18 0.015 258);
-    --foreground: oklch(0.97 0.005 258);
-    --card: oklch(0.22 0.017 258);
-    --card-foreground: oklch(0.97 0.005 258);
-    --muted: oklch(0.27 0.017 258);
-    --muted-foreground: oklch(0.72 0.015 258);
-    --primary: oklch(0.72 0.12 245);
-    --primary-foreground: oklch(0.18 0.015 258);
-    --border: oklch(0.32 0.017 258);
-    --input: oklch(0.32 0.017 258);
-    --ring: oklch(0.72 0.12 245);
-    --destructive: oklch(0.65 0.19 27);
-    --sidebar: oklch(0.215 0.016 258);
-    --sidebar-border: oklch(0.3 0.017 258);
-    --selection: oklch(0.72 0.12 245 / 0.28);
-  }
+/*
+ * data-theme is server-rendered from the reader's cookie. color-scheme is what
+ * light-dark() reads, and it also tells the browser how to paint the surfaces
+ * we do not control: form controls, scrollbars, the canvas behind a bounce.
+ */
+:root,
+:root[data-theme="system"] {
+  color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 @layer base {

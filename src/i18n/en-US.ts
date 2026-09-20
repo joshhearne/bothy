@@ -13,6 +13,12 @@ export const enUS = {
     search: "Search",
     searchDocuments: "Search documents",
     language: "Language",
+    theme: "Theme",
+    themes: {
+      system: "System",
+      light: "Light",
+      dark: "Dark",
+    },
     account: "Account",
     accountMenuFor: (name: string) => `Account menu for ${name}`,
     signedInAs: "Signed in as",

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLocale, useMessages } from "@/i18n/client";
 import { UserMenu } from "@/components/user-menu";
+import { type Theme } from "@/lib/theme";
 
 export type SidebarCompany = { id: string; name: string; isInternal: boolean };
 
@@ -30,6 +31,7 @@ export type AppShellProps = {
   companies: SidebarCompany[];
   canCreateCompanies: boolean;
   canManageDocTypes: boolean;
+  theme: Theme;
   signOut: () => Promise<void>;
   children: React.ReactNode;
 };
@@ -44,6 +46,7 @@ export function AppShell({
   companies,
   canCreateCompanies,
   canManageDocTypes,
+  theme,
   signOut,
   children,
 }: AppShellProps) {
@@ -93,7 +96,7 @@ export function AppShell({
         </Link>
 
         <div className="ml-auto flex items-center">
-          <UserMenu user={user} locale={locale} signOut={signOut} />
+          <UserMenu user={user} locale={locale} theme={theme} signOut={signOut} />
         </div>
       </header>
 
