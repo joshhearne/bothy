@@ -33,12 +33,8 @@ describe("hashKey", () => {
 });
 
 describe("splitKey", () => {
-  it("recognises a current key", () => {
+  it("recognizes a key with its marker", () => {
     expect(splitKey("bothy_abc123")).toEqual({ marker: "bothy_", body: "abc123" });
-  });
-
-  it("still recognises a key issued before the rename", () => {
-    expect(splitKey("strata_abc123")).toEqual({ marker: "strata_", body: "abc123" });
   });
 
   it("treats anything else as a bare body", () => {

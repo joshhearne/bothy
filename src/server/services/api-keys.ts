@@ -16,13 +16,7 @@ export const API_SCOPES = ["read", "write", "admin", "secrets:reveal"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 const PREFIX_LENGTH = 8;
-
-/**
- * Keys issued before the rename carry the old marker. They are still valid, so
- * both are accepted; new keys are only ever minted with the current one.
- */
 const KEY_PREFIX = "bothy_";
-const LEGACY_KEY_PREFIXES = ["strata_"];
 
 export const apiKeyInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
@@ -54,14 +48,11 @@ function generateKey(): { key: string; prefix: string } {
   return { key: `${KEY_PREFIX}${body}`, prefix: body.slice(0, PREFIX_LENGTH) };
 }
 
-/** Splits a presented key into the marker it was issued with and its body. */
+/** Strips the marker from a presented key, if it carries one. */
 export function splitKey(presented: string): { marker: string; body: string } {
-  for (const marker of [KEY_PREFIX, ...LEGACY_KEY_PREFIXES]) {
-    if (presented.startsWith(marker)) {
-      return { marker, body: presented.slice(marker.length) };
-    }
-  }
-  return { marker: "", body: presented };
+  return presented.startsWith(KEY_PREFIX)
+    ? { marker: KEY_PREFIX, body: presented.slice(KEY_PREFIX.length) }
+    : { marker: "", body: presented };
 }
 
 export async function listApiKeys(): Promise<ApiKeyRow[]> {
@@ -163,7 +154,6 @@ export async function authenticateApiKey(presented: string): Promise<Authenticat
 
   if (!row || row.revokedAt) return null;
 
-  // Hash exactly what was issued, so an older key still matches its stored hash.
   const presentedHash = Buffer.from(hashKey(`${marker}${body}`), "hex");
   const storedHash = Buffer.from(row.keyHash, "hex");
   if (presentedHash.length !== storedHash.length) return null;

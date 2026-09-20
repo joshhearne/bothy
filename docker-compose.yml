@@ -29,8 +29,7 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      # An existing pgdata volume keeps the role it was created with, so these
-      # stay overridable rather than hardcoded.
+      # Overridable for deployments with their own naming rules.
       POSTGRES_USER: ${POSTGRES_USER:-bothy}
       POSTGRES_DB: ${POSTGRES_DB:-bothy}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}

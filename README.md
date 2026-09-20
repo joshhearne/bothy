@@ -79,21 +79,6 @@ same tradeoff Hudu and IT Glue make. Scope the service account to the
 collections Bothy should see, keep the sidecar internal, and stay on `link`
 mode if that risk is unacceptable. See `docs/VAULT_INTEGRATION.md`.
 
-## Upgrading from Strata
-
-The project was called Strata before release. If you ran it under that name:
-
-- Keep your existing database by pinning the role it was created with:
-  `POSTGRES_USER=strata` and `POSTGRES_DB=strata` in `.env`, with `DATABASE_URL`
-  unchanged. Fresh installs default to `bothy`.
-- API keys issued as `strata_…` still authenticate. New keys are `bothy_…`.
-- Webhook headers are now `X-Bothy-Event`, `X-Bothy-Delivery`, and
-  `X-Bothy-Signature`. Update any receiver that checks them by name.
-- The worker switch is `BOTHY_DISABLE_WEBHOOK_WORKER`.
-- If you rename the directory the stack runs from, set
-  `COMPOSE_PROJECT_NAME=strata` in `.env` first, or Compose will look for new
-  volumes and start you with an empty database.
-
 ## Backups
 
 `docs/BACKUP.md` covers what to keep, how to restore it, and how to verify a
@@ -145,8 +130,8 @@ E2E_BASE_URL=http://127.0.0.1:3090 npm run test:e2e
 docker compose -p bothy-test down -v
 ```
 
-The tests read the database directly. If your `.env` pins a different role
-(see "Upgrading from Strata"), pass it along: `E2E_DB_USER=strata`.
+The tests read the database directly. If your `.env` sets a database role
+other than the default, pass it along with `E2E_DB_USER`.
 
 `db/schema.sql` is the reference data model, `src/server/db/schema.ts` mirrors it,
 and the SQL in `drizzle/` is what actually runs. Change all three together:
