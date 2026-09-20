@@ -85,7 +85,16 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 function load(): Env {
-  const parsed = envSchema.safeParse(process.env);
+  /*
+   * An empty value means "not set". .env.example lists optional keys with no
+   * value so they are easy to find, and docker compose passes those through as
+   * empty strings; without this, an empty optional key fails its own rules.
+   */
+  const provided = Object.fromEntries(
+    Object.entries(process.env).filter(([, value]) => value !== ""),
+  );
+
+  const parsed = envSchema.safeParse(provided);
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((i) => `  ${i.path.join(".") || "(root)"}: ${i.message}`)
