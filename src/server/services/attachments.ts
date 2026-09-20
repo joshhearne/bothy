@@ -9,6 +9,7 @@ import { assertDocumentInScope } from "@/server/services/documents";
 import { type CompanyScope } from "@/server/auth/company-scope";
 import { buildStorageKey, getStorage } from "@/server/storage";
 import { sanitizeFilename } from "@/server/storage/filename";
+import { acceptUpload } from "@/server/uploads/accept";
 import { formatNumber } from "@/i18n/format";
 import { DEFAULT_LOCALE, type Locale } from "@/i18n/locales";
 
@@ -32,6 +33,14 @@ export class EmptyUploadError extends Error {
     super("Choose a file to upload");
     this.name = "EmptyUploadError";
   }
+}
+
+/** A converted file keeps its name but takes the extension it now actually is. */
+function renameFor(filename: string, accepted: { extension: string; convertedFrom?: string }): string {
+  if (!accepted.convertedFrom) return filename;
+  const dot = filename.lastIndexOf(".");
+  const stem = dot > 0 ? filename.slice(0, dot) : filename;
+  return `${stem}.${accepted.extension}`;
 }
 
 export function maxUploadBytes(): number {
@@ -93,14 +102,15 @@ export async function addAttachment(
     .limit(1);
   if (!document) throw new NotFoundError("Document");
 
-  const filename = sanitizeFilename(file.name);
-  const storageKey = buildStorageKey(documentId, filename);
-  // The browser's type is a hint, never trusted on the way back out: downloads
-  // are always served as attachments with nosniff.
-  const mimeType = file.type || "application/octet-stream";
+  // What the file is comes from its own bytes; the browser's claim is ignored.
+  // A HEIC comes back as a JPEG here, because almost nothing else draws one.
+  const accepted = await acceptUpload(file.name, Buffer.from(await file.arrayBuffer()));
+  const body = accepted.bytes;
+  const mimeType = accepted.mime;
+  const filename = renameFor(sanitizeFilename(file.name), accepted);
 
+  const storageKey = buildStorageKey(documentId, filename);
   const storage = await getStorage();
-  const body = Buffer.from(await file.arrayBuffer());
   await storage.put(storageKey, body, mimeType);
 
   return db.transaction(async (tx) => {

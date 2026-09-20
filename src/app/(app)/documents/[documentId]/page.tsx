@@ -14,6 +14,7 @@ import { formatDateTime } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
 import { formatBytes, listAttachments } from "@/server/services/attachments";
 import { env } from "@/lib/env";
+import { ACCEPTED_UPLOAD_TYPES } from "@/server/uploads/accept";
 import { AttachmentUpload } from "../attachment-upload";
 import {
   archiveDocumentAction,
@@ -188,7 +189,11 @@ export default async function DocumentPage({
         )}
 
         {editor && !detail.document.archivedAt && (
-          <AttachmentUpload documentId={detail.document.id} maxMb={env.MAX_UPLOAD_MB} />
+          <AttachmentUpload
+            documentId={detail.document.id}
+            maxMb={env.MAX_UPLOAD_MB}
+            accept={ACCEPTED_UPLOAD_TYPES}
+          />
         )}
       </section>
 

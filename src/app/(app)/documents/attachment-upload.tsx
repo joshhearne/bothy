@@ -22,9 +22,11 @@ function Submit() {
 export function AttachmentUpload({
   documentId,
   maxMb,
+  accept,
 }: {
   documentId: string;
   maxMb: number;
+  accept: string;
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(addAttachmentAction, {});
   const formRef = useRef<HTMLFormElement>(null);
@@ -51,12 +53,15 @@ export function AttachmentUpload({
           id="attachment-file"
           type="file"
           name="file"
+          accept={accept}
           required
           className="flex-1 text-sm file:mr-3 file:rounded-md file:border file:border-[var(--border)] file:bg-transparent file:px-3 file:py-1.5 file:text-sm file:text-[var(--foreground)] hover:file:bg-[var(--muted)]"
         />
         <Submit />
       </div>
-      <p className="text-xs text-[var(--muted-foreground)]">{t.documents.uploadLimit(maxMb)}</p>
+      <p className="text-xs text-[var(--muted-foreground)]">
+        {t.documents.uploadLimit(maxMb)} {t.documents.uploadTypes}
+      </p>
     </form>
   );
 }

@@ -141,6 +141,18 @@ strings that differ from `src/i18n/en-US.ts`, and add the code to
 `src/i18n/locales.ts`. Anything left out falls back to en-US, so a partial
 translation is still usable.
 
+## Attachments
+
+Each document takes files: images, PDF, Word, Excel, PowerPoint, CSV, Markdown,
+and plain text, up to `MAX_UPLOAD_MB` (25 by default). HEIC and HEIF photos are
+converted to JPEG as they are stored, so a picture taken on a phone opens for
+everyone.
+
+What a file *is* comes from its own bytes. Renaming an executable to `.png`
+does not get it in, and a macro-enabled Office document is refused whatever
+extension it arrives under. Downloads are always served as attachments, with
+`nosniff`, so an uploaded file can never execute on the site's origin.
+
 ## Branding
 
 **Admin → Branding** sets a portal name, a logo, and one accent color. The name

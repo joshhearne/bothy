@@ -26,11 +26,22 @@ import {
   removeAttachment,
   UploadTooLargeError,
 } from "@/server/services/attachments";
+import {
+  ConversionFailedError,
+  ConversionUnavailableError,
+  MacroEnabledError,
+  UnsupportedFileError,
+} from "@/server/uploads/accept";
 
 function toFormState(err: unknown): FormState {
   if (err instanceof ZodError) return { fieldErrors: toFieldErrors(err) };
   if (err instanceof UploadTooLargeError) return { error: err.message };
   if (err instanceof EmptyUploadError) return { error: err.message };
+  // Each of these says what to do about it, so the message is the whole answer.
+  if (err instanceof UnsupportedFileError) return { error: err.message };
+  if (err instanceof MacroEnabledError) return { error: err.message };
+  if (err instanceof ConversionUnavailableError) return { error: err.message };
+  if (err instanceof ConversionFailedError) return { error: err.message };
   if (err instanceof ForbiddenError) return { error: err.message };
   if (err instanceof NotFoundError) return { error: err.message };
   if (err instanceof ScopeMismatchError) return { error: err.message };

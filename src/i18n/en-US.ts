@@ -142,6 +142,8 @@ export const enUS = {
     addFile: "Add a file",
     upload: "Upload",
     uploading: "Uploading…",
+    uploadTypes:
+      "Images (HEIC is converted to JPEG), PDF, Word, Excel, PowerPoint, CSV, Markdown, and text.",
     uploadLimit: (mb: number) => `Up to ${mb} MB per file.`,
     companyScope: "Company scope",
     locationScope: "Location scope",

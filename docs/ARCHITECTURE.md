@@ -95,6 +95,23 @@ decides *where*.
 - A company's accent applies to its own pages and documents; the shell keeps
   the instance's, so it stays obvious which portal you are in.
 
+## Attachments
+- What a file is comes from its own bytes, never from the browser's declared
+  type or the extension (`src/server/uploads/accept.ts`).
+- Images: PNG, JPEG, GIF, WebP, AVIF. HEIC and HEIF are converted to JPEG on
+  the way in and stored with a `.jpg` name, because phones produce them and
+  almost nothing else draws them.
+- Documents: PDF, the OOXML formats (docx/xlsx/pptx), CSV, Markdown, plain
+  text. Text has no signature, so the extension proposes and the bytes confirm.
+- Refused: macro-enabled Office (any OOXML containing `vbaProject.bin`,
+  whatever it is named), legacy OLE2 Office, plain zips, and everything else.
+- The HEIC decoder is imported through a runtime specifier so the Worker bundle
+  does not carry 8 MB of WebAssembly it may not execute. That hides it from
+  dependency tracing, so `next.config.ts` names the whole chain; a unit test
+  checks the two stay in step.
+- On Workers, conversion is refused with a message rather than attempted:
+  `WebAssembly.compile` is not allowed there.
+
 ## Security baseline
 - Argon2id for local passwords
 - API keys: random 32 bytes, shown once, stored as SHA-256 hash, looked up by prefix

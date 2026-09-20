@@ -68,5 +68,9 @@ admins unrestricted. Enforced in the service layer, not in pages. See docs/ARCHI
 Instance name/logo/accent and the same per company. Accent is validated hex, re-derived per surface
 for contrast; logos are raster only, sniffed by magic bytes. See docs/ARCHITECTURE.md.
 
+### Phase 10: Attachment policy
+Accepted types decided by magic bytes; HEIC/HEIF converted to JPEG; macro-enabled and legacy
+Office refused. See docs/ARCHITECTURE.md.
+
 ### Later
 Tags, multi-tenant, importers (Hudu, IT Glue CSV).
