@@ -141,6 +141,20 @@ strings that differ from `src/i18n/en-US.ts`, and add the code to
 `src/i18n/locales.ts`. Anything left out falls back to en-US, so a partial
 translation is still usable.
 
+## Rack elevations
+
+A Rack document draws itself: tell it how many units it has, whether the back
+is used, and which way its rails are numbered, then mount things — an existing
+Switch or Server document, or a plain label for the patch panel nobody will
+ever write up. You get a printable SVG for each face and a list of what is
+where, with the documented items linked.
+
+Colour comes from the kind of equipment. Set it once for every client, and let
+a client override it where their own conventions differ; the key says which
+colours are overrides and what the default was. Bothy also says when two
+colours are too close to tell apart in print, when an override has landed on a
+colour already in use in that rack, and when two things claim the same unit.
+
 ## Domain checks
 
 A domain record can look itself up: DNS records and who is answering for the

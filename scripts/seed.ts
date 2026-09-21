@@ -59,6 +59,8 @@ type NewDocType = {
   name: string;
   scope: "company" | "location";
   icon: string;
+  /** Documents of this type get a rack elevation. */
+  isRack?: boolean;
   fields: NewField[];
 };
 
@@ -223,6 +225,18 @@ const DOC_TYPES: NewDocType[] = [
     ],
   },
   {
+    name: "Rack",
+    scope: "location",
+    icon: "server",
+    isRack: true,
+    fields: [
+      { label: "Name", fieldType: "text", required: true },
+      { label: "Room", fieldType: "text" },
+      { label: "Power", fieldType: "text" },
+      { label: "Notes", fieldType: "markdown" },
+    ],
+  },
+  {
     name: "Domain/DNS",
     scope: "company",
     icon: "globe-lock",
@@ -279,10 +293,15 @@ async function upsertOptionList(name: string, items: string[]): Promise<string> 
 async function upsertDocType(docType: NewDocType): Promise<string> {
   const [row] = await db
     .insert(docTypes)
-    .values({ name: docType.name, scope: docType.scope, icon: docType.icon })
+    .values({
+      name: docType.name,
+      scope: docType.scope,
+      icon: docType.icon,
+      isRack: docType.isRack ?? false,
+    })
     .onConflictDoUpdate({
       target: docTypes.name,
-      set: { scope: docType.scope, icon: docType.icon },
+      set: { scope: docType.scope, icon: docType.icon, isRack: docType.isRack ?? false },
     })
     .returning({ id: docTypes.id });
   if (!row) throw new Error(`Failed to upsert doc type ${docType.name}`);

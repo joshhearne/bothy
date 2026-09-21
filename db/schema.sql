@@ -324,3 +324,40 @@ ALTER TABLE companies ADD COLUMN vault_provider_id uuid REFERENCES vault_provide
 -- The "Powered by" credit is an operator's choice; the licence notice and the
 -- source link below it are not, since AGPL-3.0 §13 asks for them.
 ALTER TABLE instance_branding ADD COLUMN show_powered_by boolean NOT NULL DEFAULT true;
+
+-- ---------- Racks ----------
+CREATE TABLE racks (
+  document_id uuid PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+  total_u     int NOT NULL DEFAULT 42 CHECK (total_u BETWEEN 1 AND 60),
+  has_rear    boolean NOT NULL DEFAULT false,
+  -- Rails are numbered from the bottom in most rooms, the top in some.
+  numbering   text NOT NULL DEFAULT 'bottom_up' CHECK (numbering IN ('bottom_up','top_down'))
+);
+
+CREATE TABLE rack_mounts (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  rack_id     uuid NOT NULL REFERENCES racks(document_id) ON DELETE CASCADE,
+  position_u  int NOT NULL,                       -- lowest unit, as the rails read
+  height_u    int NOT NULL DEFAULT 1 CHECK (height_u BETWEEN 1 AND 20),
+  face        text NOT NULL DEFAULT 'front' CHECK (face IN ('front','rear','both')),
+  document_id uuid REFERENCES documents(id) ON DELETE SET NULL,
+  label       text,                               -- for what is never documented
+  doc_type_id uuid REFERENCES doc_types(id),      -- its kind, when there is no document
+  CHECK (document_id IS NOT NULL OR label IS NOT NULL)
+);
+CREATE INDEX rack_mounts_rack_idx ON rack_mounts (rack_id);
+
+-- A row with no company is the MSP default; with one, that client's override.
+CREATE TABLE rack_type_colors (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  doc_type_id uuid NOT NULL REFERENCES doc_types(id) ON DELETE CASCADE,
+  company_id  uuid REFERENCES companies(id) ON DELETE CASCADE,
+  color       text NOT NULL
+);
+CREATE UNIQUE INDEX rack_type_colors_global_idx ON rack_type_colors (doc_type_id)
+  WHERE company_id IS NULL;
+CREATE UNIQUE INDEX rack_type_colors_company_idx ON rack_type_colors (doc_type_id, company_id)
+  WHERE company_id IS NOT NULL;
+
+-- Documents of a rack doc type carry an elevation.
+ALTER TABLE doc_types ADD COLUMN is_rack boolean NOT NULL DEFAULT false;

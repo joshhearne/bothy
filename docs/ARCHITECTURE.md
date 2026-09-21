@@ -167,6 +167,32 @@ over RDAP, and whether SPF, DMARC and DKIM are published.
 - DNS and TLS need Node, so on Workers those sections report that they are
   unavailable rather than failing. RDAP is plain HTTPS and works anywhere.
 
+## Rack elevations
+A doc type marked `is_rack` gives its documents an elevation: a size, whether
+the rear is used, and what is mounted where.
+
+- `racks` holds the size and the **numbering direction**. Rails are numbered
+  from the bottom in most rooms and the top in some, so each rack says which it
+  is rather than the software deciding; the drawing follows the rack.
+- `rack_mounts` holds one row per thing: a document when it is written up, a
+  plain label when it never will be (a patch panel, a shelf), its lowest unit,
+  its height, and which face.
+- Colour comes from the kind of thing, not the thing: `rack_type_colors` with
+  no company is the MSP default, with one it is that client's override. The
+  client wins, then the MSP, then a built-in palette whose every pair is far
+  enough apart to tell apart in print.
+- "Too close" is measured perceptually in Oklab, not by comparing hex digits,
+  because two different numbers can be the same colour to a reader
+  (`src/server/racks/colors.ts`). Three things are warned about: colours a
+  reader could not distinguish, an override that has landed on a colour already
+  in use here — where the fix is to move the override, which nobody would think
+  to look for — and two things claiming the same unit.
+- The drawing is SVG, generated from a pure function and served as a file, so
+  the page, the print, and the download are the same picture. Every label is
+  escaped and a colour that does not parse is drawn grey rather than written
+  into the file. The URL carries a signature of what the rack contains, or a
+  browser would keep showing the rack as it was.
+
 ## Security baseline
 - Argon2id for local passwords
 - API keys: random 32 bytes, shown once, stored as SHA-256 hash, looked up by prefix

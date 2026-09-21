@@ -19,6 +19,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -158,6 +159,8 @@ export const docTypes = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull().unique(),
     icon: text("icon"),
+    /** Documents of this type carry a rack elevation. */
+    isRack: boolean("is_rack").notNull().default(false),
     scope: text("scope").notNull().default("location"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
@@ -378,6 +381,87 @@ export const domainChecks = pgTable("domain_checks", {
   checkedAt: timestamp("checked_at", { withTimezone: true }),
   checkedBy: uuid("checked_by").references(() => users.id),
 });
+
+/* ---------- Racks ---------- */
+
+/**
+ * A rack is an ordinary document with an elevation attached: how many units
+ * it has, whether the back is used, and which way its rails are numbered.
+ * Racks are labelled from the bottom in most rooms and from the top in some,
+ * so each rack says which it is rather than the software deciding.
+ */
+export const racks = pgTable(
+  "racks",
+  {
+    documentId: uuid("document_id")
+      .primaryKey()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    totalU: integer("total_u").notNull().default(42),
+    hasRear: boolean("has_rear").notNull().default(false),
+    numbering: text("numbering").notNull().default("bottom_up"),
+  },
+  (t) => [
+    check("racks_total_u_check", sql`${t.totalU} BETWEEN 1 AND 60`),
+    check("racks_numbering_check", sql`${t.numbering} IN ('bottom_up','top_down')`),
+  ],
+);
+
+/**
+ * One thing in a rack. It is either a document that is already written up, or
+ * a label for something nobody will ever document — a patch panel, a shelf —
+ * which still has to appear on the elevation.
+ */
+export const rackMounts = pgTable(
+  "rack_mounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    rackId: uuid("rack_id")
+      .notNull()
+      .references(() => racks.documentId, { onDelete: "cascade" }),
+    /** The lowest unit it occupies, in the numbers printed on the rails. */
+    positionU: integer("position_u").notNull(),
+    heightU: integer("height_u").notNull().default(1),
+    face: text("face").notNull().default("front"),
+    documentId: uuid("document_id").references(() => documents.id, { onDelete: "set null" }),
+    label: text("label"),
+    /** What it is, when there is no document to take that from. */
+    docTypeId: uuid("doc_type_id").references(() => docTypes.id),
+  },
+  (t) => [
+    check("rack_mounts_height_check", sql`${t.heightU} BETWEEN 1 AND 20`),
+    check("rack_mounts_face_check", sql`${t.face} IN ('front','rear','both')`),
+    check(
+      "rack_mounts_identity_check",
+      sql`${t.documentId} IS NOT NULL OR ${t.label} IS NOT NULL`,
+    ),
+    index("rack_mounts_rack_idx").on(t.rackId),
+  ],
+);
+
+/**
+ * What colour a kind of equipment is drawn in. A row with no company is the
+ * MSP's default for everyone; a row with one is that client's override, which
+ * the interface says so out loud.
+ */
+export const rackTypeColors = pgTable(
+  "rack_type_colors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    docTypeId: uuid("doc_type_id")
+      .notNull()
+      .references(() => docTypes.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+    color: text("color").notNull(),
+  },
+  (t) => [
+    uniqueIndex("rack_type_colors_global_idx")
+      .on(t.docTypeId)
+      .where(sql`${t.companyId} IS NULL`),
+    uniqueIndex("rack_type_colors_company_idx")
+      .on(t.docTypeId, t.companyId)
+      .where(sql`${t.companyId} IS NOT NULL`),
+  ],
+);
 
 /* ---------- Per-company access ---------- */
 

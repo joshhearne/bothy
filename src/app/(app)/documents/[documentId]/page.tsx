@@ -15,6 +15,10 @@ import { getI18n } from "@/i18n/server";
 import { formatBytes, listAttachments } from "@/server/services/attachments";
 import { getDomainCheckState } from "@/server/services/domain-checks";
 import { DomainPanel } from "../domain-panel";
+import { getRackView } from "@/server/services/racks";
+import { listCompanyDocuments } from "@/server/services/documents";
+import { listDocTypes } from "@/server/services/doc-types";
+import { RackPanel } from "../rack-panel";
 import { env } from "@/lib/env";
 import { ACCEPTED_UPLOAD_TYPES } from "@/server/uploads/accept";
 import { AttachmentUpload } from "../attachment-upload";
@@ -81,6 +85,17 @@ export default async function DocumentPage({
 
   const branding = await getCompanyBranding(company.id, scope);
   const domainState = await getDomainCheckState(documentId, scope);
+
+  /*
+   * A rack elevation belongs to documents of a doc type that says it is a
+   * rack. The view is null until somebody sets the size, which is what the
+   * panel's own form does.
+   */
+  const isRack = detail.docType.isRack;
+  const rackView = isRack ? await getRackView(documentId, scope) : null;
+  const [mountable, allDocTypes] = isRack
+    ? await Promise.all([listCompanyDocuments(company.id, scope), listDocTypes()])
+    : [[], []];
 
   return (
     <BrandAccent brand={branding} className="flex flex-col gap-8">
@@ -180,6 +195,37 @@ export default async function DocumentPage({
             </div>
           ))}
         </dl>
+      )}
+
+      {isRack && rackView && (
+        <RackPanel
+          view={rackView}
+          editor={editor && !detail.document.archivedAt}
+          mountable={mountable
+            .filter((candidate) => candidate.id !== documentId)
+            .map((candidate) => ({ id: candidate.id, title: candidate.title }))}
+          docTypes={allDocTypes.map((type) => ({ id: type.id, name: type.name }))}
+        />
+      )}
+
+      {isRack && !rackView && editor && (
+        <RackPanel
+          view={{
+            documentId,
+            name: detail.document.title,
+            companyId: company.id,
+            totalU: 42,
+            hasRear: false,
+            numbering: "bottom_up",
+            mounts: [],
+            legend: [],
+            warnings: [],
+            version: "new",
+          }}
+          editor
+          mountable={[]}
+          docTypes={allDocTypes.map((type) => ({ id: type.id, name: type.name }))}
+        />
       )}
 
       {domainState.targets.domain && (

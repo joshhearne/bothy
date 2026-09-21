@@ -1,0 +1,1 @@
+ALTER TABLE "doc_types" ADD COLUMN "is_rack" boolean DEFAULT false NOT NULL;
