@@ -106,6 +106,7 @@ test("adds a dropdown option inline and selects it", async ({ page }) => {
 test("adds a dropdown option from the create form, before the document exists", async ({ page }) => {
   await page.goto(`/companies/${companyId}/documents/new`);
   await page.getByRole("link", { name: DOC_TYPE }).click();
+  await page.waitForURL(/documents\/new\?docType=/);
   const newUrl = page.url();
 
   await page.getByLabel("Title").fill("Edge switch");
