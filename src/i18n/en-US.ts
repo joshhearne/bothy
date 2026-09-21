@@ -23,9 +23,7 @@ export const enUS = {
     accountMenuFor: (name: string) => `Account menu for ${name}`,
     signedInAs: "Signed in as",
     closeAccount: "Close account menu",
-    poweredBy: (product: string) => `Powered by ${product}`,
-    /** With a portal name set, the footer says whose portal this is. */
-    poweredByFor: (product: string, operator: string) => `Powered by ${product} | ${operator}`,
+    poweredBy: (product: string, vendor: string) => `Powered by ${product} | ${vendor}`,
     source: "Source code",
   },
 
@@ -281,6 +279,9 @@ export const enUS = {
       altLogoHint: (mode: string) =>
         `Optional. Left empty, the other logo is shown on ${mode} too.`,
       derived: "Derived",
+      poweredBy: "Show the “Powered by” credit",
+      poweredByHint:
+        "Names the product and who makes it, at the foot of every page. The licence and the link to the source stay either way — anyone using this over a network is entitled to them.",
       previewHint: "Both themes, as a reader on each would see them.",
       save: "Save branding",
       preview: "Preview",

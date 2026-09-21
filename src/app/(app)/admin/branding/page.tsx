@@ -78,6 +78,7 @@ export default async function BrandingPage() {
           scheme={branding.scheme}
           accent={branding.accent}
           altAccent={branding.altAccent}
+          showPoweredBy={branding.showPoweredBy}
         />
       </section>
 

@@ -89,7 +89,7 @@ test.afterAll(() => {
   // Leave the instance as it was found: every other spec reads this shell.
   psql(
     "update instance_branding set name = null, scheme = 'light', accent = null, " +
-      "alt_accent = null, logo_key = null, logo_mime = null, " +
+      "alt_accent = null, show_powered_by = true, logo_key = null, logo_mime = null, " +
       "alt_logo_key = null, alt_logo_mime = null;",
   );
 });
@@ -217,24 +217,42 @@ test("a company logo is not public, and not visible across the access boundary",
   expect(restricted).toBe("0");
 });
 
-test("the license notice survives the branding, and names the operator", async ({ page }) => {
+test("the footer credits the product and who makes it", async ({ page }) => {
   await signInAsAdmin(page);
-
-  // A portal name makes the footer say whose portal this is.
-  await page.goto("/admin/branding");
-  await page.getByLabel("Portal name").fill("HearneTech Docs");
-  await page.getByRole("button", { name: "Save branding" }).click();
-  await expect(page.getByRole("banner")).toContainText("HearneTech Docs");
-
   await page.goto("/companies");
 
+  // Verbatim, and the same on every install: this credit is not the operator's
+  // name, it is the software's.
   const footer = page.getByRole("contentinfo");
-  await expect(footer).toContainText("Powered by Bothy | HearneTech Docs");
+  await expect(footer).toContainText("Powered by Bothy | Hearne Technologies");
   await expect(footer).toContainText("AGPL-3.0");
   await expect(footer.getByRole("link", { name: "Source code" })).toHaveAttribute(
     "href",
     "https://github.com/joshhearne/bothy",
   );
+});
+
+test("an operator may turn the credit off, but not the licence", async ({ page }) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/branding");
+
+  const toggle = page.getByRole("checkbox", { name: /Powered by/ });
+  await expect(toggle).toBeChecked();
+  await toggle.uncheck();
+  await page.getByRole("button", { name: "Save branding" }).click();
+
+  const footer = page.getByRole("contentinfo");
+  await expect.poll(async () => footer.innerText()).not.toContain("Powered by");
+
+  // What AGPL-3.0 asks for stays put.
+  await expect(footer).toContainText("AGPL-3.0");
+  await expect(footer.getByRole("link", { name: "Source code" })).toBeVisible();
+
+  // And it comes back.
+  await page.goto("/admin/branding");
+  await page.getByRole("checkbox", { name: /Powered by/ }).check();
+  await page.getByRole("button", { name: "Save branding" }).click();
+  await expect(page.getByRole("contentinfo")).toContainText("Powered by Bothy | Hearne Technologies");
 });
 
 /* ---------- Per theme ---------- */

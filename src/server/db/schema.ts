@@ -122,6 +122,8 @@ export const instanceBranding = pgTable(
     name: text("name"),
     /** Which mode the primary logo and accent were drawn for. */
     scheme: text("scheme").notNull().default("light"),
+    /** The "Powered by" credit. On unless an operator turns it off. */
+    showPoweredBy: boolean("show_powered_by").notNull().default(true),
     accent: text("accent"),
     /** An exact color for the other mode. Derived from `accent` when null. */
     altAccent: text("alt_accent"),

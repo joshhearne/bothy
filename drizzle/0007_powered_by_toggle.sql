@@ -1,0 +1,1 @@
+ALTER TABLE "instance_branding" ADD COLUMN "show_powered_by" boolean DEFAULT true NOT NULL;

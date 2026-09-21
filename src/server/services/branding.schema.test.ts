@@ -41,6 +41,8 @@ describe("brandingInputSchema", () => {
       scheme: "light",
       accent: "#1f6feb",
       altAccent: null,
+      // The credit is on unless an operator turns it off.
+      showPoweredBy: true,
     });
   });
 

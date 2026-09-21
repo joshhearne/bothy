@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
-import { text, toFieldErrors, type FormState } from "@/lib/form";
+import { checkbox, text, toFieldErrors, type FormState } from "@/lib/form";
 import { ForbiddenError, getCompanyScope, requireAdmin } from "@/server/auth/session";
 import { NotFoundError } from "@/server/services/errors";
 import {
@@ -38,6 +38,7 @@ export async function saveBrandingAction(
         scheme: text(formData, "scheme") === "dark" ? "dark" : "light",
         accent: text(formData, "accent") ?? null,
         altAccent: text(formData, "altAccent") ?? null,
+        showPoweredBy: checkbox(formData, "showPoweredBy"),
       },
       user.id,
     );

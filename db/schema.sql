@@ -320,3 +320,7 @@ ALTER TABLE companies ADD COLUMN vault_provider_id uuid REFERENCES vault_provide
 
 -- Collection mappings are per provider: 'vault:<provider id>' rather than a
 -- single 'bitwarden', so two vaults can both map the same company.
+
+-- The "Powered by" credit is an operator's choice; the licence notice and the
+-- source link below it are not, since AGPL-3.0 §13 asks for them.
+ALTER TABLE instance_branding ADD COLUMN show_powered_by boolean NOT NULL DEFAULT true;

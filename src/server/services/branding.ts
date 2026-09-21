@@ -75,6 +75,7 @@ export const brandingInputSchema = z.object({
   scheme: z.enum(["light", "dark"]).default("light"),
   accent: hexColor,
   altAccent: hexColor,
+  showPoweredBy: z.boolean().default(true),
 });
 
 export type BrandingInput = z.input<typeof brandingInputSchema>;
@@ -88,6 +89,8 @@ export type Branding = {
   accent: string | null;
   /** The exact color for the other mode, when one was given. */
   altAccent: string | null;
+  /** Whether the "Powered by" credit is shown. */
+  showPoweredBy: boolean;
   /** Ready to put in an img src, with a version so a replaced logo shows up. */
   logoUrl: string | null;
   /** The logo for the other mode, when one was uploaded. */
@@ -109,7 +112,15 @@ function version(logoKey: string | null): string {
 export async function getInstanceBranding(): Promise<Branding> {
   const [row] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
   if (!row) {
-    return { name: null, scheme: "light", accent: null, altAccent: null, logoUrl: null, altLogoUrl: null };
+    return {
+      name: null,
+      scheme: "light",
+      accent: null,
+      altAccent: null,
+      showPoweredBy: true,
+      logoUrl: null,
+      altLogoUrl: null,
+    };
   }
 
   return {
@@ -117,6 +128,7 @@ export async function getInstanceBranding(): Promise<Branding> {
     scheme: (row.scheme === "dark" ? "dark" : "light") as BrandScheme,
     accent: row.accent,
     altAccent: row.altAccent,
+    showPoweredBy: row.showPoweredBy,
     logoUrl: row.logoKey ? `/api/branding/logo?v=${version(row.logoKey)}` : null,
     altLogoUrl: row.altLogoKey
       ? `/api/branding/logo?variant=alt&v=${version(row.altLogoKey)}`
@@ -132,6 +144,7 @@ export async function setInstanceBranding(input: BrandingInput, actorId: string)
     scheme: data.scheme,
     accent: data.accent,
     altAccent: data.altAccent,
+    showPoweredBy: data.showPoweredBy,
   };
 
   await db.transaction(async (tx) => {
@@ -290,6 +303,7 @@ export async function getCompanyBranding(
     scheme: (row.scheme === "dark" ? "dark" : "light") as BrandScheme,
     accent: row.accent,
     altAccent: row.altAccent,
+    showPoweredBy: true,
     logoUrl: row.logoKey ? `/api/companies/${companyId}/logo?v=${version(row.logoKey)}` : null,
     altLogoUrl: row.altLogoKey
       ? `/api/companies/${companyId}/logo?variant=alt&v=${version(row.altLogoKey)}`

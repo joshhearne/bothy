@@ -112,11 +112,13 @@ export function InstanceBrandingForm({
   scheme,
   accent,
   altAccent,
+  showPoweredBy,
 }: {
   name: string | null;
   scheme: BrandScheme;
   accent: string | null;
   altAccent: string | null;
+  showPoweredBy: boolean;
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(saveBrandingAction, {});
   const [chosen, setChosen] = useState<BrandScheme>(scheme);
@@ -157,6 +159,21 @@ export function InstanceBrandingForm({
         defaultValue={altAccent}
         error={fieldErrors.altAccent}
       />
+
+      <label className="flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="showPoweredBy"
+          defaultChecked={showPoweredBy}
+          className="mt-0.5 size-4 rounded border"
+        />
+        <span>
+          <span className="font-medium">{t.admin.branding.poweredBy}</span>
+          <span className="block text-xs text-[var(--muted-foreground)]">
+            {t.admin.branding.poweredByHint}
+          </span>
+        </span>
+      </label>
 
       <div>
         <Submit label={t.admin.branding.save} />

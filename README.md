@@ -201,10 +201,12 @@ not using.
 Logos are PNG, JPEG, or WebP — SVG is refused, because an SVG can carry script
 and a logo is drawn on every page.
 
-The footer carries what branding does not replace: what the software is, its
-license, and a link to the source, which is what AGPL-3.0 asks for. With a
-portal name set it reads "Powered by Bothy | Your Name", so the page says whose
-portal it is without hiding what it runs on.
+The footer carries two things that are not the same. The credit — "Powered by
+Bothy | Hearne Technologies" — names the product and who makes it, and an
+operator who would rather not show it can turn it off in Admin → Branding. The
+licence and the link to the source stay either way: AGPL-3.0 §13 asks that
+anyone using this over a network can get at the source, which is not an
+operator's to remove.
 
 ## Who can see which companies
 

@@ -81,8 +81,11 @@ decides *where*.
 - `instance_branding` holds one row: a portal name, an accent color, and a logo
   key. `companies.accent` / `companies.logo_key` hold the same per client.
 - The name replaces the product name in the top bar, the tab title, and the
-  sign-in page. The AGPL notice and the source link move to the footer, which
-  branding does not touch.
+  sign-in page.
+- The footer credit ("Powered by Bothy | Hearne Technologies") names the
+  product and its maker, is the same on every install, and is optional:
+  `instance_branding.show_powered_by`, on by default. The AGPL notice and the
+  source link beside it are not optional, since §13 asks for them.
 - A logo is stored under a key we generate and served back with the type
   sniffed from its own bytes. PNG, JPEG, and WebP only: an SVG is a document
   that can carry script, and a logo is drawn on every page including sign-in.

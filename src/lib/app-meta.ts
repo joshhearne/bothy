@@ -5,5 +5,8 @@
  * at the source.
  */
 export const PRODUCT_NAME = "Bothy";
+/** Who makes it. This credit travels with the software, whoever runs it. */
+export const VENDOR = "Hearne Technologies";
+export const VENDOR_URL = "https://hearnetech.com";
 export const LICENSE = "AGPL-3.0";
 export const SOURCE_URL = "https://github.com/joshhearne/bothy";
