@@ -110,16 +110,19 @@ export async function promoteFieldAction(
   }
 }
 
-/** Rule 4: the "+" beside a dropdown, writing to the shared option list. */
+/**
+ * Rule 4: the "+" beside a dropdown, writing to the shared option list. Also
+ * called from the create form, where there is no document yet to revalidate.
+ */
 export async function addOptionItemInlineAction(
-  documentId: string,
+  documentId: string | null,
   listId: string,
   label: string,
 ): Promise<InlineResult<{ id: string; label: string }>> {
   try {
     const user = await editor();
     const item = await addOptionItem(listId, { label }, user.id);
-    revalidatePath(`/documents/${documentId}`);
+    if (documentId) revalidatePath(`/documents/${documentId}`);
     return { ok: true, data: item };
   } catch (err) {
     return toError(err);

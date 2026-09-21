@@ -19,6 +19,7 @@ const LIST = unique("E2E Speeds");
 const DOC_TYPE = unique("E2E Switch");
 const COMPANY = unique("E2E Co");
 
+let companyId: string;
 let documentId: string;
 let editUrl: string;
 
@@ -32,7 +33,7 @@ test.beforeAll(async ({ browser }) => {
     { label: "Hostname", type: "text" },
     { label: "Uplink", type: "dropdown", optionList: LIST },
   ]);
-  const companyId = await createCompany(page, COMPANY);
+  companyId = await createCompany(page, COMPANY);
   documentId = await createDocument(page, companyId, DOC_TYPE, "Core switch");
   editUrl = `/documents/${documentId}/edit`;
   await page.close();
@@ -100,6 +101,29 @@ test("adds a dropdown option inline and selects it", async ({ page }) => {
   await page.getByRole("button", { name: "Save document" }).click();
   await expect(page).toHaveURL(`/documents/${documentId}`);
   await expect(page.getByText("40 Gbps")).toBeVisible();
+});
+
+test("adds a dropdown option from the create form, before the document exists", async ({ page }) => {
+  await page.goto(`/companies/${companyId}/documents/new`);
+  await page.getByRole("link", { name: DOC_TYPE }).click();
+  const newUrl = page.url();
+
+  await page.getByLabel("Title").fill("Edge switch");
+  await page.getByRole("button", { name: "Add an option to Uplink" }).click();
+  await page.getByLabel("New option for Uplink").fill("25 Gbps");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+
+  // Still on the create form, with the title intact and the new option chosen.
+  await expect(page).toHaveURL(newUrl);
+  await expect(page.getByText('Added "25 Gbps".')).toBeVisible();
+  await expect(page.getByLabel("Title")).toHaveValue("Edge switch");
+  await expect(page.getByRole("combobox", { name: "Uplink", exact: true })).toHaveValue(
+    /[0-9a-f-]{36}/,
+  );
+
+  await page.getByRole("button", { name: "Create document" }).click();
+  await expect(page).toHaveURL(/\/documents\/[0-9a-f-]{36}$/);
+  await expect(page.getByText("25 Gbps")).toBeVisible();
 });
 
 test("promotes a local field onto the template", async ({ page }) => {

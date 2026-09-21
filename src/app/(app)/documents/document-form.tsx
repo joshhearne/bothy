@@ -17,6 +17,7 @@ import {
 import type { FormState } from "@/lib/form";
 import { useMessages } from "@/i18n/client";
 import { createDocumentAction } from "./actions";
+import { addOptionItemInlineAction } from "./inline-actions";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -30,14 +31,16 @@ function Submit({ label }: { label: string }) {
 
 /**
  * Create form. Fields come from the doc type's template; local fields and
- * reordering arrive once the document exists, in the inline editor.
+ * reordering arrive once the document exists, in the inline editor. The "+"
+ * beside a dropdown works here too: nobody should have to save a half-filled
+ * document to add the option it needs.
  */
 export function DocumentForm({
   companyId,
   docTypeId,
   locationId,
   fields,
-  options,
+  options: initialOptions,
   linkTargets,
   secretItems,
 }: {
@@ -55,12 +58,36 @@ export function DocumentForm({
   const [values, setValues] = useState<Record<string, FieldFormValue>>(() =>
     Object.fromEntries(fields.map((field) => [field.id, toFormValue(field.fieldType, null)])),
   );
+  const [options, setOptions] = useState(initialOptions);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const fieldErrors = state.fieldErrors ?? {};
   const t = useMessages();
 
+  async function addOption(listId: string, label: string): Promise<FieldOption | null> {
+    const result = await addOptionItemInlineAction(null, listId, label);
+    if (!result.ok) {
+      setNotice(null);
+      setInlineError(result.error ?? result.fieldErrors?.label ?? t.editor.failed);
+      return null;
+    }
+    setInlineError(null);
+    setNotice(t.editor.addedOption(result.data.label));
+    setOptions((current) => ({
+      ...current,
+      [listId]: [...(current[listId] ?? []), result.data],
+    }));
+    return result.data;
+  }
+
   return (
     <form action={formAction} className="flex max-w-2xl flex-col gap-6">
-      <FormError>{state.error}</FormError>
+      <FormError>{state.error ?? inlineError}</FormError>
+      {notice && (
+        <p role="status" className="text-sm text-[var(--muted-foreground)]">
+          {notice}
+        </p>
+      )}
       <input type="hidden" name="companyId" value={companyId} />
       <input type="hidden" name="docTypeId" value={docTypeId} />
       {locationId && <input type="hidden" name="locationId" value={locationId} />}
@@ -86,6 +113,11 @@ export function DocumentForm({
                     : []
             }
             error={fieldErrors[field.id]}
+            onAddOption={
+              field.optionListId
+                ? (label) => addOption(field.optionListId as string, label)
+                : undefined
+            }
           />
         </div>
       ))}
