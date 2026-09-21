@@ -202,7 +202,9 @@ Logos are PNG, JPEG, or WebP — SVG is refused, because an SVG can carry script
 and a logo is drawn on every page.
 
 The footer carries what branding does not replace: what the software is, its
-license, and a link to the source, which is what AGPL-3.0 asks for.
+license, and a link to the source, which is what AGPL-3.0 asks for. With a
+portal name set it reads "Powered by Bothy | Your Name", so the page says whose
+portal it is without hiding what it runs on.
 
 ## Who can see which companies
 

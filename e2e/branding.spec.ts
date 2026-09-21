@@ -107,7 +107,8 @@ test("the portal name replaces the product name everywhere it shows", async ({ p
   if (!anonymous) throw new Error("no browser");
   const visitor = await anonymous.newPage();
   await visitor.goto("/sign-in");
-  await expect(visitor.getByText(PORTAL)).toBeVisible();
+  // Exact: the footer now names the operator too, so a loose match finds both.
+  await expect(visitor.getByText(PORTAL, { exact: true })).toBeVisible();
   await anonymous.close();
 });
 
@@ -216,12 +217,19 @@ test("a company logo is not public, and not visible across the access boundary",
   expect(restricted).toBe("0");
 });
 
-test("the license notice survives the branding", async ({ page }) => {
+test("the license notice survives the branding, and names the operator", async ({ page }) => {
   await signInAsAdmin(page);
+
+  // A portal name makes the footer say whose portal this is.
+  await page.goto("/admin/branding");
+  await page.getByLabel("Portal name").fill("HearneTech Docs");
+  await page.getByRole("button", { name: "Save branding" }).click();
+  await expect(page.getByRole("banner")).toContainText("HearneTech Docs");
+
   await page.goto("/companies");
 
   const footer = page.getByRole("contentinfo");
-  await expect(footer).toContainText("Powered by Bothy");
+  await expect(footer).toContainText("Powered by Bothy | HearneTech Docs");
   await expect(footer).toContainText("AGPL-3.0");
   await expect(footer.getByRole("link", { name: "Source code" })).toHaveAttribute(
     "href",

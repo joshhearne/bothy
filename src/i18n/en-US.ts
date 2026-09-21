@@ -24,6 +24,8 @@ export const enUS = {
     signedInAs: "Signed in as",
     closeAccount: "Close account menu",
     poweredBy: (product: string) => `Powered by ${product}`,
+    /** With a portal name set, the footer says whose portal this is. */
+    poweredByFor: (product: string, operator: string) => `Powered by ${product} | ${operator}`,
     source: "Source code",
   },
 
