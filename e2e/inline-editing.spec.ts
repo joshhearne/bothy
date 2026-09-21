@@ -78,8 +78,10 @@ test("keeps values already typed when a field is added", async ({ page }) => {
   await page.getByRole("button", { name: "Save document" }).click();
 
   await expect(page).toHaveURL(`/documents/${documentId}`);
-  await expect(page.getByText("sw-core-01")).toBeVisible();
-  await expect(page.getByText("R4")).toBeVisible();
+  // Exact: a loose match also finds a company in the sidebar whose generated
+  // suffix happens to end in "r4", which is how this flaked on CI.
+  await expect(page.getByText("sw-core-01", { exact: true })).toBeVisible();
+  await expect(page.getByText("R4", { exact: true })).toBeVisible();
 });
 
 test("adds a dropdown option inline and selects it", async ({ page }) => {
