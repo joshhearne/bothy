@@ -25,6 +25,8 @@ export type CompanySummary = {
   id: string;
   name: string;
   isInternal: boolean;
+  /** Null means this client uses the instance's default vault. */
+  vaultProviderId: string | null;
   archivedAt: Date | null;
   locationCount: number;
   documentCount: number;
@@ -63,6 +65,7 @@ export async function listCompanies(
       id: companies.id,
       name: companies.name,
       isInternal: companies.isInternal,
+      vaultProviderId: companies.vaultProviderId,
       archivedAt: companies.archivedAt,
       locationCount: sql<number>`coalesce(${locationCount.n}, 0)`,
       documentCount: sql<number>`coalesce(${documentCount.n}, 0)`,

@@ -18,6 +18,13 @@ services:
       # link keeps secret fields as deep links; bw_serve brokers through the
       # sidecar started by the `vault` profile.
       VAULT_MODE: ${VAULT_MODE:-link}
+      # Credentials for the other vaults. Empty is dropped before validation,
+      # so a mode nobody uses costs nothing.
+      OP_CONNECT_URL: ${OP_CONNECT_URL:-}
+      OP_CONNECT_TOKEN: ${OP_CONNECT_TOKEN:-}
+      HASHICORP_VAULT_ADDR: ${HASHICORP_VAULT_ADDR:-}
+      HASHICORP_VAULT_TOKEN: ${HASHICORP_VAULT_TOKEN:-}
+      HASHICORP_VAULT_MOUNT: ${HASHICORP_VAULT_MOUNT:-secret}
     # Host port only. The container always listens on 3000. Set APP_BIND to
     # 127.0.0.1 when a reverse proxy or tunnel on this host is the only thing
     # that should reach it.

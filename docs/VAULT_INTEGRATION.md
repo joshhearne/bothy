@@ -9,12 +9,33 @@ Bothy stores references and brokers access.
 - **Bitwarden Secrets Manager** is a separate product for machine secrets, not a password vault, and Vaultwarden does not implement it.
 - The **Vault Management API** (`bw serve`, from the official Bitwarden CLI) runs locally, holds an unlocked vault, and exposes REST endpoints for items, folders, collections, and TOTP. It works against Bitwarden cloud, self-hosted Bitwarden, and Vaultwarden. This is the integration path.
 
+## More than one vault
+An MSP inherits whatever each client already uses, so a company may name its
+own provider (`companies.vault_provider_id`); a company that names none uses
+the instance default. Collection mappings are stored per provider
+(`external_refs.system = 'vault:<provider id>'`), so two vaults can both map
+the same company without colliding.
+
 ## Provider modes
 | Mode | Works with | What you get |
 |---|---|---|
 | `link` | Anything | secret_ref stores a deep link to the item in the web vault. Zero trust required. Default. |
 | `bw_serve` | Bitwarden cloud, self-hosted Bitwarden, Vaultwarden | Search/pick items, show username/URI inline, reveal password and TOTP on click, create items from a doc, map companies to collections |
 | `bitwarden_public_api` (add-on) | Bitwarden Teams/Enterprise only | Auto-create a collection per company, grant groups, pull vault event logs into the audit view |
+| `op_connect` | 1Password Business/Teams | A self-hosted Connect server on your own network, reached with a bearer token. Search, reveal, TOTP, and item creation. An item is addressed `vaultId/itemId`, and a company maps to 1Password vault ids. **Written but not yet verified end to end — see below.** |
+| `hashicorp_kv` | HashiCorp Vault, KV v2 | A company maps to a path prefix and each secret under it is an item. `username`/`password`/`totp`/`url` keys are read by convention. Read-only: writing into somebody's KV tree belongs to whoever owns the policies. **Written but not yet verified end to end.** |
+
+### What is verified, and what is not
+The Bitwarden path is covered end to end against a stand-in sidecar
+(`e2e/vault.spec.ts`), and the multi-provider refactor is covered by it too.
+
+The 1Password and HashiCorp providers are written against the documented APIs
+and compile, and the TOTP computation they rely on is checked against the
+RFC 6238 vectors, but neither has been exercised against a live server or a
+passing end-to-end test. `e2e/op-connect.spec.ts` and its stand-in Connect
+server exist and are skipped: the spec does not yet drive the admin form far
+enough to switch a provider's mode. Treat both providers as unproven until
+that lands.
 
 ## Architecture (bw_serve)
 ```

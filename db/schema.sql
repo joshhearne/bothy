@@ -312,3 +312,11 @@ ALTER TABLE companies ADD COLUMN brand_scheme text NOT NULL DEFAULT 'light'
 ALTER TABLE companies ADD COLUMN alt_accent text;
 ALTER TABLE companies ADD COLUMN alt_logo_key text;
 ALTER TABLE companies ADD COLUMN alt_logo_mime text;
+
+-- ---------- A vault per company ----------
+-- An MSP inherits whatever each client already uses, so a company may name its
+-- own provider. Null means the instance default.
+ALTER TABLE companies ADD COLUMN vault_provider_id uuid REFERENCES vault_providers(id);
+
+-- Collection mappings are per provider: 'vault:<provider id>' rather than a
+-- single 'bitwarden', so two vaults can both map the same company.

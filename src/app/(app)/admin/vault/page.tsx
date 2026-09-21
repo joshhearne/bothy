@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 import { canManageIntegrations, requireScopedUser } from "@/server/auth/session";
 import { listCompanies } from "@/server/services/companies";
 import { listRefsForSystem } from "@/server/services/external-refs";
-import { BITWARDEN_SYSTEM, getActiveVault, listVaultProviders } from "@/server/services/vault";
+import { getActiveVault, listVaultProviders, mappingSystem } from "@/server/services/vault";
 import { getMessages } from "@/i18n/server";
 import { MapCollectionForm, VaultProviderForm } from "../vault-forms";
-import { unmapCollectionAction } from "../vault-actions";
+import { setCompanyVaultAction, unmapCollectionAction } from "../vault-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +22,19 @@ export default async function VaultPage() {
 
   const t = await getMessages();
 
+  /*
+   * A company's mappings belong to the vault it uses, so each row is read
+   * against that provider rather than against a single instance-wide one.
+   */
+  const fallback = providers.find((provider) => provider.enabled) ?? providers[0];
   const mappings = await Promise.all(
-    companies.map(
-      async (company) =>
-        [company, await listRefsForSystem("company", company.id, BITWARDEN_SYSTEM)] as const,
-    ),
+    companies.map(async (company) => {
+      const providerId = company.vaultProviderId ?? fallback?.id ?? null;
+      const refs = providerId
+        ? await listRefsForSystem("company", company.id, mappingSystem(providerId))
+        : [];
+      return { company, providerId, refs };
+    }),
   );
 
   return (
@@ -91,13 +99,37 @@ export default async function VaultPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold tracking-tight">{t.admin.vault.collections}</h2>
         <p className="text-sm text-[var(--muted-foreground)]">
-          {t.admin.vault.collectionsHint}
+          {t.admin.vault.collectionsHint} {t.admin.vault.companyVaultHint}
         </p>
 
         <ul className="flex flex-col gap-2">
-          {mappings.map(([company, refs]) => (
+          {mappings.map(({ company, refs }) => (
             <li key={company.id} className="flex flex-wrap items-center gap-3 rounded-md border px-4 py-3">
               <span className="min-w-0 flex-1 font-medium">{company.name}</span>
+
+              <form action={setCompanyVaultAction} className="flex items-center gap-2">
+                <input type="hidden" name="companyId" value={company.id} />
+                <label className="sr-only" htmlFor={`vault-${company.id}`}>
+                  {t.admin.vault.companyVault}
+                </label>
+                <select
+                  id={`vault-${company.id}`}
+                  name="providerId"
+                  defaultValue={company.vaultProviderId ?? ""}
+                  className="h-9 rounded-md border bg-transparent px-2 text-sm"
+                >
+                  <option value="">{t.admin.vault.defaultVault}</option>
+                  {providers.map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.name}
+                    </option>
+                  ))}
+                </select>
+                <Button type="submit" variant="outline" size="sm">
+                  {t.admin.vault.setVault}
+                </Button>
+              </form>
+
               {refs.length === 0 ? (
                 <span className="text-sm text-[var(--muted-foreground)]">
                   {t.admin.vault.noneMapped}
@@ -119,6 +151,7 @@ export default async function VaultPage() {
 
         <MapCollectionForm
           companies={companies.map((company) => ({ id: company.id, name: company.name }))}
+          providers={providers.map((provider) => ({ id: provider.id, name: provider.name }))}
         />
       </section>
     </div>

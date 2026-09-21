@@ -294,12 +294,10 @@ export async function loadSecretItems(
   const secretFields = fieldList.filter((field) => field.fieldType === "secret_ref");
   if (secretFields.length === 0) return { index, vault: null };
 
-  const [{ items, vault }, collectionIds] = await Promise.all([
-    listCompanyVaultItems(companyId, scope),
-    listCompanyCollections(companyId),
-  ]);
-
+  const { items, vault } = await listCompanyVaultItems(companyId, scope);
   if (!vault) return { index, vault: null };
+
+  const collectionIds = await listCompanyCollections(companyId, vault.row.id);
 
   for (const field of secretFields) {
     const byItem = new Map<string, Record<string, unknown>>();

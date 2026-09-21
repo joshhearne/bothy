@@ -99,6 +99,8 @@ export const companies = pgTable("companies", {
   isInternal: boolean("is_internal").notNull().default(false),
   notes: text("notes"), // markdown
   brandScheme: text("brand_scheme").notNull().default("light"),
+  /** Which vault this client's secrets live in. Null means the default one. */
+  vaultProviderId: uuid("vault_provider_id"),
   accent: text("accent"), // #rrggbb, validated in app code
   altAccent: text("alt_accent"),
   logoKey: text("logo_key"),

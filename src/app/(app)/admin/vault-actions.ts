@@ -13,7 +13,8 @@ import { NotFoundError } from "@/server/services/companies";
 import {
   createVaultProvider,
   updateVaultProvider,
-  BITWARDEN_SYSTEM,
+  mappingSystem,
+  setCompanyVaultProvider,
 } from "@/server/services/vault";
 import { removeExternalRef, upsertExternalRef } from "@/server/services/external-refs";
 import { setCanRevealSecrets, setUserCompanies, setUserRole } from "@/server/services/users";
@@ -60,7 +61,10 @@ export async function mapCollectionAction(
 ): Promise<FormState> {
   const companyId = text(formData, "companyId");
   const collectionId = text(formData, "collectionId");
-  if (!companyId || !collectionId) return { error: "Choose a company and a collection id" };
+  const providerId = text(formData, "providerId");
+  if (!companyId || !collectionId || !providerId) {
+    return { error: "Choose a company, a vault, and a collection id" };
+  }
 
   try {
     const user = await requireAdmin();
@@ -68,7 +72,7 @@ export async function mapCollectionAction(
       {
         entity: "company",
         entity_id: companyId,
-        system: BITWARDEN_SYSTEM,
+        system: mappingSystem(providerId),
         external_id: collectionId,
       },
       user.id,
@@ -125,4 +129,20 @@ export async function setUserCompaniesAction(formData: FormData): Promise<void> 
   );
 
   revalidatePath("/admin/users");
+}
+
+/** Which vault a client's secrets live in. Empty means the instance default. */
+export async function setCompanyVaultAction(formData: FormData): Promise<void> {
+  const companyId = text(formData, "companyId");
+  if (!companyId) return;
+
+  const user = await requireAdmin();
+  await setCompanyVaultProvider(
+    companyId,
+    text(formData, "providerId") ?? null,
+    user.id,
+    await getCompanyScope(user),
+  );
+
+  revalidatePath("/admin/vault");
 }

@@ -43,6 +43,13 @@
       "when": 1789939652474,
       "tag": "0005_branding_per_theme",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789954400061,
+      "tag": "0006_vault_per_company",
+      "breakpoints": true
     }
   ]
 }

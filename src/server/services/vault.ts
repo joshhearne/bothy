@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/server/db";
-import { vaultProviders } from "@/server/db/schema";
+import { companies, vaultProviders } from "@/server/db/schema";
 import { env } from "@/lib/env";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/companies";
@@ -10,6 +10,8 @@ import { listRefsForSystem } from "@/server/services/external-refs";
 import { assertInScope, type CompanyScope } from "@/server/auth/company-scope";
 import { LinkVaultProvider } from "@/server/vault/link-provider";
 import { BwServeVaultProvider } from "@/server/vault/bw-serve-provider";
+import { OpConnectVaultProvider } from "@/server/vault/op-connect-provider";
+import { HashicorpVaultProvider } from "@/server/vault/hashicorp-provider";
 import {
   secretRefSchema,
   VAULT_KINDS,
@@ -20,7 +22,15 @@ import {
   type VaultStatus,
 } from "@/server/vault/types";
 
-/** The system name a company to collection mapping is stored under. */
+/**
+ * Collection mappings are stored per provider, so two vaults can both map the
+ * same company without colliding.
+ */
+export function mappingSystem(providerId: string): string {
+  return `vault:${providerId}`;
+}
+
+/** The system name mappings used before there could be more than one vault. */
 export const BITWARDEN_SYSTEM = "bitwarden";
 
 export const vaultProviderInputSchema = z.object({
@@ -115,17 +125,45 @@ export async function updateVaultProvider(
   });
 }
 
+/**
+ * A provider row says which vault this is; the environment holds what is
+ * needed to reach it. A provider whose credentials are missing falls back to
+ * link mode rather than failing, which is the same answer a sidecar that is
+ * down gives.
+ */
 function buildProvider(row: VaultProviderRow): VaultProvider {
-  if (row.kind === "bw_serve" && env.VAULT_MODE === "bw_serve" && env.BW_SERVE_URL) {
-    const accessToken =
-      env.BW_SERVE_ACCESS_CLIENT_ID && env.BW_SERVE_ACCESS_CLIENT_SECRET
-        ? {
-            clientId: env.BW_SERVE_ACCESS_CLIENT_ID,
-            clientSecret: env.BW_SERVE_ACCESS_CLIENT_SECRET,
-          }
-        : undefined;
+  switch (row.kind) {
+    case "bw_serve": {
+      if (env.VAULT_MODE !== "bw_serve" || !env.BW_SERVE_URL) break;
 
-    return new BwServeVaultProvider(env.BW_SERVE_URL, row.webVaultUrl, accessToken);
+      const accessToken =
+        env.BW_SERVE_ACCESS_CLIENT_ID && env.BW_SERVE_ACCESS_CLIENT_SECRET
+          ? {
+              clientId: env.BW_SERVE_ACCESS_CLIENT_ID,
+              clientSecret: env.BW_SERVE_ACCESS_CLIENT_SECRET,
+            }
+          : undefined;
+
+      return new BwServeVaultProvider(env.BW_SERVE_URL, row.webVaultUrl, accessToken);
+    }
+
+    case "op_connect": {
+      if (!env.OP_CONNECT_URL || !env.OP_CONNECT_TOKEN) break;
+      return new OpConnectVaultProvider(env.OP_CONNECT_URL, env.OP_CONNECT_TOKEN, row.webVaultUrl);
+    }
+
+    case "hashicorp_kv": {
+      if (!env.HASHICORP_VAULT_ADDR || !env.HASHICORP_VAULT_TOKEN) break;
+      return new HashicorpVaultProvider(
+        env.HASHICORP_VAULT_ADDR,
+        env.HASHICORP_VAULT_TOKEN,
+        env.HASHICORP_VAULT_MOUNT,
+        row.webVaultUrl,
+      );
+    }
+
+    default:
+      break;
   }
   return new LinkVaultProvider(row.webVaultUrl);
 }
@@ -143,14 +181,16 @@ export type ActiveVault = {
  * or locked (docs/VAULT_INTEGRATION.md: "secret fields degrade to link mode
  * and show a warning").
  */
-export async function getActiveVault(): Promise<ActiveVault | null> {
-  const [row] = await db
-    .select()
-    .from(vaultProviders)
-    .where(eq(vaultProviders.enabled, true))
-    .orderBy(asc(vaultProviders.name))
-    .limit(1);
-  if (!row) return null;
+export async function getActiveVault(providerId?: string | null): Promise<ActiveVault | null> {
+  const [row] = providerId
+    ? await db.select().from(vaultProviders).where(eq(vaultProviders.id, providerId)).limit(1)
+    : await db
+        .select()
+        .from(vaultProviders)
+        .where(eq(vaultProviders.enabled, true))
+        .orderBy(asc(vaultProviders.name))
+        .limit(1);
+  if (!row || !row.enabled) return null;
 
   const provider = buildProvider(row);
   if (!provider.canBroker) {
@@ -183,9 +223,59 @@ export async function getActiveVault(): Promise<ActiveVault | null> {
   return { row, provider, status: "ok", brokering: true };
 }
 
-/** Bitwarden collection ids mapped to a company. */
-export async function listCompanyCollections(companyId: string): Promise<string[]> {
-  const rows = await listRefsForSystem("company", companyId, BITWARDEN_SYSTEM);
+/**
+ * Which vault holds this client's secrets: the one the company names, or the
+ * instance default when it names none.
+ */
+export async function getVaultForCompany(companyId: string): Promise<ActiveVault | null> {
+  const [row] = await db
+    .select({ providerId: companies.vaultProviderId })
+    .from(companies)
+    .where(eq(companies.id, companyId))
+    .limit(1);
+
+  const chosen = row?.providerId ? await getActiveVault(row.providerId) : null;
+  // A company pointing at a provider that has been turned off falls back
+  // rather than losing its secrets entirely.
+  return chosen ?? (await getActiveVault());
+}
+
+/** Points one client at the vault its secrets actually live in. */
+export async function setCompanyVaultProvider(
+  companyId: string,
+  providerId: string | null,
+  actorId: string,
+  scope: CompanyScope,
+): Promise<void> {
+  assertInScope(scope, companyId);
+
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(companies)
+      .set({ vaultProviderId: providerId })
+      .where(eq(companies.id, companyId))
+      .returning({ id: companies.id });
+    if (!row) throw new NotFoundError("Company");
+
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "vault_provider.assigned",
+        entity: "company",
+        entityId: companyId,
+        detail: { providerId },
+      },
+      tx,
+    );
+  });
+}
+
+/** Collection or vault ids mapped to a company, within one provider. */
+export async function listCompanyCollections(
+  companyId: string,
+  providerId: string,
+): Promise<string[]> {
+  const rows = await listRefsForSystem("company", companyId, mappingSystem(providerId));
   return rows.map((row) => row.externalId);
 }
 
@@ -199,10 +289,10 @@ export async function listCompanyVaultItems(
   q?: string,
 ): Promise<{ items: VaultItemSummary[]; vault: ActiveVault | null }> {
   assertInScope(scope, companyId);
-  const vault = await getActiveVault();
+  const vault = await getVaultForCompany(companyId);
   if (!vault || !vault.brokering) return { items: [], vault };
 
-  const collectionIds = await listCompanyCollections(companyId);
+  const collectionIds = await listCompanyCollections(companyId, vault.row.id);
   if (collectionIds.length === 0) return { items: [], vault };
 
   const items = await vault.provider.listItems({ collectionIds, q });
@@ -250,11 +340,11 @@ export type RevealActor = {
  * client's vault.
  */
 async function assertItemInScope(companyId: string, itemId: string): Promise<ActiveVault> {
-  const vault = await getActiveVault();
+  const vault = await getVaultForCompany(companyId);
   if (!vault) throw new NotFoundError("Vault provider");
   if (!vault.brokering) throw new VaultNotBrokeredError();
 
-  const collectionIds = await listCompanyCollections(companyId);
+  const collectionIds = await listCompanyCollections(companyId, vault.row.id);
   if (collectionIds.length === 0) throw new SecretScopeError();
 
   const item = await vault.provider.getItem(itemId);
@@ -332,12 +422,12 @@ export async function createVaultItem(input: {
   scope: CompanyScope;
 }): Promise<SecretRef> {
   assertInScope(input.scope, input.companyId);
-  const vault = await getActiveVault();
+  const vault = await getVaultForCompany(input.companyId);
   if (!vault) throw new NotFoundError("Vault provider");
   if (!vault.brokering) throw new VaultNotBrokeredError();
   if (!vault.row.allowCreate) throw new VaultNotBrokeredError();
 
-  const collectionIds = await listCompanyCollections(input.companyId);
+  const collectionIds = await listCompanyCollections(input.companyId, vault.row.id);
   if (!collectionIds.includes(input.collectionId)) throw new SecretScopeError();
 
   const item = await vault.provider.createItem({

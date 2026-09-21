@@ -1,5 +1,6 @@
 "use client";
 
+import { VAULT_KINDS } from "@/server/vault/types";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
@@ -64,8 +65,11 @@ export function VaultProviderForm({
         hint={t.admin.vault.modeHint}
       >
         <select id="kind" name="kind" defaultValue={provider?.kind ?? "link"} className={selectClass}>
-          <option value="link">link</option>
-          <option value="bw_serve">bw_serve</option>
+          {VAULT_KINDS.map((kind) => (
+            <option key={kind} value={kind}>
+              {kind}
+            </option>
+          ))}
         </select>
       </Field>
 
@@ -117,7 +121,13 @@ export function VaultProviderForm({
   );
 }
 
-export function MapCollectionForm({ companies }: { companies: { id: string; name: string }[] }) {
+export function MapCollectionForm({
+  companies,
+  providers,
+}: {
+  companies: { id: string; name: string }[];
+  providers: { id: string; name: string }[];
+}) {
   const [state, formAction] = useActionState<FormState, FormData>(mapCollectionAction, {});
   const t = useMessages();
 
@@ -135,6 +145,18 @@ export function MapCollectionForm({ companies }: { companies: { id: string; name
             {companies.map((company) => (
               <option key={company.id} value={company.id}>
                 {company.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      <div className="flex-1">
+        <Field id="providerId" label={t.admin.vault.provider}>
+          <select id="providerId" name="providerId" className={selectClass} required>
+            {providers.map((provider) => (
+              <option key={provider.id} value={provider.id}>
+                {provider.name}
               </option>
             ))}
           </select>

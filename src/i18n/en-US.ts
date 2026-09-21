@@ -371,8 +371,14 @@ export const enUS = {
     vault: {
       title: "Vault",
       subtitle:
-        "Bothy stores references, never passwords. Credentials stay in your Bitwarden or Vaultwarden.",
+        "Bothy stores references, never passwords. Credentials stay in the vault they already live in.",
       providers: "Providers",
+      provider: "Vault",
+      companyVault: "Which vault holds this client's secrets",
+      companyVaultHint:
+        "An MSP inherits whatever each client already uses, so a company may name its own vault.",
+      defaultVault: "Instance default",
+      setVault: "Set vault",
       noProvider: "No provider configured yet.",
       addProvider: "Add a provider",
       addProviderSubmit: "Add provider",

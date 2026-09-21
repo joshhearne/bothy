@@ -6,7 +6,15 @@ import { z } from "zod";
  * docs/VAULT_INTEGRATION.md.
  */
 
-export const VAULT_KINDS = ["link", "bw_serve", "bitwarden_public_api"] as const;
+export const VAULT_KINDS = [
+  "link",
+  "bw_serve",
+  "bitwarden_public_api",
+  "op_connect",
+  "hashicorp_kv",
+  "passbolt",
+  "keeper",
+] as const;
 export type VaultKind = (typeof VAULT_KINDS)[number];
 
 /** Non-secret item metadata. Everything here is safe to display and cache. */

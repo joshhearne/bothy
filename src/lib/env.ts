@@ -33,7 +33,9 @@ const envSchema = z.object({
   S3_SECRET_KEY: z.string().optional(),
 
   // Vault. Validated here so a bad value fails at boot, not on first reveal.
-  VAULT_MODE: z.enum(["link", "bw_serve"]).default("link"),
+  VAULT_MODE: z
+    .enum(["link", "bw_serve", "op_connect", "hashicorp_kv", "passbolt", "keeper"])
+    .default("link"),
   BW_SERVE_URL: z.string().default("http://bw-serve:8087"),
   BW_WEB_VAULT_URL: z.string().optional(),
   BW_SYNC_INTERVAL_MIN: z.coerce.number().int().min(1).max(1440).default(5),
@@ -43,6 +45,27 @@ const envSchema = z.object({
    */
   BW_SERVE_ACCESS_CLIENT_ID: z.string().optional(),
   BW_SERVE_ACCESS_CLIENT_SECRET: z.string().optional(),
+
+  /*
+   * Other vaults. Credentials stay in the environment or a Docker secret, as
+   * Bitwarden's do; what goes in the database is only the non-secret shape of
+   * a provider. A provider whose credentials are absent reports itself
+   * unreachable and its secret fields fall back to deep links.
+   */
+  OP_CONNECT_URL: z.string().optional(),
+  OP_CONNECT_TOKEN: z.string().optional(),
+
+  HASHICORP_VAULT_ADDR: z.string().optional(),
+  HASHICORP_VAULT_TOKEN: z.string().optional(),
+  HASHICORP_VAULT_MOUNT: z.string().default("secret"),
+
+  PASSBOLT_URL: z.string().optional(),
+  /** ASCII-armoured private key for the API user, and its passphrase. */
+  PASSBOLT_PRIVATE_KEY: z.string().optional(),
+  PASSBOLT_PASSPHRASE: z.string().optional(),
+
+  /** A Keeper Secrets Manager configuration, base64 as the SDK writes it. */
+  KEEPER_CONFIG: z.string().optional(),
 })
   .superRefine((value, ctx) => {
     // All three or none: a half-configured provider fails at sign-in, not boot.
@@ -69,6 +92,23 @@ const envSchema = z.object({
         message: "BW_SERVE_URL is required when VAULT_MODE is bw_serve",
       });
     }
+    // Each brokering mode needs its own credentials before it can broker.
+    const required: Record<string, (keyof typeof value)[]> = {
+      op_connect: ["OP_CONNECT_URL", "OP_CONNECT_TOKEN"],
+      hashicorp_kv: ["HASHICORP_VAULT_ADDR", "HASHICORP_VAULT_TOKEN"],
+      passbolt: ["PASSBOLT_URL", "PASSBOLT_PRIVATE_KEY", "PASSBOLT_PASSPHRASE"],
+      keeper: ["KEEPER_CONFIG"],
+    };
+    for (const key of required[value.VAULT_MODE] ?? []) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: "custom",
+          path: [key],
+          message: `${key} is required when VAULT_MODE is ${value.VAULT_MODE}`,
+        });
+      }
+    }
+
     if (value.STORAGE_DRIVER !== "s3") return;
     // Fail at boot rather than on the first upload.
     for (const key of ["S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY"] as const) {
