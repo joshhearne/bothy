@@ -231,7 +231,7 @@ ALTER TABLE users ADD COLUMN can_reveal_secrets boolean NOT NULL DEFAULT false;
 CREATE TABLE vault_providers (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name          text NOT NULL,                  -- e.g. "Main Vaultwarden"
-  kind          text NOT NULL CHECK (kind IN ('link','bw_serve','bitwarden_public_api')),
+  kind          text NOT NULL CHECK (kind IN ('link','bw_serve','bitwarden_public_api','op_connect','hashicorp_kv','passbolt','keeper')),
   web_vault_url text,                           -- for deep links
   organization_id text,                         -- Bitwarden org id
   allow_create  boolean NOT NULL DEFAULT false, -- create items from docs

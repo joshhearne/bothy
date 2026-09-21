@@ -33,13 +33,6 @@ let documentId = "";
 
 test.describe.configure({ mode: "serial" });
 
-/*
- * Held back: the provider itself is written and the fake Connect server
- * answers, but this spec does not yet get through the admin form to switch a
- * provider's mode, so it proves nothing and would fail CI. The 1Password path
- * is therefore unverified end to end — see the note in docs/VAULT_INTEGRATION.md.
- */
-test.skip();
 
 function setVaultMode(mode: string, extra: Record<string, string> = {}): void {
   execFileSync("docker", ["compose", "-p", PROJECT, "up", "-d", "--force-recreate", "app"], {
@@ -133,7 +126,8 @@ test("choosing an item stores a reference, never the password", async ({ page })
   await signInAsAdmin(page);
   await page.goto(`/documents/${documentId}/edit`);
 
-  await page.getByLabel("Credentials").selectOption({ label: OP_ITEM_NAME });
+  // Exact: the drag handle beside it is labelled "Reorder Credentials".
+  await page.getByLabel("Credentials", { exact: true }).selectOption({ label: OP_ITEM_NAME });
   await page.getByRole("button", { name: "Save document" }).click();
   await expect(page).toHaveURL(`/documents/${documentId}`);
 
@@ -152,9 +146,10 @@ test("the password and the one-time code are fetched live", async ({ page }) => 
   await page.getByRole("button", { name: "Reveal password" }).click();
   await expect(page.getByText(OP_ITEM_PASSWORD)).toBeVisible();
 
-  // Connect hands back a seed rather than a code, so the code is computed here.
+  // Connect hands back a seed rather than a code, so the code is computed
+  // here and shown with the seconds left on it.
   await page.getByRole("button", { name: /TOTP|one-time/i }).first().click();
-  await expect(page.getByText(/^\d{6}$/)).toBeVisible();
+  await expect(page.getByText(/\d{6} · \d+s/)).toBeVisible();
 
   expect(
     psql(`select count(*) from audit_log where action = 'secret.reveal';`),

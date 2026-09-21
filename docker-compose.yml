@@ -68,6 +68,27 @@ services:
     secrets: [bw_master_password]
     networks: [internal]
 
+  # Optional: enable with `docker compose --profile onepassword up -d`
+  # Connect holds the credentials that reach 1Password. Like bw-serve it never
+  # publishes a port: only the app, on the internal network, may talk to it.
+  op-connect-api:
+    profiles: ["onepassword"]
+    image: 1password/connect-api:latest
+    restart: unless-stopped
+    volumes:
+      - ./secrets/1password-credentials.json:/home/opuser/.op/1password-credentials.json:ro
+      - op-connect-data:/home/opuser/.op/data
+    networks: [internal]
+
+  op-connect-sync:
+    profiles: ["onepassword"]
+    image: 1password/connect-sync:latest
+    restart: unless-stopped
+    volumes:
+      - ./secrets/1password-credentials.json:/home/opuser/.op/1password-credentials.json:ro
+      - op-connect-data:/home/opuser/.op/data
+    networks: [internal]
+
 networks:
   public:
   internal:
@@ -80,3 +101,4 @@ secrets:
 volumes:
   pgdata:
   uploads:
+  op-connect-data:

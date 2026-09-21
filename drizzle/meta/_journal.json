@@ -57,6 +57,13 @@
       "when": 1789958719928,
       "tag": "0007_powered_by_toggle",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789960014331,
+      "tag": "0008_vault_kinds",
+      "breakpoints": true
     }
   ]
 }

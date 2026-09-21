@@ -455,6 +455,6 @@ export const vaultProviders = pgTable(
     enabled: boolean("enabled").notNull().default(true),
   },
   (t) => [
-    check("vault_providers_kind_check", sql`${t.kind} IN ('link','bw_serve','bitwarden_public_api')`),
+    check("vault_providers_kind_check", sql`${t.kind} IN ('link','bw_serve','bitwarden_public_api','op_connect','hashicorp_kv','passbolt','keeper')`),
   ],
 );

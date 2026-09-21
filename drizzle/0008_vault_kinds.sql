@@ -1,0 +1,2 @@
+ALTER TABLE "vault_providers" DROP CONSTRAINT "vault_providers_kind_check";--> statement-breakpoint
+ALTER TABLE "vault_providers" ADD CONSTRAINT "vault_providers_kind_check" CHECK ("vault_providers"."kind" IN ('link','bw_serve','bitwarden_public_api','op_connect','hashicorp_kv','passbolt','keeper'));

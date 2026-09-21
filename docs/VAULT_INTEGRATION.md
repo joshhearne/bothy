@@ -25,17 +25,38 @@ the same company without colliding.
 | `op_connect` | 1Password Business/Teams | A self-hosted Connect server on your own network, reached with a bearer token. Search, reveal, TOTP, and item creation. An item is addressed `vaultId/itemId`, and a company maps to 1Password vault ids. **Written but not yet verified end to end — see below.** |
 | `hashicorp_kv` | HashiCorp Vault, KV v2 | A company maps to a path prefix and each secret under it is an item. `username`/`password`/`totp`/`url` keys are read by convention. Read-only: writing into somebody's KV tree belongs to whoever owns the policies. **Written but not yet verified end to end.** |
 
-### What is verified, and what is not
-The Bitwarden path is covered end to end against a stand-in sidecar
-(`e2e/vault.spec.ts`), and the multi-provider refactor is covered by it too.
+### Setting up 1Password Connect
+1. In 1Password (Business or Teams), go to **Developer → Infrastructure
+   Secrets Management → Other** and set up a Connect server. Choose the vaults
+   it may read. You get two things: a `1password-credentials.json` file and an
+   access token.
+2. Put the file at `./secrets/1password-credentials.json` and `chmod 600` it.
+   Put the token in `.env` as `OP_CONNECT_TOKEN`, and set
+   `OP_CONNECT_URL=http://op-connect-api:8080` and `VAULT_MODE=op_connect`.
+3. Start it: `docker compose --profile onepassword up -d`. Connect runs on the
+   internal network and never publishes a port, exactly like bw-serve.
+4. In Bothy, **Admin → Vault**, add a provider with mode `op_connect`, then map
+   each company to the 1Password **vault id** its secrets live in. A vault id
+   is the `id` from `GET /v1/vaults` on Connect, or `op vault list --format
+   json` with the CLI.
 
-The 1Password and HashiCorp providers are written against the documented APIs
-and compile, and the TOTP computation they rely on is checked against the
-RFC 6238 vectors, but neither has been exercised against a live server or a
-passing end-to-end test. `e2e/op-connect.spec.ts` and its stand-in Connect
-server exist and are skipped: the spec does not yet drive the admin form far
-enough to switch a provider's mode. Treat both providers as unproven until
-that lands.
+An item is addressed `vaultId/itemId`, so a secret reference records both, and
+a company's picker only ever searches the vaults mapped to that company.
+
+### What is verified, and what is not
+The Bitwarden path and the 1Password Connect path are both covered end to end
+against stand-in servers (`e2e/vault.spec.ts`, `e2e/op-connect.spec.ts`):
+picking an item, storing a reference without the secret, revealing the password
+and a one-time code, and degrading to a link when the server stops answering.
+The multi-provider refactor is covered by both.
+
+Neither has been run against a live account — the stand-ins answer the
+documented API, which proves the client but not the documentation. The TOTP
+computation, which Connect needs because it returns a seed rather than a code,
+is checked against all four published RFC 6238 vectors.
+
+The HashiCorp KV provider is written against the documented API and compiles,
+but has no end-to-end test and has not met a live Vault. Treat it as unproven.
 
 ## Architecture (bw_serve)
 ```
