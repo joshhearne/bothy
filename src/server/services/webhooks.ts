@@ -17,6 +17,8 @@ export const WEBHOOK_EVENTS = [
   "document.updated",
   "document.archived",
   "field.promoted",
+  /** A schedule has reached its lead time, or gone past its date. */
+  "document.due",
 ] as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];

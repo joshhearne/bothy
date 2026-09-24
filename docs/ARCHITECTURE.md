@@ -77,6 +77,19 @@ decides *where*.
   picker, external-ref mapping, `/lookup`, `/go/...` deep links, and the MCP
   tools, which inherit the key's companies.
 
+## Schedules
+`document_schedules` is one row per document: a kind (`expiry` or
+`maintenance`), the next date, a lead time, and for a recurring job how often
+it comes round. Dates are calendar days, not instants — a certificate expires
+on a date, and the reader's timezone should not decide whether it is overdue.
+
+- The worker announces what has come due as a `document.due` webhook, once per
+  date (`notified_for`). `/api/internal/webhooks` does the same pass for
+  deployments with no timer, which is how a Worker deployment gets them at all.
+- Marking a recurring job done steps from the date that *was* due, catching up
+  in whole intervals if it was missed for months, so lateness never compounds
+  and no pile of missed dates is left behind (`src/server/schedules/due.ts`).
+
 ## Administration
 Admin is its own route group with a secondary rail, not a section of the
 primary one: the primary rail is the documentation, which is what people come

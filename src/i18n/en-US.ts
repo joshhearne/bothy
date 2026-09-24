@@ -144,6 +144,28 @@ export const enUS = {
     addFile: "Add a file",
     upload: "Upload",
     uploading: "Uploading…",
+    schedule: {
+      heading: "Review schedule",
+      subtitle: "When this needs looking at again.",
+      none: "Nothing scheduled.",
+      kind: "What kind",
+      expiry: "A date it expires",
+      maintenance: "A job that comes round",
+      dueOn: "Next due",
+      interval: "How often, in days",
+      intervalHint: "90 for quarterly, 365 for yearly.",
+      lead: "Warn this many days ahead",
+      note: "Note",
+      save: "Save schedule",
+      clear: "Clear schedule",
+      done: "Mark done",
+      overdue: (days: number) => `Overdue by ${days} ${days === 1 ? "day" : "days"}.`,
+      dueSoon: (days: number) =>
+        days === 0 ? "Due today." : `Due in ${days} ${days === 1 ? "day" : "days"}.`,
+      ok: (date: string) => `Next due ${date}.`,
+      lastDone: (date: string) => `Last done ${date}.`,
+    },
+
     rack: {
       heading: "Rack elevation",
       subtitle: "What is mounted where, and a drawing you can print.",
@@ -303,6 +325,16 @@ export const enUS = {
 
   admin: {
     subtitle: "Everything that is set once for the whole instance.",
+    notifications: {
+      title: "Notifications",
+      subtitle:
+        "What is due or overdue across every company you can see. A webhook goes out when something arrives here.",
+      empty: "Nothing is due.",
+      overdue: "Overdue",
+      dueSoon: "Due soon",
+      open: "Open",
+      due: (date: string) => `due ${date}`,
+    },
     settings: {
       language: "Language",
       languageHint: "What a reader gets before they choose for themselves.",

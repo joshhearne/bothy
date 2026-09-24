@@ -10,6 +10,7 @@ import {
   bigserial,
   boolean,
   check,
+  date,
   customType,
   index,
   integer,
@@ -396,6 +397,40 @@ export const instanceSettings = pgTable(
     updatedBy: uuid("updated_by").references(() => users.id),
   },
   (t) => [check("instance_settings_singleton", sql`${t.id}`)],
+);
+
+/**
+ * When a document needs looking at again: a certificate that expires, a UPS
+ * battery due for a swap, a contract up for renewal. One row per document,
+ * either a date that arrives once or a job that comes round again.
+ */
+export const documentSchedules = pgTable(
+  "document_schedules",
+  {
+    documentId: uuid("document_id")
+      .primaryKey()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    /** The next date this matters. */
+    dueOn: date("due_on").notNull(),
+    /** Maintenance only: how often it comes round. */
+    intervalDays: integer("interval_days"),
+    /** How long before the date it starts asking for attention. */
+    leadDays: integer("lead_days").notNull().default(30),
+    lastDoneOn: date("last_done_on"),
+    note: text("note"),
+    /** The due date an event was last sent for, so nothing is announced twice. */
+    notifiedFor: date("notified_for"),
+  },
+  (t) => [
+    check("document_schedules_kind_check", sql`${t.kind} IN ('expiry','maintenance')`),
+    check("document_schedules_lead_check", sql`${t.leadDays} BETWEEN 0 AND 365`),
+    check(
+      "document_schedules_interval_check",
+      sql`${t.intervalDays} IS NULL OR ${t.intervalDays} BETWEEN 1 AND 3650`,
+    ),
+    index("document_schedules_due_idx").on(t.dueOn),
+  ],
 );
 
 /* ---------- Racks ---------- */

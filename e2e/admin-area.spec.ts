@@ -47,7 +47,7 @@ test("the area carries its own rail, with the sections the baseline asks for", a
   await page.goto("/admin/users");
 
   const rail = page.getByRole("navigation", { name: "Admin" });
-  for (const name of ["Users", "Notifications", "Settings", "Branding"]) {
+  for (const name of ["Users", "Notifications", "Webhooks", "Settings", "Branding"]) {
     await expect(rail.getByRole("link", { name })).toBeVisible();
   }
 
@@ -55,13 +55,16 @@ test("the area carries its own rail, with the sections the baseline asks for", a
   await expect(rail.getByRole("link", { name: "Users" })).toHaveAttribute("aria-current", "page");
 });
 
-test("notifications is where webhooks live now", async ({ page }) => {
+test("webhooks and notifications are different things", async ({ page }) => {
   await signInAsAdmin(page);
 
-  // The old address still goes somewhere sensible.
+  // Webhooks is where deliveries are configured.
   await page.goto("/admin/webhooks");
-  await expect(page).toHaveURL(/\/admin\/notifications/);
   await expect(page.getByRole("heading", { name: "Webhooks" })).toBeVisible();
+
+  // Notifications is what is due, which a webhook is only one way to hear about.
+  await page.goto("/admin/notifications");
+  await expect(page.getByRole("heading", { name: "Notifications" })).toBeVisible();
 });
 
 test("the instance default language is chosen here, not only in the environment", async ({

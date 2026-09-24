@@ -124,6 +124,12 @@ between them.
 
 ## Backups
 
+Attachments can live on the NAS instead of a local volume:
+`docker compose -f docker-compose.yml -f docker-compose.nfs.yml up -d`, with
+`NFS_SERVER` and `NFS_UPLOADS_PATH` set. Uploaded files are write-once,
+read-many, which is what a share is good at; the database stays on local disk,
+because it is hot data.
+
 `docs/BACKUP.md` covers what to keep, how to restore it, and how to verify a
 dump before you need it. In short: `pg_dump` the database, archive the uploads
 volume, and store `.env` with them.
@@ -192,6 +198,19 @@ What a file *is* comes from its own bytes. Renaming an executable to `.png`
 does not get it in, and a macro-enabled Office document is refused whatever
 extension it arrives under. Downloads are always served as attachments, with
 `nosniff`, so an uploaded file can never execute on the site's origin.
+
+## Review schedules
+
+A document can say when it needs looking at again: a date that arrives once —
+a certificate, a contract, a domain — or a job that comes round, like a UPS
+battery every two years. Each carries a lead time, so it starts asking before
+the date rather than on it.
+
+**Admin → Notifications** lists what is due or overdue across every company you
+can see, and a `document.due` webhook goes out when something arrives there,
+once per date. Marking a recurring job done rolls it forward on its own
+cadence: done three days late, the next one is still on the original date, so
+lateness does not compound.
 
 ## Administration
 

@@ -16,6 +16,8 @@ import { formatBytes, listAttachments } from "@/server/services/attachments";
 import { getDomainCheckState } from "@/server/services/domain-checks";
 import { DomainPanel } from "../domain-panel";
 import { getRackView } from "@/server/services/racks";
+import { getSchedule } from "@/server/services/schedules";
+import { SchedulePanel } from "../schedule-panel";
 import { listCompanyDocuments } from "@/server/services/documents";
 import { listDocTypes } from "@/server/services/doc-types";
 import { RackPanel } from "../rack-panel";
@@ -85,6 +87,7 @@ export default async function DocumentPage({
 
   const branding = await getCompanyBranding(company.id, scope);
   const domainState = await getDomainCheckState(documentId, scope);
+  const schedule = await getSchedule(documentId, scope);
 
   /*
    * A rack elevation belongs to documents of a doc type that says it is a
@@ -196,6 +199,12 @@ export default async function DocumentPage({
           ))}
         </dl>
       )}
+
+      <SchedulePanel
+        documentId={documentId}
+        schedule={schedule}
+        editor={editor && !detail.document.archivedAt}
+      />
 
       {isRack && rackView && (
         <RackPanel

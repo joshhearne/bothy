@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
@@ -13,18 +14,26 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  Webhook,
 } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMessages } from "@/i18n/client";
 
-/** The secondary rail. Its selected section is highlighted like the main one. */
+/**
+ * The secondary rail. On a phone there is no room beside the content, so it
+ * folds down to the section being read and opens on a tap — vertical either
+ * way, because a sideways-scrolling row hides the sections nobody scrolls to.
+ */
 export function AdminNav() {
   const pathname = usePathname();
   const t = useMessages();
+  const [open, setOpen] = useState(false);
 
   const sections: { href: Route; label: string; icon: typeof Users }[] = [
     { href: "/admin/users" as Route, label: t.nav.users, icon: Users },
     { href: "/admin/notifications" as Route, label: t.nav.notifications, icon: Bell },
+    { href: "/admin/webhooks" as Route, label: t.nav.webhooks, icon: Webhook },
     { href: "/admin/settings" as Route, label: t.nav.settings, icon: Settings },
     { href: "/admin/branding" as Route, label: t.nav.branding, icon: Palette },
     { href: "/admin/doc-types" as Route, label: t.nav.docTypes, icon: Layers },
@@ -34,9 +43,28 @@ export function AdminNav() {
     { href: "/admin/audit" as Route, label: t.nav.auditLog, icon: ScrollText },
   ];
 
+  const current = sections.find((section) => pathname.startsWith(section.href));
+
   return (
     <nav aria-label={t.nav.admin} className="md:w-56 md:shrink-0">
-      <ul className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-controls="admin-sections"
+        className="flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm md:hidden"
+      >
+        <span className="font-medium">{current?.label ?? t.nav.admin}</span>
+        <ChevronDown
+          aria-hidden
+          className={cn("size-4 transition-transform", open && "rotate-180")}
+        />
+      </button>
+
+      <ul
+        id="admin-sections"
+        className={cn("mt-1 flex-col gap-1 md:mt-0 md:flex", open ? "flex" : "hidden")}
+      >
         {sections.map((section) => {
           const active = pathname.startsWith(section.href);
           const Icon = section.icon;
@@ -46,6 +74,7 @@ export function AdminNav() {
               <Link
                 href={section.href}
                 aria-current={active ? "page" : undefined}
+                onClick={() => setOpen(false)}
                 className={cn(
                   "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors",
                   active

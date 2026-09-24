@@ -109,6 +109,9 @@ jobs:
             echo "AUTH_SECRET=$(openssl rand -base64 32)"
             echo "APP_PORT=3090"
             echo "APP_URL=http://127.0.0.1:3090"
+            # The schedule worker, and the endpoint a test drives a pass with.
+            echo "SCHEDULE_POLL_SECONDS=5"
+            echo "CRON_SECRET=an-e2e-cron-secret-value"
             echo "SEED_ON_START=true"
           } >> .env
 

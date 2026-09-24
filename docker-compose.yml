@@ -18,6 +18,10 @@ services:
       # link keeps secret fields as deep links; bw_serve brokers through the
       # sidecar started by the `vault` profile.
       VAULT_MODE: ${VAULT_MODE:-link}
+      # How often the worker looks for schedules that have come due.
+      SCHEDULE_POLL_SECONDS: ${SCHEDULE_POLL_SECONDS:-900}
+      # Set to enable /api/internal/webhooks, for deployments without a timer.
+      CRON_SECRET: ${CRON_SECRET:-}
       # Credentials for the other vaults. Empty is dropped before validation,
       # so a mode nobody uses costs nothing.
       OP_CONNECT_URL: ${OP_CONNECT_URL:-}
@@ -112,5 +116,7 @@ secrets:
 
 volumes:
   pgdata:
+  # Attachments and logos. Keep them on the NAS with docker-compose.nfs.yml,
+  # which redefines this volume without touching the default.
   uploads:
   op-connect-data:

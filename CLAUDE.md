@@ -82,5 +82,9 @@ Rack doc types (`doc_types.is_rack`) with `racks` / `rack_mounts` / `rack_type_c
 per equipment kind: MSP default, client override, built-in palette. Closeness is judged in Oklab.
 See docs/ARCHITECTURE.md.
 
+### Phase 13: Schedules
+Per-document expiry and recurring maintenance, a lead time, `document.due` webhooks announced once
+per date, and Admin → Notifications listing what is due. See docs/ARCHITECTURE.md.
+
 ### Later
 Tags, multi-tenant, importers (Hudu, IT Glue CSV), scheduled re-checks with expiry webhooks.

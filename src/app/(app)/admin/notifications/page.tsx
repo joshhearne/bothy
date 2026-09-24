@@ -1,94 +1,69 @@
-import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { canManageIntegrations, requireUser } from "@/server/auth/session";
-import { listRecentDeliveries, listWebhooks, WEBHOOK_EVENTS } from "@/server/services/webhooks";
-import { formatDateTime, plural } from "@/i18n/format";
-import { getI18n } from "@/i18n/server";
-import { CreateWebhookForm } from "../integration-forms";
-import { deleteWebhookAction, setWebhookActiveAction } from "../integration-actions";
+import Link from "next/link";
+import { requireScopedUser } from "@/server/auth/session";
+import { listDue } from "@/server/services/schedules";
+import { getMessages } from "@/i18n/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function WebhooksPage() {
-  const user = await requireUser();
-  if (!canManageIntegrations(user.role)) redirect("/companies");
+/**
+ * What is due or overdue, across every company the reader may see. The list is
+ * the same thing the webhook announces, so nobody has to subscribe to a
+ * webhook to find out what needs doing.
+ */
+export default async function NotificationsPage() {
+  const { scope } = await requireScopedUser();
+  const [due, t] = await Promise.all([listDue(scope), getMessages()]);
 
-  const hooks = await listWebhooks();
-  const deliveries = await Promise.all(
-    hooks.map(async (hook) => [hook.id, await listRecentDeliveries(hook.id, 5)] as const),
-  );
-  const byWebhook = new Map(deliveries);
-  const { locale, messages: t } = await getI18n();
+  const overdue = due.filter((item) => item.status === "overdue");
+  const soon = due.filter((item) => item.status === "due_soon");
+
+  const groups = [
+    { title: t.admin.notifications.overdue, items: overdue, tone: "text-[var(--destructive)]" },
+    { title: t.admin.notifications.dueSoon, items: soon, tone: "" },
+  ].filter((group) => group.items.length > 0);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.admin.webhooks.title}</h1>
+        <h2 className="text-lg font-semibold tracking-tight">{t.admin.notifications.title}</h2>
         <p className="text-sm text-[var(--muted-foreground)]">
-          {t.admin.webhooks.subtitle}
+          {t.admin.notifications.subtitle}
         </p>
       </div>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">{t.admin.webhooks.endpoints}</h2>
-        {hooks.length === 0 ? (
-          <p className="text-sm text-[var(--muted-foreground)]">{t.admin.webhooks.empty}</p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {hooks.map((hook) => (
-              <li key={hook.id} className="flex flex-col gap-2 rounded-md border px-4 py-3">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{hook.url}</p>
-                    <p className="text-sm text-[var(--muted-foreground)]">
-                      {hook.events.join(", ")}
-                    </p>
-                  </div>
+      {groups.length === 0 ? (
+        <p className="text-sm text-[var(--muted-foreground)]">{t.admin.notifications.empty}</p>
+      ) : (
+        groups.map((group) => (
+          <section key={group.title} className="flex flex-col gap-2">
+            <h3 className={`text-sm font-medium ${group.tone}`}>
+              {group.title} ({group.items.length})
+            </h3>
 
-                  <form action={setWebhookActiveAction}>
-                    <input type="hidden" name="id" value={hook.id} />
-                    {!hook.active && <input type="hidden" name="active" value="on" />}
-                    <Button type="submit" variant="outline" size="sm">
-                      {hook.active ? t.admin.webhooks.disable : t.admin.webhooks.enable}
-                    </Button>
-                  </form>
+            <ul className="flex flex-col gap-1">
+              {group.items.map((item) => (
+                <li
+                  key={item.documentId}
+                  className="flex flex-wrap items-center gap-3 rounded-md border px-3 py-2 text-sm"
+                >
+                  <span className="min-w-0 flex-1">
+                    <Link href={`/documents/${item.documentId}`} className="hover:underline">
+                      {item.title}
+                    </Link>
+                    <span className="ml-2 text-xs text-[var(--muted-foreground)]">
+                      {item.companyName} · {item.docTypeName}
+                    </span>
+                  </span>
 
-                  <form action={deleteWebhookAction}>
-                    <input type="hidden" name="id" value={hook.id} />
-                    <Button type="submit" variant="ghost" size="sm">
-                      {t.common.delete}
-                    </Button>
-                  </form>
-                </div>
-
-                {(byWebhook.get(hook.id)?.length ?? 0) > 0 && (
-                  <ul className="flex flex-col gap-1 border-t pt-2">
-                    {byWebhook.get(hook.id)?.map((delivery) => (
-                      <li key={delivery.id} className="text-xs text-[var(--muted-foreground)]">
-                        <code>{delivery.event}</code> ·{" "}
-                        {delivery.deliveredAt
-                          ? t.admin.webhooks.delivered(formatDateTime(delivery.deliveredAt, locale))
-                          : delivery.nextRetryAt
-                            ? t.admin.webhooks.retrying(
-                                formatDateTime(delivery.nextRetryAt, locale),
-                              )
-                            : t.admin.webhooks.notDelivered}{" "}
-                        · {plural(delivery.attempts, t.units.attempt, t.units.attempts, locale)}
-                        {delivery.statusCode ? ` · HTTP ${delivery.statusCode}` : ""}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">{t.admin.webhooks.newWebhook}</h2>
-        <CreateWebhookForm events={[...WEBHOOK_EVENTS]} />
-      </section>
+                  <span className="font-mono text-xs text-[var(--muted-foreground)]">
+                    {t.admin.notifications.due(item.dueOn)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))
+      )}
     </div>
   );
 }

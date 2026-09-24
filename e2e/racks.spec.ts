@@ -64,7 +64,8 @@ async function mount(page: Page, label: string, unit: string, height: string, ty
   await page.getByLabel("Lowest unit").fill(unit);
   await page.getByLabel("Height in units").fill(height);
   await page.getByLabel("Or a label").fill(label);
-  if (typeId) await page.getByLabel("Kind").selectOption(typeId);
+  // Exact: the schedule panel above has a "What kind" of its own.
+  if (typeId) await page.getByLabel("Kind", { exact: true }).selectOption(typeId);
   await page.getByRole("button", { name: "Mount it" }).click();
   await expect(page.getByText(label).first()).toBeVisible();
 }

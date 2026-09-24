@@ -370,3 +370,18 @@ CREATE TABLE instance_settings (
   updated_at     timestamptz NOT NULL DEFAULT now(),
   updated_by     uuid REFERENCES users(id)
 );
+
+-- ---------- Schedules ----------
+-- When a document needs looking at again: a date that arrives once, or a job
+-- that comes round on an interval.
+CREATE TABLE document_schedules (
+  document_id   uuid PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+  kind          text NOT NULL CHECK (kind IN ('expiry','maintenance')),
+  due_on        date NOT NULL,
+  interval_days int CHECK (interval_days IS NULL OR interval_days BETWEEN 1 AND 3650),
+  lead_days     int NOT NULL DEFAULT 30 CHECK (lead_days BETWEEN 0 AND 365),
+  last_done_on  date,
+  note          text,
+  notified_for  date                    -- the due date already announced
+);
+CREATE INDEX document_schedules_due_idx ON document_schedules (due_on);
