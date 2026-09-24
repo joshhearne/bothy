@@ -134,3 +134,98 @@ test("what is due is announced once, not on every pass", async ({ page, request 
   const second = await request.post("/api/internal/webhooks", { headers });
   expect((await second.json()).announced).toBe(0);
 });
+
+/* ---------- Stamped by the doc type ---------- */
+
+test("a doc type gives every document it makes a schedule", async ({ page }) => {
+  const typeName = unique("Stamped Type");
+  const companyName = unique("Stamped Co");
+
+  await createDocType(page, typeName, [{ label: "Model", type: "text" }]);
+  const docTypeId = psql(`select id from doc_types where name = '${typeName}';`);
+
+  // Every one of these expires a year after it is written up.
+  await page.goto(`/admin/doc-types/${docTypeId}`);
+  await page.getByLabel("What kind").selectOption("expiry");
+  await page.getByLabel("First one, days after creation").fill("365");
+  await page.getByRole("button", { name: "Save schedule" }).click();
+  await expect
+    .poll(() => psql(`select schedule_kind from doc_types where id = '${docTypeId}';`))
+    .toBe("expiry");
+
+  const companyId = await createCompany(page, companyName);
+  const stampedId = await createDocument(page, companyId, typeName, unique("Born scheduled"));
+
+  // It arrives with the date already on it.
+  await page.goto(`/documents/${stampedId}`);
+  // The summary, not the form's "Next due" label.
+  await expect(page.getByText(`Next due ${inDays(365)}.`)).toBeVisible();
+  await expect(page.getByText("From the doc type.")).toBeVisible();
+
+  expect(psql(`select due_on from document_schedules where document_id = '${stampedId}';`)).toBe(
+    inDays(365),
+  );
+  expect(
+    psql(`select from_doc_type from document_schedules where document_id = '${stampedId}';`),
+  ).toBe("t");
+});
+
+test("editing a stamped schedule makes it the document's own", async ({ page }) => {
+  const typeName = unique("Stamped Type");
+  await createDocType(page, typeName, [{ label: "Model", type: "text" }]);
+  const docTypeId = psql(`select id from doc_types where name = '${typeName}';`);
+
+  await page.goto(`/admin/doc-types/${docTypeId}`);
+  await page.getByLabel("What kind").selectOption("expiry");
+  await page.getByLabel("First one, days after creation").fill("100");
+  await page.getByRole("button", { name: "Save schedule" }).click();
+  await expect
+    .poll(() => psql(`select schedule_due_days from doc_types where id = '${docTypeId}';`))
+    .toBe("100");
+
+  const companyId = await createCompany(page, unique("Stamped Co"));
+  const id = await createDocument(page, companyId, typeName, unique("Taken over"));
+
+  await page.goto(`/documents/${id}`);
+  await setSchedule(page, "expiry", inDays(5));
+
+  await expect(page.getByText("From the doc type.")).toHaveCount(0);
+  expect(psql(`select from_doc_type from document_schedules where document_id = '${id}';`)).toBe(
+    "f",
+  );
+});
+
+test("applying to existing documents leaves anything already scheduled alone", async ({ page }) => {
+  const typeName = unique("Retro Type");
+  await createDocType(page, typeName, [{ label: "Model", type: "text" }]);
+  const docTypeId = psql(`select id from doc_types where name = '${typeName}';`);
+  const companyId = await createCompany(page, unique("Retro Co"));
+
+  // Two documents first, one of which is given a date by hand.
+  const bare = await createDocument(page, companyId, typeName, unique("No schedule"));
+  const chosen = await createDocument(page, companyId, typeName, unique("Chosen by hand"));
+
+  await page.goto(`/documents/${chosen}`);
+  await setSchedule(page, "expiry", inDays(9));
+
+  await page.goto(`/admin/doc-types/${docTypeId}`);
+  await page.getByLabel("What kind").selectOption("maintenance");
+  await page.getByLabel("First one, days after creation").fill("30");
+  await page.getByLabel("Then how often, in days").fill("30");
+  await page.getByRole("button", { name: "Save schedule" }).click();
+  await expect
+    .poll(() => psql(`select schedule_kind from doc_types where id = '${docTypeId}';`))
+    .toBe("maintenance");
+
+  await page.reload();
+  await page.getByRole("button", { name: "Also apply to existing documents" }).click();
+  await expect(page.getByText(/Stamped into 1 document/)).toBeVisible();
+
+  // The bare one now has it; the chosen one kept what a person set.
+  expect(psql(`select kind from document_schedules where document_id = '${bare}';`)).toBe(
+    "maintenance",
+  );
+  expect(psql(`select due_on from document_schedules where document_id = '${chosen}';`)).toBe(
+    inDays(9),
+  );
+});

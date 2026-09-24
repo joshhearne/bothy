@@ -17,6 +17,13 @@ const SSO_EMAIL = "sso-user@example.com";
 test.describe.configure({ mode: "serial" });
 
 function restartApp(withOidc: boolean): void {
+  // Recreating the app rereads ENV_FILE. Without it compose falls back to .env,
+  // which quietly hands the test stack another deployment's settings and breaks
+  // whatever runs after this file. Better to stop than to strip the container.
+  if (!process.env.ENV_FILE) {
+    throw new Error("Set ENV_FILE to the env file the test stack was started with, e.g. .env.test");
+  }
+
   const files = withOidc
     ? ["-f", "docker-compose.yml", "-f", "e2e/oidc-override.yml"]
     : ["-f", "docker-compose.yml"];

@@ -1,0 +1,12 @@
+# Test-only overlay: lets a spec swap the vault mode and credentials from the
+# shell when it recreates the app. Kept out of docker-compose.yml so an unset
+# variable can never blank what a deployment's env file says.
+services:
+  app:
+    environment:
+      VAULT_MODE: ${VAULT_MODE:-link}
+      OP_CONNECT_URL: ${OP_CONNECT_URL:-}
+      OP_CONNECT_TOKEN: ${OP_CONNECT_TOKEN:-}
+      HASHICORP_VAULT_ADDR: ${HASHICORP_VAULT_ADDR:-}
+      HASHICORP_VAULT_TOKEN: ${HASHICORP_VAULT_TOKEN:-}
+      HASHICORP_VAULT_MOUNT: ${HASHICORP_VAULT_MOUNT:-secret}

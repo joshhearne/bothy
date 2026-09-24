@@ -1,0 +1,4 @@
+ALTER TABLE "doc_types" ADD CONSTRAINT "doc_types_schedule_kind_check" CHECK ("doc_types"."schedule_kind" IS NULL OR "doc_types"."schedule_kind" IN ('expiry','maintenance'));--> statement-breakpoint
+ALTER TABLE "doc_types" ADD CONSTRAINT "doc_types_schedule_days_check" CHECK (("doc_types"."schedule_due_days" IS NULL OR "doc_types"."schedule_due_days" BETWEEN 1 AND 3650)
+        AND ("doc_types"."schedule_interval_days" IS NULL OR "doc_types"."schedule_interval_days" BETWEEN 1 AND 3650)
+        AND ("doc_types"."schedule_lead_days" IS NULL OR "doc_types"."schedule_lead_days" BETWEEN 0 AND 365));

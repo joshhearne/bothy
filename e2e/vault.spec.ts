@@ -36,7 +36,10 @@ let secretFieldId = "";
 test.describe.configure({ mode: "serial" });
 
 function compose(args: string[], env: Record<string, string> = {}): void {
-  execFileSync("docker", ["compose", "-p", PROJECT, ...args], {
+  // The overlay is what carries VAULT_MODE in from the shell; the base file
+  // deliberately leaves it to the env file.
+  const files = ["-f", "docker-compose.yml", "-f", "e2e/vault-override.yml"];
+  execFileSync("docker", ["compose", "-p", PROJECT, ...files, ...args], {
     cwd: REPO,
     env: { ...process.env, ...env },
     stdio: "ignore",

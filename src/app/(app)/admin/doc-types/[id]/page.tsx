@@ -12,6 +12,7 @@ import {
   usesOptionList,
 } from "@/server/fields/types";
 import { getMessages } from "@/i18n/server";
+import { DocTypeScheduleForm } from "../schedule-form";
 import { DocTypeForm } from "../../doc-type-form";
 import { AddTemplateFieldForm } from "../../template-field-form";
 import {
@@ -205,6 +206,14 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
           </div>
         )}
       </section>
+
+      <DocTypeScheduleForm
+        docTypeId={docType.id}
+        kind={docType.scheduleKind}
+        dueDays={docType.scheduleDueDays}
+        intervalDays={docType.scheduleIntervalDays}
+        leadDays={docType.scheduleLeadDays}
+      />
     </div>
   );
 }

@@ -162,10 +162,31 @@ export const docTypes = pgTable(
     icon: text("icon"),
     /** Documents of this type carry a rack elevation. */
     isRack: boolean("is_rack").notNull().default(false),
+    /*
+     * A review schedule every document of this type starts life with. A doc
+     * type cannot know an absolute date, so the first one is counted from the
+     * day the document is created.
+     */
+    scheduleKind: text("schedule_kind"),
+    scheduleDueDays: integer("schedule_due_days"),
+    scheduleIntervalDays: integer("schedule_interval_days"),
+    scheduleLeadDays: integer("schedule_lead_days"),
     scope: text("scope").notNull().default("location"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
   },
-  (t) => [check("doc_types_scope_check", sql`${t.scope} IN ('company','location')`)],
+  (t) => [
+    check("doc_types_scope_check", sql`${t.scope} IN ('company','location')`),
+    check(
+      "doc_types_schedule_kind_check",
+      sql`${t.scheduleKind} IS NULL OR ${t.scheduleKind} IN ('expiry','maintenance')`,
+    ),
+    check(
+      "doc_types_schedule_days_check",
+      sql`(${t.scheduleDueDays} IS NULL OR ${t.scheduleDueDays} BETWEEN 1 AND 3650)
+        AND (${t.scheduleIntervalDays} IS NULL OR ${t.scheduleIntervalDays} BETWEEN 1 AND 3650)
+        AND (${t.scheduleLeadDays} IS NULL OR ${t.scheduleLeadDays} BETWEEN 0 AND 365)`,
+    ),
+  ],
 );
 
 export const optionLists = pgTable("option_lists", {
@@ -421,6 +442,8 @@ export const documentSchedules = pgTable(
     note: text("note"),
     /** The due date an event was last sent for, so nothing is announced twice. */
     notifiedFor: date("notified_for"),
+    /** True until somebody edits it: this came from the doc type, not a person. */
+    fromDocType: boolean("from_doc_type").notNull().default(false),
   },
   (t) => [
     check("document_schedules_kind_check", sql`${t.kind} IN ('expiry','maintenance')`),

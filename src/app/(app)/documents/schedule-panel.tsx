@@ -68,6 +68,10 @@ export function SchedulePanel({
         )}
       </p>
 
+      {schedule?.fromDocType && (
+        <p className="text-xs text-[var(--muted-foreground)]">{t.documents.schedule.stamped}</p>
+      )}
+
       {editor && (
         <div className="flex flex-col gap-3">
           {schedule && (

@@ -532,6 +532,14 @@ export async function createDocument(
       tx,
     );
 
+    /*
+     * A doc type may carry a review schedule, and every document of that type
+     * starts with it. Stamped here rather than after the fact, so a document
+     * never exists without the schedule its type says it should have.
+     */
+    const { stampScheduleFromDocType } = await import("@/server/services/schedules");
+    await stampScheduleFromDocType(tx, document.id, input.docTypeId);
+
     await queueEvent("document.created", { id: document.id, title }, tx);
 
     return document.id;

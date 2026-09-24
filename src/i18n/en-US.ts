@@ -164,6 +164,21 @@ export const enUS = {
         days === 0 ? "Due today." : `Due in ${days} ${days === 1 ? "day" : "days"}.`,
       ok: (date: string) => `Next due ${date}.`,
       lastDone: (date: string) => `Last done ${date}.`,
+      stamped: "From the doc type. Editing it here makes it this document's own.",
+      typeHeading: "Review schedule for every document of this type",
+      typeHint:
+        "Every document of this type starts with this. A doc type cannot know a date, so the first one is counted from the day a document is created.",
+      typeKind: "What kind",
+      typeNone: "No schedule",
+      typeDueDays: "First one, days after creation",
+      typeInterval: "Then how often, in days",
+      typeLead: "Warn this many days ahead",
+      typeSave: "Save schedule",
+      typeApply: "Also apply to existing documents",
+      typeApplyHint:
+        "Stamps it into documents of this type that have no schedule of their own. Nothing that already has one is touched.",
+      typeApplied: (count: number) =>
+        count === 1 ? "Stamped into 1 document." : `Stamped into ${count} documents.`,
     },
 
     rack: {

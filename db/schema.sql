@@ -385,3 +385,18 @@ CREATE TABLE document_schedules (
   notified_for  date                    -- the due date already announced
 );
 CREATE INDEX document_schedules_due_idx ON document_schedules (due_on);
+
+-- ---------- Schedules from the doc type ----------
+-- Every document of a type starts with the same review schedule. A doc type
+-- cannot know an absolute date, so the first one counts from creation day.
+ALTER TABLE doc_types ADD COLUMN schedule_kind text
+  CHECK (schedule_kind IS NULL OR schedule_kind IN ('expiry','maintenance'));
+ALTER TABLE doc_types ADD COLUMN schedule_due_days int
+  CHECK (schedule_due_days IS NULL OR schedule_due_days BETWEEN 1 AND 3650);
+ALTER TABLE doc_types ADD COLUMN schedule_interval_days int
+  CHECK (schedule_interval_days IS NULL OR schedule_interval_days BETWEEN 1 AND 3650);
+ALTER TABLE doc_types ADD COLUMN schedule_lead_days int
+  CHECK (schedule_lead_days IS NULL OR schedule_lead_days BETWEEN 0 AND 365);
+
+-- Whether a document's schedule is still the one its type stamped in.
+ALTER TABLE document_schedules ADD COLUMN from_doc_type boolean NOT NULL DEFAULT false;

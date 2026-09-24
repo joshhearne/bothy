@@ -117,7 +117,7 @@ jobs:
 
       - name: Start the stack
         run: |
-          APP_PORT=3090 docker compose -p bothy-test up -d --build
+          ENV_FILE=.env APP_PORT=3090 docker compose -p bothy-test up -d --build
           for _ in $(seq 1 60); do
             status=$(docker inspect --format '{{.State.Health.Status}}' bothy-test-app-1 2>/dev/null || echo starting)
             [ "$status" = "healthy" ] && exit 0
@@ -131,6 +131,8 @@ jobs:
         run: npm run test:e2e
         env:
           E2E_BASE_URL: http://127.0.0.1:3090
+          # The OIDC test recreates the app container and needs the same file.
+          ENV_FILE: .env
           E2E_REPO: ${{ github.workspace }}
           E2E_COMPOSE_PROJECT: bothy-test
           E2E_DOCKER_NETWORK: bothy-test_public

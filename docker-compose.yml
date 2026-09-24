@@ -5,30 +5,15 @@ services:
     # ENV_FILE lets a second stack on this host (a test copy, a staging copy)
     # run from its own file without touching the deployment's .env.
     env_file: ${ENV_FILE:-.env}
+    # Only what a second stack on this host has to override from the shell.
+    # Everything else comes from the env file: compose interpolates `${X}` from
+    # .env alone, never from ENV_FILE, so naming a key here at all would hand
+    # the container .env's value — or an empty one — over the file's.
     environment:
       NODE_ENV: production
-      # Explicit so a second stack can override it from the shell. Without this
-      # the env_file value always wins, and a deployment's public APP_URL leaks
-      # into a test stack, where it turns on Secure cookies over plain http.
+      # Without this a deployment's public APP_URL reaches a test stack, where
+      # it turns on Secure cookies over plain http and sign-in stops working.
       APP_URL: ${APP_URL}
-      # Set true to load the starter doc types on boot (see scripts/seed.ts).
-      SEED_ON_START: ${SEED_ON_START:-false}
-      # Wording for the starter content: en-US or en-GB.
-      SEED_LOCALE: ${SEED_LOCALE:-en-US}
-      # link keeps secret fields as deep links; bw_serve brokers through the
-      # sidecar started by the `vault` profile.
-      VAULT_MODE: ${VAULT_MODE:-link}
-      # How often the worker looks for schedules that have come due.
-      SCHEDULE_POLL_SECONDS: ${SCHEDULE_POLL_SECONDS:-900}
-      # Set to enable /api/internal/webhooks, for deployments without a timer.
-      CRON_SECRET: ${CRON_SECRET:-}
-      # Credentials for the other vaults. Empty is dropped before validation,
-      # so a mode nobody uses costs nothing.
-      OP_CONNECT_URL: ${OP_CONNECT_URL:-}
-      OP_CONNECT_TOKEN: ${OP_CONNECT_TOKEN:-}
-      HASHICORP_VAULT_ADDR: ${HASHICORP_VAULT_ADDR:-}
-      HASHICORP_VAULT_TOKEN: ${HASHICORP_VAULT_TOKEN:-}
-      HASHICORP_VAULT_MOUNT: ${HASHICORP_VAULT_MOUNT:-secret}
     # Host port only. The container always listens on 3000. Set APP_BIND to
     # 127.0.0.1 when a reverse proxy or tunnel on this host is the only thing
     # that should reach it.

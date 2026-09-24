@@ -35,7 +35,10 @@ test.describe.configure({ mode: "serial" });
 
 
 function setVaultMode(mode: string, extra: Record<string, string> = {}): void {
-  execFileSync("docker", ["compose", "-p", PROJECT, "up", "-d", "--force-recreate", "app"], {
+  // The overlay is what carries VAULT_MODE and the credentials in from the
+  // shell; the base file deliberately leaves them to the env file.
+  const files = ["-f", "docker-compose.yml", "-f", "e2e/vault-override.yml"];
+  execFileSync("docker", ["compose", "-p", PROJECT, ...files, "up", "-d", "--force-recreate", "app"], {
     cwd: REPO,
     env: { ...process.env, VAULT_MODE: mode, APP_PORT: "3090", ...extra },
     stdio: "ignore",
