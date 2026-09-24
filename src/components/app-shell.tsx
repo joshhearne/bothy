@@ -6,17 +6,9 @@ import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import {
   Building2,
-  KeyRound,
-  Layers,
-  ScrollText,
-  ListTree,
   Menu,
-  Palette,
   Plus,
   Search,
-  ShieldCheck,
-  Users,
-  Webhook,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -104,18 +96,20 @@ export function AppShell({
         </Link>
 
         <div className="ml-auto flex items-center">
-          <UserMenu user={user} locale={locale} theme={theme} signOut={signOut} />
+          <UserMenu
+            user={user}
+            canAdminister={canManageDocTypes}
+            locale={locale}
+            theme={theme}
+            signOut={signOut}
+          />
         </div>
       </header>
 
       <div className="flex flex-1">
         {/* Desktop: a column that scrolls on its own beneath the sticky bar. */}
         <aside className="sticky top-14 hidden h-[calc(100dvh-3.5rem)] w-64 shrink-0 overflow-y-auto border-r bg-[var(--sidebar)] md:block">
-          <SidebarNav
-            companies={companies}
-            canCreateCompanies={canCreateCompanies}
-            canManageDocTypes={canManageDocTypes}
-          />
+          <SidebarNav companies={companies} canCreateCompanies={canCreateCompanies} />
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -157,7 +151,6 @@ export function AppShell({
             <SidebarNav
               companies={companies}
               canCreateCompanies={canCreateCompanies}
-              canManageDocTypes={canManageDocTypes}
               onNavigate={() => setOpen(false)}
             />
           </div>
@@ -170,12 +163,10 @@ export function AppShell({
 function SidebarNav({
   companies,
   canCreateCompanies,
-  canManageDocTypes,
   onNavigate,
 }: {
   companies: SidebarCompany[];
   canCreateCompanies: boolean;
-  canManageDocTypes: boolean;
   onNavigate?: (() => void) | undefined;
 }) {
   const pathname = usePathname();
@@ -253,74 +244,10 @@ function SidebarNav({
         )}
       </Section>
 
-      {canManageDocTypes && (
-        <Section title={t.nav.admin}>
-          <NavLink
-            href="/admin/doc-types"
-            icon={Layers}
-            active={pathname.startsWith("/admin/doc-types")}
-            onNavigate={onNavigate}
-          >
-            {t.nav.docTypes}
-          </NavLink>
-          <NavLink
-            href="/admin/branding"
-            icon={Palette}
-            active={pathname.startsWith("/admin/branding")}
-            onNavigate={onNavigate}
-          >
-            {t.nav.branding}
-          </NavLink>
-          <NavLink
-            href="/admin/option-lists"
-            icon={ListTree}
-            active={pathname.startsWith("/admin/option-lists")}
-            onNavigate={onNavigate}
-          >
-            {t.nav.optionLists}
-          </NavLink>
-          <NavLink
-            href="/admin/api-keys"
-            icon={KeyRound}
-            active={pathname.startsWith("/admin/api-keys")}
-            onNavigate={onNavigate}
-          >
-            {t.nav.apiKeys}
-          </NavLink>
-          <NavLink
-            href="/admin/webhooks"
-            icon={Webhook}
-            active={pathname.startsWith("/admin/webhooks")}
-            onNavigate={onNavigate}
-          >
-            {t.nav.webhooks}
-          </NavLink>
-          <NavLink
-            href="/admin/vault"
-            icon={ShieldCheck}
-            active={pathname.startsWith("/admin/vault")}
-            onNavigate={onNavigate}
-          >
-            {t.nav.vault}
-          </NavLink>
-          <NavLink
-            href="/admin/users"
-            icon={Users}
-            active={pathname.startsWith("/admin/users")}
-            onNavigate={onNavigate}
-          >
-            {t.nav.users}
-          </NavLink>
-          <NavLink
-            href="/admin/audit"
-            icon={ScrollText}
-            active={pathname.startsWith("/admin/audit")}
-            onNavigate={onNavigate}
-          >
-            {t.nav.auditLog}
-          </NavLink>
-        </Section>
-      )}
+      {/*
+        Admin is its own area, reached from the user menu rather than the rail:
+        the rail is for the documentation, which is what people are here for.
+      */}
     </nav>
   );
 }
@@ -373,7 +300,7 @@ function NavLink<T extends string>({
         "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors duration-150",
         indent && "ml-6",
         active
-          ? "bg-[var(--muted)] font-medium text-[var(--foreground)]"
+          ? "bg-[var(--primary)] font-medium text-[var(--primary-foreground)]"
           : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]",
       )}
     >

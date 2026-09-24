@@ -361,3 +361,12 @@ CREATE UNIQUE INDEX rack_type_colors_company_idx ON rack_type_colors (doc_type_i
 
 -- Documents of a rack doc type carry an elevation.
 ALTER TABLE doc_types ADD COLUMN is_rack boolean NOT NULL DEFAULT false;
+
+-- ---------- Instance settings ----------
+-- One row. What an operator picks once, rather than setting in the environment.
+CREATE TABLE instance_settings (
+  id             boolean PRIMARY KEY DEFAULT true CHECK (id),
+  default_locale text,                      -- overrides APP_LOCALE
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  updated_by     uuid REFERENCES users(id)
+);

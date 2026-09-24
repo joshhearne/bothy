@@ -31,6 +31,13 @@ services:
     ports: ["${APP_BIND:-0.0.0.0}:${APP_PORT:-3080}:3000"]
     volumes: ["uploads:/data/uploads"]
     networks: [public, internal]
+    # Uploads and HEIC conversion are the variable load here, and this box runs
+    # other things. Override in .env if the instance is large.
+    deploy:
+      resources:
+        limits:
+          cpus: "${APP_CPUS:-2}"
+          memory: ${APP_MEMORY:-1g}
     depends_on:
       db: { condition: service_healthy }
     healthcheck:
@@ -50,6 +57,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes: ["pgdata:/var/lib/postgresql/data"]
     networks: [internal]
+    deploy:
+      resources:
+        limits:
+          cpus: "${DB_CPUS:-2}"
+          memory: ${DB_MEMORY:-1g}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bothy}"]
       interval: 5s

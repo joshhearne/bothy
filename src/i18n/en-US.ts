@@ -41,6 +41,8 @@ export const enUS = {
     webhooks: "Webhooks",
     vault: "Vault",
     users: "Users",
+    notifications: "Notifications",
+    settings: "Settings",
     auditLog: "Audit log",
   },
 
@@ -300,6 +302,25 @@ export const enUS = {
   },
 
   admin: {
+    subtitle: "Everything that is set once for the whole instance.",
+    settings: {
+      language: "Language",
+      languageHint: "What a reader gets before they choose for themselves.",
+      defaultLanguage: "Default language",
+      defaultLanguageHint: (fallback: string) =>
+        `Leave this alone and the instance follows APP_LOCALE, which is ${fallback}.`,
+      fromEnvironment: (fallback: string) => `From the environment (${fallback})`,
+      configuration: "Configuration",
+      configurationHint:
+        "Set in the environment, shown here so nobody has to read a compose file.",
+      storage: "Attachment storage",
+      uploadLimit: "Upload limit",
+      vaultMode: "Vault mode",
+      sso: "Single sign-on",
+      appUrl: "Public address",
+      configured: "Configured",
+      notConfigured: "Not configured",
+    },
     branding: {
       title: "Branding",
       subtitle: "Your name, your logo, and one accent color, everywhere people look.",

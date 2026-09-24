@@ -78,6 +78,13 @@
       "when": 1789975647357,
       "tag": "0010_rack_doc_type",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790219876663,
+      "tag": "0011_instance_settings",
+      "breakpoints": true
     }
   ]
 }

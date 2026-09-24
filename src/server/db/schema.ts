@@ -382,6 +382,22 @@ export const domainChecks = pgTable("domain_checks", {
   checkedBy: uuid("checked_by").references(() => users.id),
 });
 
+/**
+ * Instance settings: one row, like branding. What an operator chooses once for
+ * the whole installation and would otherwise have to set in the environment.
+ */
+export const instanceSettings = pgTable(
+  "instance_settings",
+  {
+    id: boolean("id").primaryKey().default(true),
+    /** Overrides APP_LOCALE. Null means whatever the environment says. */
+    defaultLocale: text("default_locale"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+    updatedBy: uuid("updated_by").references(() => users.id),
+  },
+  (t) => [check("instance_settings_singleton", sql`${t.id}`)],
+);
+
 /* ---------- Racks ---------- */
 
 /**

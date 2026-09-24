@@ -5,12 +5,16 @@ import { messagesFor, type Messages } from "@/i18n";
 import { isLocale, LOCALE_COOKIE, type Locale } from "@/i18n/locales";
 
 /**
- * The reader's own choice wins, then the instance default from APP_LOCALE.
- * No database column: a cookie works for local and SSO accounts alike.
+ * The reader's own choice wins, then whatever the operator chose for the
+ * instance, then APP_LOCALE. A cookie carries the reader's choice, which works
+ * for local and SSO accounts alike.
  */
 export async function getLocale(): Promise<Locale> {
   const chosen = (await cookies()).get(LOCALE_COOKIE)?.value;
-  return isLocale(chosen) ? chosen : env.APP_LOCALE;
+  if (isLocale(chosen)) return chosen;
+
+  const { getDefaultLocale } = await import("@/server/services/settings");
+  return (await getDefaultLocale().catch(() => null)) ?? env.APP_LOCALE;
 }
 
 export async function getMessages(): Promise<Messages> {

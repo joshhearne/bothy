@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { initialsFor } from "@/lib/initials";
 import { useMessages } from "@/i18n/client";
@@ -16,11 +17,14 @@ import { THEMES, type Theme } from "@/lib/theme";
  */
 export function UserMenu({
   user,
+  canAdminister,
   locale,
   theme,
   signOut,
 }: {
   user: { name: string; email: string; role: string };
+  /** Admins reach the admin area from here, per the interface baseline. */
+  canAdminister: boolean;
   locale: Locale;
   theme: Theme;
   signOut: () => Promise<void>;
@@ -72,7 +76,7 @@ export function UserMenu({
         aria-expanded={open}
         aria-label={t.app.accountMenuFor(user.name || user.email)}
         onClick={() => setOpen((current) => !current)}
-        className="flex size-9 items-center justify-center rounded-full border bg-[var(--muted)] text-xs font-semibold tracking-wide text-[var(--foreground)] transition-colors hover:bg-[var(--border)]"
+        className="flex size-9 items-center justify-center rounded-full bg-[var(--primary)] text-xs font-semibold tracking-wide text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
       >
         {initials}
       </button>
@@ -94,6 +98,19 @@ export function UserMenu({
               {user.role}
             </span>
           </div>
+
+          {canAdminister && (
+            <div className="border-b py-3">
+              <Link
+                href="/admin"
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
+              >
+                <Shield className="size-4" aria-hidden />
+                {t.nav.admin}
+              </Link>
+            </div>
+          )}
 
           <form ref={localeFormRef} action={setLocaleAction} className="flex flex-col gap-1 pt-3">
             <label htmlFor="locale" className="text-sm font-medium">

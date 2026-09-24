@@ -77,6 +77,14 @@ decides *where*.
   picker, external-ref mapping, `/lookup`, `/go/...` deep links, and the MCP
   tools, which inherit the key's companies.
 
+## Administration
+Admin is its own route group with a secondary rail, not a section of the
+primary one: the primary rail is the documentation, which is what people come
+for. `instance_settings` is a single row holding what an operator chooses once
+— today the default locale, which sits between the reader's cookie and
+`APP_LOCALE`. Webhooks live under Notifications, since that is the job they do;
+`/admin/webhooks` redirects there.
+
 ## Branding
 - `instance_branding` holds one row: a portal name, an accent color, and a logo
   key. `companies.accent` / `companies.logo_key` hold the same per client.

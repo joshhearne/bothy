@@ -193,6 +193,15 @@ does not get it in, and a macro-enabled Office document is refused whatever
 extension it arrives under. Downloads are always served as attachments, with
 `nosniff`, so an uploaded file can never execute on the site's origin.
 
+## Administration
+
+Admin is its own area, reached from the avatar menu rather than the sidebar —
+the sidebar is for the documentation. Inside, a rail of its own: Users,
+Notifications, Settings, Branding, then doc types, option lists, API keys, the
+vault, and the audit log. **Settings** holds the default language a reader gets
+before they choose one, and shows the configuration the environment supplies so
+nobody has to read a compose file to see how their instance is running.
+
 ## Branding
 
 **Admin → Branding** sets a portal name, a logo, and one accent color. The name
