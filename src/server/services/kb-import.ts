@@ -17,12 +17,19 @@ import {
   type Manifest,
 } from "@/server/kb/manifest";
 import { ArchiveError, commonRoot, readArchive } from "@/server/kb/zip";
+import {
+  acceptImage,
+  knownImages,
+  MAX_IMAGE_BYTES,
+  storeImage,
+} from "@/server/services/kb-images";
 
 /**
  * The importer. An upload and a connector both end here: each article is
  * upserted on (collection, source key), where the key is the source's own id
  * and, failing that, the file's path — so bringing the same source in again
- * updates what is there instead of adding to it.
+ * updates what is there instead of adding to it. The pictures an archive
+ * carries are kept beside them, under the paths the articles name them by.
  *
  * One bad file never fails a run. It is counted, named, and the run goes on.
  */
@@ -41,6 +48,7 @@ export type ImportSummary = {
   failed: number;
   unextracted: number;
   ignored: number;
+  images: number;
   failures: { path: string; reason: string }[];
   usedManifest: boolean;
 };
@@ -161,12 +169,15 @@ export class ImportRun {
     failed: 0,
     unextracted: 0,
     ignored: 0,
+    images: 0,
     failures: [],
     usedManifest: false,
   };
 
   private byKey = new Map<string, Known>();
   private byPath = new Map<string, Known>();
+  /** Pictures already held, by path, with the hash each arrived with. */
+  private pictures = new Map<string, string>();
   private sinceProgress = 0;
 
   private constructor(
@@ -208,6 +219,8 @@ export class ImportRun {
       if (row.sourcePath) run.byPath.set(row.sourcePath, known);
     }
 
+    run.pictures = await knownImages(collectionId);
+
     await db
       .update(kbImports)
       .set({ status: "running", usedManifest: manifest !== null })
@@ -242,6 +255,38 @@ export class ImportRun {
     this.summary.ignored += 1;
   }
 
+  /**
+   * A file that is not an article. A picture is kept, under the path the
+   * articles beside it use; anything else is passed over.
+   */
+  async other(path: string, bytes: Buffer): Promise<void> {
+    const contentHash = createHash("sha256").update(bytes).digest("hex");
+    if (this.pictures.get(path) === contentHash) {
+      this.summary.images += 1;
+      return;
+    }
+
+    let accepted;
+    try {
+      accepted = await acceptImage(path, bytes);
+    } catch (error) {
+      return this.fail(path, error instanceof Error ? error.message : "The image could not be read");
+    }
+    if (!accepted) return this.ignore();
+    if (accepted.bytes.byteLength > MAX_IMAGE_BYTES) {
+      return this.fail(path, "The image is too large to import");
+    }
+
+    try {
+      await storeImage(this.collectionId, path, contentHash, accepted);
+      this.pictures.set(path, contentHash);
+      this.summary.images += 1;
+    } catch (error) {
+      console.error(`bothy: knowledge base import could not store ${path}`, error);
+      await this.fail(path, "The image could not be stored");
+    }
+  }
+
   async fail(path: string, reason: string): Promise<void> {
     this.summary.total += 1;
     this.summary.failed += 1;
@@ -257,7 +302,7 @@ export class ImportRun {
     try {
       article = await extractArticle(path, bytes);
     } catch (error) {
-      if (error instanceof NotAnArticleError) return this.ignore();
+      if (error instanceof NotAnArticleError) return this.other(path, bytes);
       return this.fail(path, "The file could not be read");
     }
 
@@ -441,7 +486,7 @@ export async function importArchive(options: {
         try {
           article = await extractArticle(path, entry.bytes);
         } catch (error) {
-          if (error instanceof NotAnArticleError) return importing.ignore();
+          if (error instanceof NotAnArticleError) return importing.other(path, entry.bytes);
           return importing.fail(path, "The file could not be read");
         }
 
@@ -496,6 +541,7 @@ const importColumns = {
   failed: kbImports.failed,
   unextracted: kbImports.unextracted,
   ignored: kbImports.ignored,
+  images: kbImports.images,
   failures: kbImports.failures,
   usedManifest: kbImports.usedManifest,
   error: kbImports.error,

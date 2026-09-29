@@ -194,11 +194,12 @@ test.beforeEach(async ({ page }) => {
 test("an archive becomes articles, and the summary says what happened", async ({ page }) => {
   await importArchive(page, "export.zip", archive(FIRST));
 
-  // Two articles, a text file, and a scan. The picture and the package's own
-  // notes are not articles, and are not failures either.
+  // Two articles, a text file, and a scan. The picture is kept as a picture,
+  // and the package's own notes are not articles and not failures either.
   expect(await summary(page)).toEqual({ Added: 4, Updated: 0, Skipped: 0, Failed: 0 });
   await expect(page.getByText("No readable text: 1")).toBeVisible();
-  await expect(page.getByText("Not articles: 4")).toBeVisible();
+  await expect(page.getByText("Images: 1", { exact: false })).toBeVisible();
+  await expect(page.getByText("Not articles or images: 3")).toBeVisible();
   await expect(page.getByText("manifest.json decided what had changed.")).toBeVisible();
 
   const stored = psql(
@@ -938,6 +939,96 @@ test("a key can write an article that stays off the public site", async ({ page,
 
   await callTool(request, "archive_kb_article", { article_id: written.structuredContent.article_id }, repoKey);
   await grant(page, REPO_KEY_NAME, "none");
+});
+
+/** One pixel, which is enough for a browser to draw. */
+const ONE_PIXEL = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+test("pictures come in with their articles and are read only through them", async ({
+  page,
+  browser,
+}) => {
+  await page.goto("/admin/kb");
+  await page.getByLabel("Collection name").fill(unique("Calder Ridge Pictures"));
+  await page.getByRole("button", { name: "Create collection" }).click();
+  await expect(page).toHaveURL(/\/admin\/kb\/[0-9a-f-]{36}$/);
+  const pictures = page.url().split("/").pop() as string;
+
+  // Named the way an export names them: a space, a bracket, and a case the
+  // file itself does not have.
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: "pictures.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from(
+      zipSync({
+        "export/guides/panel.md": text(
+          "# Rear panel\n\n![The rear panel (2 wire)](../images/Rear Panel/panel (2 wire).PNG)\n\n" +
+            "![A picture that was lost](../images/lost.png)\n",
+        ),
+        "export/guides/front.md": text("# Front panel\n\nNothing to show.\n"),
+        "export/images/Rear Panel/panel (2 wire).png": ONE_PIXEL,
+        "export/images/renamed.png": text("Not a picture, whatever it is called."),
+      }),
+    ),
+  });
+  await page.getByRole("button", { name: "Start import" }).click();
+  await expect(page.getByText("Import finished.")).toBeVisible({ timeout: 60_000 });
+
+  expect(await summary(page)).toEqual({ Added: 2, Updated: 0, Skipped: 0, Failed: 0 });
+  await expect(page.getByText("Not articles or images: 1")).toBeVisible();
+  expect(
+    psql(`select source_path || '|' || mime_type from kb_images where collection_id='${pictures}';`),
+  ).toBe("images/Rear Panel/panel (2 wire).png|image/png");
+
+  const shown = psql(
+    `select id from kb_articles where collection_id='${pictures}' and source_path='guides/panel.md';`,
+  );
+  const bare = psql(
+    `select id from kb_articles where collection_id='${pictures}' and source_path='guides/front.md';`,
+  );
+  const imageId = psql(`select id from kb_images where collection_id='${pictures}';`);
+
+  await page.goto(`/kb/articles/${shown}`);
+  const picture = page.getByRole("img", { name: "The rear panel (2 wire)" });
+  await expect(picture).toHaveAttribute("src", `/api/kb/articles/${shown}/images/${imageId}`);
+  await expect
+    .poll(() => picture.evaluate((node) => (node as HTMLImageElement).naturalWidth))
+    .toBe(1);
+  // What did not come with the import leaves its caption, not a broken frame.
+  await expect(page.getByText("A picture that was lost")).toBeVisible();
+  await expect(page.getByRole("img", { name: "A picture that was lost" })).toHaveCount(0);
+
+  // An article that does not show the picture does not lead to it.
+  expect((await page.request.get(`/api/kb/articles/${bare}/images/${imageId}`)).status()).toBe(404);
+
+  const stranger = await visitor(browser, ON_SITE);
+  expect(
+    (await stranger.page.request.get(`/api/kb/articles/${shown}/images/${imageId}`)).status(),
+  ).toBe(401);
+  // Not on the public site until the collection is.
+  const published = `/pub/kb/articles/${shown}/images/${imageId}`;
+  expect((await stranger.page.request.get(published)).status()).toBe(404);
+
+  psql(`update kb_collections set public_access=true where id='${pictures}';`);
+  await stranger.page.goto(`/pub/kb/articles/${shown}`);
+  const onSite = stranger.page.getByRole("img", { name: "The rear panel (2 wire)" });
+  await expect(onSite).toHaveAttribute("src", published);
+  await expect
+    .poll(() => onSite.evaluate((node) => (node as HTMLImageElement).naturalWidth))
+    .toBe(1);
+
+  const elsewhere = await visitor(browser, "198.51.100.1");
+  expect((await elsewhere.page.request.get(published)).status()).toBe(404);
+  await elsewhere.context.close();
+
+  // Held back, the article takes its pictures with it.
+  psql(`update kb_articles set public_hidden=true where id='${shown}';`);
+  expect((await stranger.page.request.get(published)).status()).toBe(404);
+  expect((await page.request.get(`/api/kb/articles/${shown}/images/${imageId}`)).status()).toBe(200);
+  await stranger.context.close();
 });
 
 test("open to anyone admits a visitor from anywhere, and off shuts it again", async ({ page, browser }) => {

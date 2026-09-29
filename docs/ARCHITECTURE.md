@@ -230,8 +230,29 @@ appears in the documentation search.
   (`src/server/uploads/accept.ts`). Markdown keeps its YAML frontmatter as
   metadata; text is stored as it is; a PDF gives up its text layer only; a Word
   document becomes Markdown. A PDF with no text layer is stored and marked
-  `unextracted` rather than failing the import. Images and the package's own
-  notes (`README.md`, `index.md`, `manifest.json`) are counted as not articles.
+  `unextracted` rather than failing the import. The package's own notes
+  (`README.md`, `index.md`, `manifest.json`) are counted as not articles.
+- **Pictures** in an archive are kept (`kb_images`), under the path they had
+  in it, because that path is how the articles beside them name them. The
+  formats are the attachment's: PNG, JPEG, GIF, WebP, AVIF, and HEIC converted
+  to JPEG; a file named `.jpg` that is not one is passed over. Each is held to
+  `MAX_UPLOAD_MB`, stored under a key of ours made from its hash, and skipped
+  on a later import when its hash has not changed. Pictures and articles must
+  arrive in the same archive, or the paths between them mean nothing.
+- **An article's body is stored as it came.** When it is drawn, each reference
+  to a path inside the import is resolved from the article's own path and
+  pointed at the picture kept there (`src/server/kb/images.ts`). Exports write
+  destinations a Markdown parser will not read — spaces, brackets — so the
+  references are read before the parser sees them. Case is forgiven. A picture
+  that did not come with the import leaves its caption. References to other
+  sites are left alone. MCP returns the body as stored.
+- **A picture is read through an article**, never on its own:
+  `/api/kb/articles/:article/images/:image` signed in, and
+  `/pub/kb/articles/:article/images/:image` on the public site. It is found
+  only when the reader may read that article and the article refers to that
+  picture, so an article held back from the public site takes its pictures
+  with it. It is served with `nosniff` and a sandboxing policy, like any
+  upload, and counted apart from pages by the public site's limiter.
 - **Upsert** is on `(collection_id, source_key)`. The key is `id:<external_id>`
   when the source names one and `path:<file path>` when it does not, so the two
   cannot collide and a re-import updates instead of duplicating. An article

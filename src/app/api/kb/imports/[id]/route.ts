@@ -36,6 +36,7 @@ export async function GET(request: Request, context: Context): Promise<Response>
       failed: record.failed,
       unextracted: record.unextracted,
       ignored: record.ignored,
+      images: record.images,
       used_manifest: record.usedManifest,
       failures: record.failures,
       error: record.error,

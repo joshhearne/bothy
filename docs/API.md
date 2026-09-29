@@ -97,9 +97,15 @@ API key.
 POST   /api/kb/imports                { collectionId, filename, size } -> { id, pieceBytes }
 PUT    /api/kb/imports/:id?offset=N   raw bytes of one piece           -> { received_bytes }
 POST   /api/kb/imports/:id/complete                                    -> 202, import runs on
-GET    /api/kb/imports/:id                                             -> status and counts
+GET    /api/kb/imports/:id                                             -> status and counts, `images` among them
 DELETE /api/kb/imports/:id            abandons an upload
 ```
 A piece out of order answers `409` with the `received_bytes` to resume from.
 An archive already on the server can be imported without the browser:
 `npx tsx --conditions react-server scripts/kb-import.ts "<collection>" <file.zip>`.
+Run it where `STORAGE_PATH` is the deployment's own uploads volume: the pictures
+in the archive are written there.
+
+A picture in an article is a session route, not part of the API:
+`GET /api/kb/articles/:articleId/images/:imageId`, found only through an article
+that shows it.

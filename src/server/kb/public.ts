@@ -43,9 +43,11 @@ export async function visitorAddress(): Promise<string | null> {
  */
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 120;
+/** A page of photographs asks for each of them, so pictures are counted apart. */
+const MAX_IMAGE_REQUESTS = 1_200;
 const windows = new Map<string, { count: number; resetAt: number }>();
 
-function withinLimit(address: string): boolean {
+function withinLimit(address: string, most = MAX_REQUESTS): boolean {
   const now = Date.now();
   if (windows.size > 10_000) {
     for (const [key, window] of windows) if (window.resetAt <= now) windows.delete(key);
@@ -57,7 +59,7 @@ function withinLimit(address: string): boolean {
     return true;
   }
   window.count += 1;
-  return window.count <= MAX_REQUESTS;
+  return window.count <= most;
 }
 
 export class TooManyRequestsError extends Error {
@@ -76,5 +78,22 @@ export async function requirePublicReader(): Promise<KbReader> {
   if (settings.mode === "addresses" && !isListed(address, settings.addresses)) notFound();
 
   if (!withinLimit(address ?? "unknown")) throw new TooManyRequestsError();
+  return PUBLIC_READER;
+}
+
+/**
+ * The same gate for a picture, which is fetched by a page and cannot be
+ * answered with one. Null is "not found".
+ */
+export async function admitPublicImageReader(): Promise<KbReader | null> {
+  const settings = await getKbPublicSettings();
+  if (settings.mode === "off") return null;
+
+  const address = await visitorAddress();
+  if (settings.mode === "addresses" && !isListed(address, settings.addresses)) return null;
+
+  if (!withinLimit(`image:${address ?? "unknown"}`, MAX_IMAGE_REQUESTS)) {
+    throw new TooManyRequestsError();
+  }
   return PUBLIC_READER;
 }

@@ -775,6 +775,36 @@ export const kbChunks = pgTable(
   ],
 );
 
+/**
+ * A picture that came in with an import, kept under the path its articles
+ * name it by. It belongs to the collection: an article reaches it by
+ * referring to that path, and a reader reaches it through an article.
+ */
+export const kbImages = pgTable(
+  "kb_images",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => kbCollections.id, { onDelete: "cascade" }),
+    /** Where it sat in the import, which is how an article refers to it. */
+    sourcePath: text("source_path").notNull(),
+    storageKey: text("storage_key").notNull(),
+    /** Decided from the bytes. A converted HEIC is stored, and served, as JPEG. */
+    mimeType: text("mime_type").notNull(),
+    sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+    /** SHA-256 of the file as it arrived, so an unchanged one is not rewritten. */
+    contentHash: text("content_hash").notNull(),
+    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().default(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    unique("kb_images_collection_path").on(t.collectionId, t.sourcePath),
+    // Exports disagree with themselves about case; the lookup forgives that.
+    index("kb_images_lookup_idx").on(t.collectionId, sql`lower(${t.sourcePath})`),
+  ],
+);
+
 /** One run of the importer, from an upload or from a connector. */
 export const kbImports = pgTable(
   "kb_imports",
@@ -797,8 +827,10 @@ export const kbImports = pgTable(
     failed: integer("failed").notNull().default(0),
     /** Of those added or updated, how many had no text to extract. */
     unextracted: integer("unextracted").notNull().default(0),
-    /** Files that are not articles: images, package notes, the manifest. */
+    /** Files that are neither articles nor pictures: package notes, the manifest. */
     ignored: integer("ignored").notNull().default(0),
+    /** Pictures in the archive that the collection now holds. */
+    images: integer("images").notNull().default(0),
     /** [{ path, reason }], capped so one bad archive cannot fill the row. */
     failures: jsonb("failures").$type<{ path: string; reason: string }[]>().notNull().default([]),
     usedManifest: boolean("used_manifest").notNull().default(false),

@@ -26,6 +26,7 @@ type Summary = {
   failed: number;
   unextracted: number;
   ignored: number;
+  images: number;
   used_manifest: boolean;
   failures: { path: string; reason: string }[];
   error: string | null;
@@ -38,7 +39,8 @@ type Phase =
   | { step: "importing"; count: number }
   | { step: "finished"; summary: Summary };
 
-const ACCEPT = ".zip,.md,.markdown,.txt,.pdf,.docx,application/zip";
+const ACCEPT =
+  ".zip,.md,.markdown,.txt,.pdf,.docx,.png,.jpg,.jpeg,.gif,.webp,.avif,.heic,.heif,application/zip";
 const ATTEMPTS = 4;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -356,7 +358,7 @@ export function KbImport({ collectionId, maxMb }: { collectionId: string; maxMb:
   );
 }
 
-/** What an import did, in the four numbers that matter and the two that explain them. */
+/** What an import did, in the four numbers that matter and the three that explain them. */
 export function ImportSummary({ summary }: { summary: Summary }) {
   const t = useMessages();
   const locale = useLocale();
@@ -369,6 +371,7 @@ export function ImportSummary({ summary }: { summary: Summary }) {
   ];
   const notes: [string, number][] = [
     [t.admin.kb.unextracted, summary.unextracted],
+    [t.admin.kb.images, summary.images ?? 0],
     [t.admin.kb.ignored, summary.ignored],
   ];
 

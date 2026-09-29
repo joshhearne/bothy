@@ -649,7 +649,7 @@ export const enUS = {
 
       importHeading: "Import",
       importHint: (mb: number) =>
-        `A zip archive, a folder, or individual files: Markdown, text, PDF, and Word. Up to ${mb} MB. Importing the same source again updates its articles instead of duplicating them.`,
+        `A zip archive, a folder, or individual files: Markdown, text, PDF, and Word, with the images the articles show. Up to ${mb} MB. Importing the same source again updates its articles instead of duplicating them.`,
       chooseZip: "Choose files or a zip",
       chooseFolder: "Choose a folder",
       chosen: (name: string, size: string) => `${name} · ${size}`,
@@ -668,7 +668,8 @@ export const enUS = {
       skipped: "Skipped",
       failed: "Failed",
       unextracted: "No readable text",
-      ignored: "Not articles",
+      images: "Images",
+      ignored: "Not articles or images",
       usedManifest: "manifest.json decided what had changed.",
       failures: "What failed",
       moreFailures: "Only the first 200 are listed.",

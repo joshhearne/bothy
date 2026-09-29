@@ -526,3 +526,21 @@ ALTER TABLE instance_settings ADD COLUMN kb_public_mode text NOT NULL DEFAULT 'o
   CHECK (kb_public_mode IN ('off','addresses','open'));
 ALTER TABLE instance_settings ADD COLUMN kb_public_addresses text NOT NULL DEFAULT '';
 ALTER TABLE instance_settings ADD COLUMN kb_public_url text;
+
+-- ---------- Knowledge base images ----------
+-- Pictures that came in with an import, kept under the path the articles
+-- name them by. Read only through an article that refers to them.
+CREATE TABLE kb_images (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  collection_id uuid NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
+  source_path   text NOT NULL,
+  storage_key   text NOT NULL,
+  mime_type     text NOT NULL,
+  size_bytes    bigint NOT NULL,
+  content_hash  text NOT NULL,
+  imported_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (collection_id, source_path)
+);
+CREATE INDEX kb_images_lookup_idx ON kb_images (collection_id, lower(source_path));
+ALTER TABLE kb_imports ADD COLUMN images int NOT NULL DEFAULT 0;
