@@ -81,6 +81,39 @@ test("the endpoint refuses anonymous callers", async ({ request }) => {
   expect(response.headers()["www-authenticate"]).toContain("Bearer");
 });
 
+test("the key is accepted as it was handed out, with or without a scheme", async ({ request }) => {
+  const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
+
+  const accepted: Record<string, string>[] = [
+    { Authorization: `Bearer ${apiKey}` },
+    { Authorization: apiKey },
+    { Authorization: `bearer   ${apiKey}` },
+    { "X-API-Key": apiKey },
+  ];
+  for (const headers of accepted) {
+    const response = await request.post("/api/mcp", { headers, data: ping });
+    expect(response.status(), JSON.stringify(Object.keys(headers))).toBe(200);
+  }
+
+  // The REST API reads a key the same way.
+  const rest = await request.get("/api/v1/companies", { headers: { Authorization: apiKey } });
+  expect(rest.status()).toBe(200);
+});
+
+test("a key that is wrong, or in a scheme that is not ours, is refused", async ({ request }) => {
+  const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
+
+  const refused: Record<string, string>[] = [
+    { Authorization: `${apiKey}x` },
+    { Authorization: `Basic ${Buffer.from(`user:${apiKey}`).toString("base64")}` },
+    { "X-API-Key": "bothy_not-a-real-key-at-all" },
+  ];
+  for (const headers of refused) {
+    const response = await request.post("/api/mcp", { headers, data: ping });
+    expect(response.status()).toBe(401);
+  }
+});
+
 test("it negotiates a protocol version and declares its tools", async ({ request }) => {
   const { body } = await rpc(request, "initialize", {
     protocolVersion: "2025-06-18",

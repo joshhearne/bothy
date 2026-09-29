@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { authenticateApiKey, hasScope } from "@/server/services/api-keys";
+import { NO_KEY_MESSAGE, presentedKey } from "@/server/api/credentials";
 import { handleMessage } from "@/server/mcp/server";
 import {
   ERROR_CODES,
@@ -49,14 +50,11 @@ export async function POST(request: Request): Promise<Response> {
     return rpcError(400, ERROR_CODES.invalidRequest, `Unsupported protocol version: ${version}`);
   }
 
-  const header = request.headers.get("authorization") ?? "";
-  const presented = header.toLowerCase().startsWith("bearer ")
-    ? header.slice("bearer ".length).trim()
-    : "";
+  const presented = presentedKey(request.headers);
 
   if (presented === "") {
     return new Response(
-      JSON.stringify(failure(null, ERROR_CODES.invalidRequest, "Provide an API key as a bearer token")),
+      JSON.stringify(failure(null, ERROR_CODES.invalidRequest, NO_KEY_MESSAGE)),
       { status: 401, headers: { ...JSON_HEADERS, "WWW-Authenticate": "Bearer" } },
     );
   }

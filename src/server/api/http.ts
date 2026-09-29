@@ -9,6 +9,7 @@ import {
 import { ForbiddenError, NotFoundError } from "@/server/services/errors";
 import type { CompanyScope } from "@/server/auth/company-scope";
 import { ScopeMismatchError } from "@/server/services/documents";
+import { NO_KEY_MESSAGE, presentedKey } from "@/server/api/credentials";
 
 /** One error shape for the whole API. */
 export type ApiErrorBody = {
@@ -91,13 +92,10 @@ export function withApi<P extends Record<string, string> = Record<string, string
   handler: ApiHandler<P>,
 ) {
   return async (request: Request, context?: { params?: Promise<P> }): Promise<Response> => {
-    const header = request.headers.get("authorization") ?? "";
-    const presented = header.toLowerCase().startsWith("bearer ")
-      ? header.slice("bearer ".length).trim()
-      : "";
+    const presented = presentedKey(request.headers);
 
     if (presented === "") {
-      return apiError(401, "unauthorized", "Provide an API key as a bearer token");
+      return apiError(401, "unauthorized", NO_KEY_MESSAGE);
     }
 
     const key = await authenticateApiKey(presented);

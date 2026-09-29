@@ -125,7 +125,7 @@ server {
     proxy_set_header Cookie "";
     proxy_hide_header Set-Cookie;
 
-    location = /                 { return 302 /pub/kb; }
+    location = /                 { return 302 https://$host/pub/kb; }
     location ^~ /pub/kb          { proxy_pass http://127.0.0.1:3080; }
     location ^~ /_next/static/   { proxy_pass http://127.0.0.1:3080; }
     location = /api/branding/logo { proxy_pass http://127.0.0.1:3080; }

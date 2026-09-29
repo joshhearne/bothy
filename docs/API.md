@@ -1,6 +1,7 @@
 # API v1
 
-Base: `/api/v1`. JSON. Auth: `Authorization: Bearer <api_key>`.
+Base: `/api/v1`. JSON. Auth: `Authorization: Bearer <api_key>`. The key is also
+accepted on its own, as `Authorization: <api_key>` or `X-API-Key: <api_key>`.
 Spec generated from Zod schemas and served at `/api/v1/openapi.json`.
 Cursor pagination: `?limit=50&cursor=...`, response has `next_cursor`.
 
