@@ -6,6 +6,7 @@ import { listCompanies } from "@/server/services/companies";
 import { CompanyAccessFieldset } from "@/components/company-access-fieldset";
 import { getMessages } from "@/i18n/server";
 import { setCanRevealAction, setUserCompaniesAction, setUserRoleAction } from "../vault-actions";
+import { Select } from "@/components/ui/select";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function UsersPage() {
               <label className="sr-only" htmlFor={`role-${row.id}`}>
                 {t.admin.users.roleFor(row.email)}
               </label>
-              <select
+              <Select
                 id={`role-${row.id}`}
                 name="role"
                 defaultValue={row.role}
@@ -52,7 +53,7 @@ export default async function UsersPage() {
                     {role}
                   </option>
                 ))}
-              </select>
+              </Select>
               <Button type="submit" variant="outline" size="sm">
                 {t.admin.users.setRole}
               </Button>

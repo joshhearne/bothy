@@ -16,6 +16,7 @@ import {
   saveRackAction,
   setTypeColorAction,
 } from "./rack-actions";
+import { Select } from "@/components/ui/select";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -252,23 +253,23 @@ export function RackPanel({
                 <Input id="heightU" name="heightU" type="number" min={1} max={20} defaultValue={1} />
               </Field>
               <Field id="face" label={t.documents.rack.face}>
-                <select id="face" name="face" className={selectClass}>
+                <Select id="face" name="face" className={selectClass}>
                   <option value="front">{t.documents.rack.front}</option>
                   <option value="rear">{t.documents.rack.rear}</option>
                   <option value="both">{t.documents.rack.faceBoth}</option>
-                </select>
+                </Select>
               </Field>
             </div>
 
             <Field id="mountedId" label={t.documents.rack.document} hint={t.documents.rack.documentHint}>
-              <select id="mountedId" name="mountedId" className={selectClass} defaultValue="">
+              <Select id="mountedId" name="mountedId" className={selectClass} defaultValue="">
                 <option value="">—</option>
                 {mountable.map((option) => (
                   <option key={option.id} value={option.id}>
                     {option.title}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -281,14 +282,14 @@ export function RackPanel({
                 <Input id="label" name="label" maxLength={200} placeholder="Patch panel A" />
               </Field>
               <Field id="docTypeId" label={t.documents.rack.type} hint={t.documents.rack.typeHint}>
-                <select id="docTypeId" name="docTypeId" className={selectClass} defaultValue="">
+                <Select id="docTypeId" name="docTypeId" className={selectClass} defaultValue="">
                   <option value="">—</option>
                   {docTypes.map((type) => (
                     <option key={type.id} value={type.id}>
                       {type.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </Field>
             </div>
 
@@ -317,7 +318,7 @@ export function RackPanel({
                 label={t.documents.rack.numbering}
                 hint={t.documents.rack.numberingHint}
               >
-                <select
+                <Select
                   id="numbering"
                   name="numbering"
                   defaultValue={view.numbering}
@@ -325,7 +326,7 @@ export function RackPanel({
                 >
                   <option value="bottom_up">{t.documents.rack.bottomUp}</option>
                   <option value="top_down">{t.documents.rack.topDown}</option>
-                </select>
+                </Select>
               </Field>
             </div>
 

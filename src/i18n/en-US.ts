@@ -68,6 +68,10 @@ export const enUS = {
     none: "—",
     saved: "Saved.",
     noPermission: "You do not have permission to do that",
+    copy: "Copy",
+    copied: "Copied!",
+    copyFailed: "Select and copy",
+    copyHint: "Click to copy",
   },
 
   setup: {

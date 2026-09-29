@@ -10,6 +10,7 @@ import { FormError } from "@/components/ui/alert";
 import type { FormState } from "@/lib/form";
 import { useMessages } from "@/i18n/client";
 import { addTemplateFieldAction, updateTemplateFieldAction } from "./actions";
+import { Select } from "@/components/ui/select";
 
 export type FieldTypeChoice = {
   value: string;
@@ -69,7 +70,7 @@ function Controls({
       </Field>
 
       <Field id="fieldType" label={t.editor.type} error={fieldErrors.fieldType}>
-        <select
+        <Select
           id="fieldType"
           name="fieldType"
           value={fieldType}
@@ -81,12 +82,12 @@ function Controls({
               {type.label}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
 
       {needsList && (
         <Field id="optionListId" label={t.editor.optionList} error={fieldErrors.optionListId}>
-          <select
+          <Select
             id="optionListId"
             name="optionListId"
             defaultValue={defaults.optionListId ?? ""}
@@ -98,7 +99,7 @@ function Controls({
                 {list.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
       )}
 
@@ -109,7 +110,7 @@ function Controls({
           error={fieldErrors.linkDocTypeId}
           hint={t.admin.docTypes.linkHint}
         >
-          <select
+          <Select
             id="linkDocTypeId"
             name="linkDocTypeId"
             defaultValue={defaults.linkDocTypeId ?? ""}
@@ -121,7 +122,7 @@ function Controls({
                 {docType.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
       )}
 

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { RichTextEditor } from "@/components/fields/rich-text-editor";
 import type { FieldType } from "@/server/fields/types";
 import { useMessages } from "@/i18n/client";
+import { Select } from "@/components/ui/select";
 
 export type EditableField = {
   id: string;
@@ -157,7 +158,7 @@ export function FieldControl({
       case "dropdown":
         return (
           <div className="flex items-start gap-2">
-            <select
+            <Select
               id={id}
               name={name}
               value={asText}
@@ -171,7 +172,7 @@ export function FieldControl({
                   {option.label}
                 </option>
               ))}
-            </select>
+            </Select>
             {onAddOption && (
               <AddOptionButton
                 fieldLabel={field.label}
@@ -230,7 +231,7 @@ export function FieldControl({
 
       case "doc_link":
         return (
-          <select
+          <Select
             id={id}
             name={name}
             value={asText}
@@ -244,7 +245,7 @@ export function FieldControl({
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         );
 
       case "secret_ref":
@@ -256,7 +257,7 @@ export function FieldControl({
           );
         }
         return (
-          <select
+          <Select
             id={id}
             name={name}
             value={asText}
@@ -270,7 +271,7 @@ export function FieldControl({
                 {option.label}
               </option>
             ))}
-          </select>
+          </Select>
         );
 
       default:

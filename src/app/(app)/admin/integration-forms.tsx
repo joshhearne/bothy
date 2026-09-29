@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/alert";
 import { useMessages } from "@/i18n/client";
+import { CopyBlock } from "@/components/ui/copy-block";
 import { CompanyAccessFieldset } from "@/components/company-access-fieldset";
 import {
   createApiKeyAction,
@@ -40,12 +41,7 @@ function RevealOnce({
   return (
     <div className="flex flex-col gap-2 rounded-md border p-4">
       <p className="text-sm font-medium">{title}</p>
-      <output
-        aria-label={label}
-        className="block overflow-x-auto rounded bg-[var(--muted)] px-3 py-2 font-mono text-sm"
-      >
-        {value}
-      </output>
+      <CopyBlock value={value} label={label} />
       <p className="text-xs text-[var(--muted-foreground)]">{help}</p>
     </div>
   );

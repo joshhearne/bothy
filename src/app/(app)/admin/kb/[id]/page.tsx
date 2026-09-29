@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CopyBlock } from "@/components/ui/copy-block";
 import { env } from "@/lib/env";
 import { isWorkers } from "@/lib/runtime";
 import { requireUser } from "@/server/auth/session";
@@ -23,6 +24,7 @@ import {
   setConnectorEnabledAction,
   setGrantAction,
 } from "../../kb-actions";
+import { Select } from "@/components/ui/select";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +60,7 @@ export default async function KbCollectionAdminPage({
   const available = !isWorkers();
 
   const endpoint = `${env.APP_URL.replace(/\/+$/, "")}/api/mcp`;
-  const connect = `claude mcp add --transport http bothy ${endpoint} \\\n  --header "Authorization: Bearer YOUR_API_KEY"`;
+  const connect = `claude mcp add --transport http bothy ${endpoint} \\\n  --header "Authorization: YOUR_API_KEY"`;
   const instruct = [
     "## Knowledge base",
     `This application's user documentation lives in Bothy, in the collection "${collection.name}"`,
@@ -188,7 +190,7 @@ export default async function KbCollectionAdminPage({
                           : t.admin.apiKeys.neverUsed}
                       </p>
                     </div>
-                    <select
+                    <Select
                       name="level"
                       defaultValue={key.level}
                       aria-label={t.admin.kb.levelFor(key.name)}
@@ -199,7 +201,7 @@ export default async function KbCollectionAdminPage({
                           {t.admin.kb.levels[level]}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                     <Button type="submit" variant="outline" size="sm">
                       {t.admin.kb.saveLevel}
                     </Button>
@@ -216,13 +218,9 @@ export default async function KbCollectionAdminPage({
               <div className="mt-3 flex flex-col gap-3">
                 <p className="text-sm text-[var(--muted-foreground)]">{t.admin.kb.setupHint}</p>
                 <p className="text-sm font-medium">{t.admin.kb.setupConnect}</p>
-                <pre className="overflow-x-auto rounded-md bg-[var(--muted)] p-3 text-xs">
-                  <code>{connect}</code>
-                </pre>
+                <CopyBlock value={connect} label={t.admin.kb.setupConnect} />
                 <p className="text-sm font-medium">{t.admin.kb.setupInstruct}</p>
-                <pre className="overflow-x-auto rounded-md bg-[var(--muted)] p-3 text-xs whitespace-pre-wrap">
-                  <code>{instruct}</code>
-                </pre>
+                <CopyBlock value={instruct} label={t.admin.kb.setupInstruct} wrap />
               </div>
             </details>
           </>

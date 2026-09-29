@@ -8,6 +8,7 @@ import { FormError } from "@/components/ui/alert";
 import { useMessages } from "@/i18n/client";
 import type { FormState } from "@/lib/form";
 import { setDefaultLocaleAction, setKbPublicAction } from "./settings-actions";
+import { Select } from "@/components/ui/select";
 
 /** The language a reader who has never chosen one gets. */
 export function DefaultLocaleForm({
@@ -32,7 +33,7 @@ export function DefaultLocaleForm({
         label={t.admin.settings.defaultLanguage}
         hint={t.admin.settings.defaultLanguageHint(fallback)}
       >
-        <select
+        <Select
           id="defaultLocale"
           name="defaultLocale"
           defaultValue={chosen ?? ""}
@@ -44,7 +45,7 @@ export function DefaultLocaleForm({
               {locale.label}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
 
       <div>
@@ -81,7 +82,7 @@ export function KbPublicForm({
       <FormError>{state.error}</FormError>
 
       <Field id="kb-public-mode" label={t.admin.settings.publicMode} error={state.fieldErrors?.mode}>
-        <select
+        <Select
           id="kb-public-mode"
           name="mode"
           value={chosen}
@@ -91,7 +92,7 @@ export function KbPublicForm({
           <option value="off">{t.admin.settings.publicModes.off}</option>
           <option value="addresses">{t.admin.settings.publicModes.addresses}</option>
           <option value="open">{t.admin.settings.publicModes.open}</option>
-        </select>
+        </Select>
       </Field>
 
       {chosen === "open" && (

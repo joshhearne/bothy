@@ -9,6 +9,7 @@ import { FormError } from "@/components/ui/alert";
 import type { FormState } from "@/lib/form";
 import { useMessages } from "@/i18n/client";
 import { createDocTypeAction, updateDocTypeAction } from "./actions";
+import { Select } from "@/components/ui/select";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -55,7 +56,7 @@ export function DocTypeForm({
         error={fieldErrors.scope}
         hint={t.admin.docTypes.scopeHint}
       >
-        <select
+        <Select
           id="scope"
           name="scope"
           defaultValue={values.scope ?? "location"}
@@ -63,7 +64,7 @@ export function DocTypeForm({
         >
           <option value="location">Location</option>
           <option value="company">Company</option>
-        </select>
+        </Select>
       </Field>
 
       <Field id="icon" label={t.admin.docTypes.icon} error={fieldErrors.icon} hint={t.admin.docTypes.iconHint}>

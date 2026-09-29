@@ -10,6 +10,7 @@ import { LOCALE_NAMES, LOCALES, type Locale } from "@/i18n/locales";
 import { setLocaleAction } from "@/app/locale-actions";
 import { setThemeAction } from "@/app/theme-actions";
 import { THEMES, type Theme } from "@/lib/theme";
+import { Select } from "@/components/ui/select";
 
 /**
  * The only thing in the top bar besides the wordmark: one button carrying the
@@ -116,7 +117,7 @@ export function UserMenu({
             <label htmlFor="locale" className="text-sm font-medium">
               {t.app.language}
             </label>
-            <select
+            <Select
               id="locale"
               name="locale"
               defaultValue={locale}
@@ -128,14 +129,14 @@ export function UserMenu({
                   {LOCALE_NAMES[option]}
                 </option>
               ))}
-            </select>
+            </Select>
           </form>
 
           <form ref={themeFormRef} action={setThemeAction} className="flex flex-col gap-1 py-3">
             <label htmlFor="theme" className="text-sm font-medium">
               {t.app.theme}
             </label>
-            <select
+            <Select
               id="theme"
               name="theme"
               defaultValue={theme}
@@ -147,7 +148,7 @@ export function UserMenu({
                   {t.app.themes[option]}
                 </option>
               ))}
-            </select>
+            </Select>
           </form>
 
           <form action={signOut} className="border-t pt-3">

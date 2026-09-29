@@ -7,6 +7,7 @@ import { getActiveVault, listVaultProviders, mappingSystem } from "@/server/serv
 import { getMessages } from "@/i18n/server";
 import { MapCollectionForm, VaultProviderForm } from "../vault-forms";
 import { setCompanyVaultAction, unmapCollectionAction } from "../vault-actions";
+import { Select } from "@/components/ui/select";
 
 export const dynamic = "force-dynamic";
 
@@ -112,7 +113,7 @@ export default async function VaultPage() {
                 <label className="sr-only" htmlFor={`vault-${company.id}`}>
                   {t.admin.vault.companyVault}
                 </label>
-                <select
+                <Select
                   id={`vault-${company.id}`}
                   name="providerId"
                   defaultValue={company.vaultProviderId ?? ""}
@@ -124,7 +125,7 @@ export default async function VaultPage() {
                       {provider.name}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <Button type="submit" variant="outline" size="sm">
                   {t.admin.vault.setVault}
                 </Button>

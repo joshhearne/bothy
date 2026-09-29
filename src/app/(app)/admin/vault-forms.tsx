@@ -10,6 +10,7 @@ import { FormError } from "@/components/ui/alert";
 import type { FormState } from "@/lib/form";
 import { useMessages } from "@/i18n/client";
 import { mapCollectionAction, saveVaultProviderAction } from "./vault-actions";
+import { Select } from "@/components/ui/select";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -64,13 +65,13 @@ export function VaultProviderForm({
         error={fieldErrors.kind}
         hint={t.admin.vault.modeHint}
       >
-        <select id="kind" name="kind" defaultValue={provider?.kind ?? "link"} className={selectClass}>
+        <Select id="kind" name="kind" defaultValue={provider?.kind ?? "link"} className={selectClass}>
           {VAULT_KINDS.map((kind) => (
             <option key={kind} value={kind}>
               {kind}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
 
       <Field id="webVaultUrl" label={t.admin.vault.webVaultUrl} error={fieldErrors.webVaultUrl}>
@@ -140,26 +141,26 @@ export function MapCollectionForm({
 
       <div className="flex-1">
         <Field id="companyId" label={t.search.company}>
-          <select id="companyId" name="companyId" className={selectClass} required>
+          <Select id="companyId" name="companyId" className={selectClass} required>
             <option value="">{t.search.anyCompany}</option>
             {companies.map((company) => (
               <option key={company.id} value={company.id}>
                 {company.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
       </div>
 
       <div className="flex-1">
         <Field id="providerId" label={t.admin.vault.provider}>
-          <select id="providerId" name="providerId" className={selectClass} required>
+          <Select id="providerId" name="providerId" className={selectClass} required>
             {providers.map((provider) => (
               <option key={provider.id} value={provider.id}>
                 {provider.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
       </div>
 

@@ -10,6 +10,7 @@ import { useMessages } from "@/i18n/client";
 import type { FormState } from "@/lib/form";
 import type { DocumentSchedule } from "@/server/services/schedules";
 import { clearScheduleAction, markDoneAction, saveScheduleAction } from "./schedule-actions";
+import { Select } from "@/components/ui/select";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -97,7 +98,7 @@ export function SchedulePanel({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <Field id="kind" label={t.documents.schedule.kind}>
-                <select
+                <Select
                   id="kind"
                   name="kind"
                   defaultValue={kind}
@@ -106,7 +107,7 @@ export function SchedulePanel({
                 >
                   <option value="expiry">{t.documents.schedule.expiry}</option>
                   <option value="maintenance">{t.documents.schedule.maintenance}</option>
-                </select>
+                </Select>
               </Field>
 
               <Field id="dueOn" label={t.documents.schedule.dueOn} error={state.fieldErrors?.dueOn}>

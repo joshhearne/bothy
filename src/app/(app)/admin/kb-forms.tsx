@@ -12,6 +12,7 @@ import {
   createConnectorAction,
   updateCollectionAction,
 } from "./kb-actions";
+import { Select } from "@/components/ui/select";
 
 const selectClass =
   "h-10 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
@@ -191,7 +192,7 @@ export function ConnectorForm({ collectionId }: { collectionId: string }) {
       <input type="hidden" name="collectionId" value={collectionId} />
 
       <Field id="connector-kind" label={t.admin.kb.kind}>
-        <select
+        <Select
           id="connector-kind"
           name="kind"
           value={kind}
@@ -200,7 +201,7 @@ export function ConnectorForm({ collectionId }: { collectionId: string }) {
         >
           <option value="sitemap">{t.admin.kb.kindSitemap}</option>
           <option value="prefix">{t.admin.kb.kindPrefix}</option>
-        </select>
+        </Select>
       </Field>
 
       <Field

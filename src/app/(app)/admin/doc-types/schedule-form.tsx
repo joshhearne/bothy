@@ -9,6 +9,7 @@ import { FormError } from "@/components/ui/alert";
 import { useMessages } from "@/i18n/client";
 import type { FormState } from "@/lib/form";
 import { applyDocTypeScheduleAction, saveDocTypeScheduleAction } from "./schedule-actions";
+import { Select } from "@/components/ui/select";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -56,7 +57,7 @@ export function DocTypeScheduleForm({
         <input type="hidden" name="docTypeId" value={docTypeId} />
 
         <Field id="scheduleKind" label={t.documents.schedule.typeKind}>
-          <select
+          <Select
             id="scheduleKind"
             name="kind"
             defaultValue={chosen}
@@ -66,7 +67,7 @@ export function DocTypeScheduleForm({
             <option value="none">{t.documents.schedule.typeNone}</option>
             <option value="expiry">{t.documents.schedule.expiry}</option>
             <option value="maintenance">{t.documents.schedule.maintenance}</option>
-          </select>
+          </Select>
         </Field>
 
         {chosen !== "none" && (

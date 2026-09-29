@@ -44,6 +44,7 @@ import {
   reorderFieldsAction,
   type FieldDraft,
 } from "../../inline-actions";
+import { Select } from "@/components/ui/select";
 
 export type FieldTypeChoice = {
   value: EditableFieldType;
@@ -512,7 +513,7 @@ function FieldDraftPanel({
       </Field>
 
       <Field id="draft-type" label={t.editor.type}>
-        <select
+        <Select
           id="draft-type"
           value={fieldType}
           onChange={(event) => setFieldType(event.target.value as EditableFieldType)}
@@ -523,12 +524,12 @@ function FieldDraftPanel({
               {type.label}
             </option>
           ))}
-        </select>
+        </Select>
       </Field>
 
       {needsList && (
         <Field id="draft-list" label={t.editor.optionList}>
-          <select
+          <Select
             id="draft-list"
             value={optionListId}
             onChange={(event) => setOptionListId(event.target.value)}
@@ -540,13 +541,13 @@ function FieldDraftPanel({
                 {list.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
       )}
 
       {needsDocType && (
         <Field id="draft-doc-type" label={t.editor.linksTo}>
-          <select
+          <Select
             id="draft-doc-type"
             value={linkDocTypeId}
             onChange={(event) => setLinkDocTypeId(event.target.value)}
@@ -558,7 +559,7 @@ function FieldDraftPanel({
                 {docType.name}
               </option>
             ))}
-          </select>
+          </Select>
         </Field>
       )}
 
