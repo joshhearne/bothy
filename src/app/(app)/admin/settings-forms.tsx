@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/alert";
 import { useMessages } from "@/i18n/client";
 import type { FormState } from "@/lib/form";
-import { setDefaultLocaleAction } from "./settings-actions";
+import { setDefaultLocaleAction, setKbPublicAction } from "./settings-actions";
 
 /** The language a reader who has never chosen one gets. */
 export function DefaultLocaleForm({
@@ -51,6 +51,99 @@ export function DefaultLocaleForm({
         <Button type="submit" disabled={pending}>
           {pending ? t.common.saving : t.common.save}
         </Button>
+      </div>
+    </form>
+  );
+}
+
+const controlClass =
+  "w-full rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]";
+
+/** Who the public knowledge base is for, and where it lives. */
+export function KbPublicForm({
+  mode,
+  addresses,
+  url,
+  visitor,
+}: {
+  mode: "off" | "addresses" | "open";
+  addresses: string;
+  url: string;
+  /** The address this administrator is arriving from, to save them looking it up. */
+  visitor: string | null;
+}) {
+  const [state, formAction, pending] = useActionState<FormState, FormData>(setKbPublicAction, {});
+  const [chosen, setChosen] = useState(mode);
+  const t = useMessages();
+
+  return (
+    <form action={formAction} className="flex max-w-xl flex-col gap-4">
+      <FormError>{state.error}</FormError>
+
+      <Field id="kb-public-mode" label={t.admin.settings.publicMode} error={state.fieldErrors?.mode}>
+        <select
+          id="kb-public-mode"
+          name="mode"
+          value={chosen}
+          onChange={(event) => setChosen(event.target.value as typeof chosen)}
+          className={`h-10 ${controlClass}`}
+        >
+          <option value="off">{t.admin.settings.publicModes.off}</option>
+          <option value="addresses">{t.admin.settings.publicModes.addresses}</option>
+          <option value="open">{t.admin.settings.publicModes.open}</option>
+        </select>
+      </Field>
+
+      {chosen === "open" && (
+        <p role="note" className="rounded-md border border-[var(--destructive)] px-3 py-2 text-sm">
+          {t.admin.settings.publicOpenWarning}
+        </p>
+      )}
+
+      <Field
+        id="kb-public-addresses"
+        label={t.admin.settings.publicAddresses}
+        hint={
+          t.admin.settings.publicAddressesHint +
+          (visitor ? ` ${t.admin.settings.publicYourAddress(visitor)}` : "")
+        }
+        error={state.fieldErrors?.addresses}
+      >
+        <textarea
+          id="kb-public-addresses"
+          name="addresses"
+          rows={4}
+          defaultValue={addresses}
+          spellCheck={false}
+          className={`py-2 font-mono ${controlClass}`}
+        />
+      </Field>
+
+      <Field
+        id="kb-public-url"
+        label={t.admin.settings.publicUrl}
+        hint={t.admin.settings.publicUrlHint}
+        error={state.fieldErrors?.url}
+      >
+        <input
+          id="kb-public-url"
+          name="url"
+          type="url"
+          defaultValue={url}
+          placeholder="https://"
+          className={`h-10 ${controlClass}`}
+        />
+      </Field>
+
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={pending}>
+          {pending ? t.common.saving : t.admin.settings.publicSave}
+        </Button>
+        {state.ok && (
+          <span role="status" className="text-sm text-[var(--muted-foreground)]">
+            {t.common.saved}
+          </span>
+        )}
       </div>
     </form>
   );

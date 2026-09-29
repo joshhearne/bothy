@@ -363,6 +363,11 @@ export const enUS = {
       `No text could be read from: ${names}. Open the source to see them.`,
     attachments: "Attached documents",
     searchInstead: (q: string) => `Search the knowledge base for ${q}`,
+    publicEmpty: "Nothing has been published here yet.",
+    onPublicSite: "On the public site",
+    withheld: "Held back from the public site",
+    withhold: "Hold back",
+    publish: "Put back",
   },
 
   access: {
@@ -397,6 +402,30 @@ export const enUS = {
       defaultLanguageHint: (fallback: string) =>
         `Leave this alone and the instance follows APP_LOCALE, which is ${fallback}.`,
       fromEnvironment: (fallback: string) => `From the environment (${fallback})`,
+      publicKb: "Public knowledge base",
+      publicKbHint:
+        "A read-only site for people who have not signed in. It shows only the collections marked for it, and nothing else in this installation.",
+      publicMode: "Who may read it",
+      publicModes: {
+        off: "Nobody: the public site is off",
+        addresses: "Only visitors from the addresses below",
+        open: "Anyone who can reach it",
+      },
+      publicAddresses: "On-site addresses",
+      publicAddressesHint:
+        "One per line: an address such as 203.0.113.7, or a range such as 198.51.100.0/24. These are the public addresses your sites reach the internet from, not addresses inside your network.",
+      publicUrl: "Where it is published",
+      publicUrlHint: "Such as https://kb.example.com. Used for the links shown here.",
+      publicYourAddress: (address: string) => `You are visiting from ${address}.`,
+      publicOpenWarning:
+        "Anyone with the address can read every collection marked for the public site.",
+      publicCollections: (count: number) =>
+        count === 0
+          ? "No collection is marked for the public site yet."
+          : count === 1
+            ? "1 collection is marked for the public site."
+            : `${count} collections are marked for the public site.`,
+      publicSave: "Update public site",
       configuration: "Configuration",
       configurationHint:
         "Set in the environment, shown here so nobody has to read a compose file.",
@@ -600,6 +629,12 @@ export const enUS = {
       companiesClear: "Clear the selection",
       forEveryone: "every company",
       forSome: "selected companies only",
+      publicAccess: "Show on the public site",
+      publicAccessHint:
+        "Readable without signing in, by whoever the public site admits. Single articles can be held back from the article's own page. Nothing sensitive belongs here.",
+      publicAccessOff:
+        "The public site is turned off, so this has no effect yet. Turn it on under Admin → Settings.",
+      onPublicSite: "on the public site",
       mcpEnabled: "Available through MCP (read only)",
       mcpEnabledHint:
         "Lets an AI client search and read this collection with an API key. Nothing can be changed through MCP.",

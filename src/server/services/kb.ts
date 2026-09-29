@@ -23,8 +23,12 @@ import type { CompanyScope } from "@/server/auth/company-scope";
 
 export type KbReader = {
   scope: CompanyScope;
-  /** MCP is switched per collection; the interface is not. */
-  via: "app" | "mcp";
+  /**
+   * MCP is switched per collection; the interface is not. `public` is a
+   * reader who has not signed in: it sees only collections put on the public
+   * site, less the articles held back from it, and its scope is ignored.
+   */
+  via: "app" | "mcp" | "public";
   /**
    * Collections an API key was granted by name. A grant reads its collection
    * whatever companies the collection is kept to.
@@ -34,6 +38,10 @@ export type KbReader = {
 
 function readable(reader: KbReader): SQL[] {
   const filters: SQL[] = [isNull(kbCollections.archivedAt) as SQL];
+  if (reader.via === "public") {
+    filters.push(eq(kbCollections.publicAccess, true), eq(kbArticlesPublic(), true));
+    return filters;
+  }
   if (!reader.scope.all) {
     const granted = reader.granted?.length
       ? inArray(kbCollections.id, [...reader.granted])
@@ -56,12 +64,22 @@ function readable(reader: KbReader): SQL[] {
   return filters;
 }
 
+/**
+ * True for an article the public may see. Written against the article so it
+ * holds wherever articles are joined, and true where none is — a collection
+ * with nothing in it is still a collection.
+ */
+function kbArticlesPublic(): SQL<boolean> {
+  return sql<boolean>`coalesce(NOT ${kbArticles.publicHidden}, true)`;
+}
+
 /* ---------- Collections ---------- */
 
 export const collectionInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   description: z.string().trim().max(500).optional(),
   mcpEnabled: z.boolean().default(true),
+  publicAccess: z.boolean().default(false),
   /** The companies it is kept to. None means every company. */
   companyIds: z
     .array(z.uuid())
@@ -77,6 +95,7 @@ export type CollectionRow = {
   description: string | null;
   allCompanies: boolean;
   mcpEnabled: boolean;
+  publicAccess: boolean;
   archivedAt: Date | null;
   createdAt: Date;
   articleCount: number;
@@ -97,6 +116,7 @@ const collectionColumns = {
   description: kbCollections.description,
   allCompanies: kbCollections.allCompanies,
   mcpEnabled: kbCollections.mcpEnabled,
+  publicAccess: kbCollections.publicAccess,
   archivedAt: kbCollections.archivedAt,
   createdAt: kbCollections.createdAt,
   articleCount: sql<number>`count(${kbArticles.id})::int`,
@@ -170,6 +190,7 @@ export async function createCollection(input: CollectionInput, actorId: string |
           description: data.description ?? null,
           allCompanies: data.companyIds.length === 0,
           mcpEnabled: data.mcpEnabled,
+          publicAccess: data.publicAccess,
           createdBy: actorId,
         })
         .returning({ id: kbCollections.id });
@@ -215,6 +236,7 @@ export async function updateCollection(
           description: data.description ?? null,
           allCompanies: data.companyIds.length === 0,
           mcpEnabled: data.mcpEnabled,
+          publicAccess: data.publicAccess,
         })
         .where(eq(kbCollections.id, id))
         .returning({ id: kbCollections.id });
@@ -237,6 +259,7 @@ export async function updateCollection(
             name: data.name,
             companyIds: data.companyIds,
             mcpEnabled: data.mcpEnabled,
+            publicAccess: data.publicAccess,
           },
         },
         tx,
@@ -288,6 +311,8 @@ export type ArticleSummary = {
 };
 
 export type ArticleDetail = ArticleSummary & {
+  publicHidden: boolean;
+  collectionPublic: boolean;
   collectionId: string;
   collectionName: string;
   sourcePath: string | null;
@@ -392,6 +417,8 @@ export async function getArticle(id: string, reader: KbReader): Promise<ArticleD
       dateModified: kbArticles.dateModified,
       collectionId: kbCollections.id,
       collectionName: kbCollections.name,
+      publicHidden: kbArticles.publicHidden,
+      collectionPublic: kbCollections.publicAccess,
       externalId: kbArticles.externalId,
       sourcePath: kbArticles.sourcePath,
       sourceType: kbArticles.sourceType,
@@ -432,6 +459,33 @@ export async function listChunks(
   ]);
 
   return { chunks, total: totals?.total ?? 0 };
+}
+
+/** Holds an article back from the public site, or puts it back. */
+export async function setArticlePublicHidden(
+  id: string,
+  hidden: boolean,
+  actorId: string,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(kbArticles)
+      .set({ publicHidden: hidden })
+      .where(eq(kbArticles.id, id))
+      .returning({ id: kbArticles.id, title: kbArticles.title });
+    if (!row) throw new NotFoundError("Article");
+
+    await writeAudit(
+      {
+        userId: actorId,
+        action: hidden ? "kb_article.withheld" : "kb_article.published",
+        entity: "kb_article",
+        entityId: id,
+        detail: { title: row.title },
+      },
+      tx,
+    );
+  });
 }
 
 /* ---------- Search ---------- */

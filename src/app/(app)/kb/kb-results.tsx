@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import { BookOpen, ExternalLink } from "lucide-react";
 import { snippetToSegments } from "@/server/services/search";
 import type { KbHit } from "@/server/services/kb";
@@ -10,11 +11,14 @@ import type { Locale } from "@/i18n/locales";
 export function KbResults({
   hits,
   showCollection,
+  base = "/kb",
   locale,
   t,
 }: {
   hits: KbHit[];
   showCollection: boolean;
+  /** Where article links lead: the interface, or the public site. */
+  base?: string;
   locale: Locale;
   t: Messages;
 }) {
@@ -25,7 +29,7 @@ export function KbResults({
           <BookOpen className="mt-1 size-4 shrink-0 text-[var(--muted-foreground)]" aria-hidden />
           <div className="min-w-0 flex-1">
             <Link
-              href={`/kb/articles/${hit.articleId}`}
+              href={`${base}/articles/${hit.articleId}` as Route}
               className="font-medium break-words hover:underline"
             >
               {hit.title}

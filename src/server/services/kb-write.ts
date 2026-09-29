@@ -57,6 +57,8 @@ export const articleWriteSchema = z.object({
     .max(2000)
     .refine((value) => safeUrl(value) !== null, "source_url must be an http or https address")
     .optional(),
+  /** True keeps the article off the public site. Left out, it stays as it was. */
+  publicHidden: z.boolean().optional(),
 });
 
 export function readerFor(writer: Pick<KbWriter, "scope" | "grants">): KbReader {
@@ -122,14 +124,17 @@ export async function writeArticle(
       contentHash: kbArticles.contentHash,
       archivedAt: kbArticles.archivedAt,
       dateCreated: kbArticles.dateCreated,
+      publicHidden: kbArticles.publicHidden,
     })
     .from(kbArticles)
     .where(and(eq(kbArticles.collectionId, data.collectionId), eq(kbArticles.sourceKey, key)))
     .limit(1);
 
-  if (existing && !existing.archivedAt && existing.contentHash === contentHash) {
-    return { articleId: existing.id, outcome: "unchanged" };
-  }
+  const unchanged = existing && !existing.archivedAt && existing.contentHash === contentHash;
+  const hiddenChanged =
+    data.publicHidden !== undefined && existing?.publicHidden !== data.publicHidden;
+
+  if (unchanged && !hiddenChanged) return { articleId: existing.id, outcome: "unchanged" };
 
   const now = new Date();
   const articleId = await storeArticle(
@@ -153,6 +158,13 @@ export async function writeArticle(
     contentHash,
   );
 
+  if (data.publicHidden !== undefined) {
+    await db
+      .update(kbArticles)
+      .set({ publicHidden: data.publicHidden })
+      .where(eq(kbArticles.id, articleId));
+  }
+
   await writeAudit({
     action: existing ? "kb_article.updated" : "kb_article.created",
     entity: "kb_article",
@@ -161,6 +173,7 @@ export async function writeArticle(
       collectionId: data.collectionId,
       externalId: data.externalId,
       title: data.title,
+      ...(data.publicHidden !== undefined ? { publicHidden: data.publicHidden } : {}),
       ...attribution(writer),
     },
   });

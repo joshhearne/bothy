@@ -414,10 +414,25 @@ export const instanceSettings = pgTable(
     id: boolean("id").primaryKey().default(true),
     /** Overrides APP_LOCALE. Null means whatever the environment says. */
     defaultLocale: text("default_locale"),
+    /**
+     * The public knowledge base: off, open to the addresses listed, or open to
+     * anyone who can reach it.
+     */
+    kbPublicMode: text("kb_public_mode").notNull().default("off"),
+    /** Addresses and ranges, one per line, that count as on site. */
+    kbPublicAddresses: text("kb_public_addresses").notNull().default(""),
+    /** Where the public site is published, for the links the interface shows. */
+    kbPublicUrl: text("kb_public_url"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
     updatedBy: uuid("updated_by").references(() => users.id),
   },
-  (t) => [check("instance_settings_singleton", sql`${t.id}`)],
+  (t) => [
+    check("instance_settings_singleton", sql`${t.id}`),
+    check(
+      "instance_settings_kb_public_mode_check",
+      sql`${t.kbPublicMode} IN ('off','addresses','open')`,
+    ),
+  ],
 );
 
 /**
@@ -635,6 +650,11 @@ export const kbCollections = pgTable("kb_collections", {
   allCompanies: boolean("all_companies").notNull().default(true),
   /** Whether the MCP tools may search and read this collection. */
   mcpEnabled: boolean("mcp_enabled").notNull().default(true),
+  /**
+   * Whether the public site shows this collection, to readers who have not
+   * signed in. Off unless somebody turns it on, one collection at a time.
+   */
+  publicAccess: boolean("public_access").notNull().default(false),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdBy: uuid("created_by").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
@@ -709,6 +729,8 @@ export const kbArticles = pgTable(
     dateModified: timestamp("date_modified", { withTimezone: true }),
     /** `unextracted` is a file with no text layer: recorded, not searchable. */
     extraction: text("extraction").notNull().default("ok"),
+    /** Kept off the public site even when its collection is on it. */
+    publicHidden: boolean("public_hidden").notNull().default(false),
     /** SHA-256 of the source bytes, so an unchanged file is not rewritten. */
     contentHash: text("content_hash").notNull(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),

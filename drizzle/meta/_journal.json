@@ -120,6 +120,13 @@
       "when": 1790695171372,
       "tag": "0016_kb_access_and_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790696386700,
+      "tag": "0017_kb_public_site",
+      "breakpoints": true
     }
   ]
 }

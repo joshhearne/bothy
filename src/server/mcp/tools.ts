@@ -104,6 +104,7 @@ const kbWriteArgs = z.object({
   category: z.string().optional(),
   subcategory: z.string().optional(),
   source_url: z.string().optional(),
+  internal_only: z.boolean().optional(),
 });
 
 const kbArchiveArgs = z.object({ article_id: z.uuid() });
@@ -580,6 +581,13 @@ export const TOOLS: ToolDefinition[] = [
           type: "string",
           description: "Where a reader can see what the article describes, if anywhere.",
         },
+        internal_only: {
+          type: "boolean",
+          description:
+            "True keeps this article off the public site, where people read without " +
+            "signing in. Set it for anything about administration, security, or how " +
+            "systems are built. Leave it out to keep the article's current setting.",
+        },
       },
       required: ["collection_id", "external_id", "title", "body"],
     },
@@ -595,6 +603,9 @@ export const TOOLS: ToolDefinition[] = [
         ...(parsed.data.category ? { category: parsed.data.category } : {}),
         ...(parsed.data.subcategory ? { subcategory: parsed.data.subcategory } : {}),
         ...(parsed.data.source_url ? { sourceUrl: parsed.data.source_url } : {}),
+        ...(parsed.data.internal_only !== undefined
+          ? { publicHidden: parsed.data.internal_only }
+          : {}),
       });
       if (!input.success) return invalid(input.error);
 

@@ -282,6 +282,18 @@ appears in the documentation search.
   deleted: an article that no longer applies is archived, and writing it again
   restores it. Every change is an audit entry naming the key. What is written
   is Markdown, sanitized when drawn, like everything else.
+- **The public site** (`/pub/kb`) is the knowledge base for readers who have
+  not signed in. Nothing is on it by default, twice over: the site itself is
+  off until an operator turns it on (`instance_settings.kb_public_mode`), and
+  a collection is on it only when marked (`kb_collections.public_access`). A
+  single article can be held back (`kb_articles.public_hidden`). It can be
+  open to anyone, or to visitors from listed addresses and ranges, which is
+  how "anyone on site" is said. The visitor's address is the one the proxy in
+  front reports; the app must not be reachable except through that proxy.
+  A visitor who is not admitted gets "not found". The site links nowhere into
+  the rest of the installation, asks not to be indexed, and is meant to be
+  published on a hostname of its own whose proxy passes `/pub/kb` and the
+  static assets and nothing else. See docs/CLOUDFLARE.md.
 - Imports and connectors need a filesystem and raw sockets, so on Workers they
   report that they are unavailable. Reading and search work anywhere.
 

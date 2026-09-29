@@ -516,3 +516,13 @@ CREATE TABLE kb_connectors (
   created_at     timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX kb_connectors_due_idx ON kb_connectors (next_run_at);
+
+-- ---------- Public knowledge base ----------
+-- A collection shown to readers who have not signed in, and articles held
+-- back from them. Who counts as a reader is an instance setting.
+ALTER TABLE kb_collections ADD COLUMN public_access boolean NOT NULL DEFAULT false;
+ALTER TABLE kb_articles ADD COLUMN public_hidden boolean NOT NULL DEFAULT false;
+ALTER TABLE instance_settings ADD COLUMN kb_public_mode text NOT NULL DEFAULT 'off'
+  CHECK (kb_public_mode IN ('off','addresses','open'));
+ALTER TABLE instance_settings ADD COLUMN kb_public_addresses text NOT NULL DEFAULT '';
+ALTER TABLE instance_settings ADD COLUMN kb_public_url text;

@@ -48,6 +48,7 @@ export type CollectionValues = {
   name: string;
   description: string | null;
   mcpEnabled: boolean;
+  publicAccess: boolean;
   companyIds: string[];
 };
 
@@ -57,9 +58,12 @@ export type CompanyChoice = { id: string; name: string };
 export function CollectionForm({
   collection,
   companies,
+  publicSiteOn,
 }: {
   collection?: CollectionValues;
   companies: CompanyChoice[];
+  /** Whether the public site is turned on at all. */
+  publicSiteOn: boolean;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(
     collection ? updateCollectionAction : createCollectionAction,
@@ -151,6 +155,13 @@ export function CollectionForm({
           )}
         </div>
       </fieldset>
+
+      <Toggle
+        name="publicAccess"
+        label={t.admin.kb.publicAccess}
+        hint={publicSiteOn ? t.admin.kb.publicAccessHint : t.admin.kb.publicAccessOff}
+        defaultChecked={collection?.publicAccess ?? false}
+      />
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>

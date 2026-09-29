@@ -8,6 +8,7 @@ import { requireUser } from "@/server/auth/session";
 import { listAllCollections, listCollectionCompanyIds } from "@/server/services/kb";
 import { listCompanies } from "@/server/services/companies";
 import { ALL_COMPANIES } from "@/server/auth/company-scope";
+import { getKbPublicSettings } from "@/server/services/settings";
 import { listImports } from "@/server/services/kb-import";
 import { listConnectors } from "@/server/services/kb-connectors";
 import { GRANT_LEVELS, listKeyGrants } from "@/server/services/kb-grants";
@@ -37,12 +38,21 @@ export default async function KbCollectionAdminPage({
   const collection = (await listAllCollections()).find((row) => row.id === id);
   if (!collection) notFound();
 
-  const [imports, connectors, keys, companies, companyIds, { locale, messages: t }] = await Promise.all([
+  const [
+    imports,
+    connectors,
+    keys,
+    companies,
+    companyIds,
+    publicSite,
+    { locale, messages: t },
+  ] = await Promise.all([
     listImports(id, 10),
     listConnectors(id),
     listKeyGrants(id),
     listCompanies(ALL_COMPANIES),
     listCollectionCompanyIds(id),
+    getKbPublicSettings(),
     getI18n(),
   ]);
   const available = !isWorkers();
@@ -296,12 +306,14 @@ export default async function KbCollectionAdminPage({
       <section className="flex flex-col gap-3">
         <h3 className="text-sm font-medium">{t.admin.kb.settings}</h3>
         <CollectionForm
+          publicSiteOn={publicSite.mode !== "off"}
           companies={companies.map((company) => ({ id: company.id, name: company.name }))}
           collection={{
             id: collection.id,
             name: collection.name,
             description: collection.description,
             mcpEnabled: collection.mcpEnabled,
+            publicAccess: collection.publicAccess,
             companyIds,
           }}
         />

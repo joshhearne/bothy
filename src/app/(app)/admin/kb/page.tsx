@@ -3,6 +3,7 @@ import { requireUser } from "@/server/auth/session";
 import { listAllCollections } from "@/server/services/kb";
 import { listCompanies } from "@/server/services/companies";
 import { ALL_COMPANIES } from "@/server/auth/company-scope";
+import { getKbPublicSettings } from "@/server/services/settings";
 import { plural } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
 import { CollectionForm } from "../kb-forms";
@@ -12,9 +13,10 @@ export const dynamic = "force-dynamic";
 /** Every collection, archived ones included, and the form that adds one. */
 export default async function KbAdminPage() {
   await requireUser();
-  const [collections, companies, { locale, messages: t }] = await Promise.all([
+  const [collections, companies, publicSite, { locale, messages: t }] = await Promise.all([
     listAllCollections(),
     listCompanies(ALL_COMPANIES),
+    getKbPublicSettings(),
     getI18n(),
   ]);
 
@@ -52,6 +54,7 @@ export default async function KbAdminPage() {
                     )}
                     {" · "}
                     {collection.allCompanies ? t.admin.kb.forEveryone : t.admin.kb.forSome}
+                    {collection.publicAccess ? ` · ${t.admin.kb.onPublicSite}` : ""}
                   </p>
                 </div>
                 <Link href={`/kb/${collection.id}`} className="text-sm underline">
@@ -72,6 +75,7 @@ export default async function KbAdminPage() {
       <section className="flex flex-col gap-3">
         <h3 className="text-sm font-medium">{t.admin.kb.newCollection}</h3>
         <CollectionForm
+          publicSiteOn={publicSite.mode !== "off"}
           companies={companies.map((company) => ({ id: company.id, name: company.name }))}
         />
       </section>

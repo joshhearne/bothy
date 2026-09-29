@@ -100,6 +100,60 @@ provider.
 **The vault sidecar** does not change. It stays on the internal Docker network
 with no published port, exactly as in [VAULT_INTEGRATION.md](VAULT_INTEGRATION.md).
 
+## Publishing the public knowledge base
+
+The public knowledge base (`/pub/kb`) is for readers who have not signed in. It
+belongs on a hostname of its own, such as `kb.yourdomain.com`, so that the
+policy in front of it can differ from the one in front of Bothy itself, and so
+the proxy can refuse everything that is not the knowledge base.
+
+**1. A proxy that passes the knowledge base and nothing else.** With nginx on
+the same host:
+
+```nginx
+server {
+    listen 80;
+    server_name kb.yourdomain.com;
+
+    # The visitor's address, as Cloudflare saw it. Overwritten, never appended
+    # to: whatever the visitor claims about themselves is dropped here.
+    proxy_set_header X-Real-IP       $http_cf_connecting_ip;
+    proxy_set_header X-Forwarded-For $http_cf_connecting_ip;
+    proxy_set_header Host            $host;
+    proxy_set_header X-Forwarded-Proto https;
+    # A reader here is nobody in particular: no session goes in or comes out.
+    proxy_set_header Cookie "";
+    proxy_hide_header Set-Cookie;
+
+    location = /                 { return 302 /pub/kb; }
+    location ^~ /pub/kb          { proxy_pass http://127.0.0.1:3080; }
+    location ^~ /_next/static/   { proxy_pass http://127.0.0.1:3080; }
+    location = /api/branding/logo { proxy_pass http://127.0.0.1:3080; }
+    location = /favicon.ico      { proxy_pass http://127.0.0.1:3080; }
+    location /                   { return 404; }
+}
+```
+
+Sign-in, administration, the API, and MCP are not reachable through this
+hostname at all.
+
+**2. Publish the hostname** on the tunnel, as above: `kb.yourdomain.com` to
+`http://localhost:80`.
+
+**3. Decide who is admitted, in both places.** In Bothy, under Admin →
+Settings → Public knowledge base, choose *Only visitors from the addresses
+below* and list the public addresses your sites reach the internet from. In
+Cloudflare Zero Trust, add a self-hosted Access application for the hostname
+with one policy: action **Bypass**, include **IP ranges**, the same addresses.
+Bypass is what lets somebody on site in without a login; anyone else is met by
+Cloudflare's own sign-in page and never reaches the host.
+
+Either check alone would do. Both are kept because each is easy to get wrong
+on its own, and the two are changed by different hands.
+
+**4. Mark what is public.** Each collection has *Show on the public site*, off
+by default. An article can be held back from its own page.
+
 ## Running as a Worker
 
 ### What you need

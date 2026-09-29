@@ -1,9 +1,11 @@
 import { requireUser } from "@/server/auth/session";
-import { getDefaultLocale } from "@/server/services/settings";
+import { getDefaultLocale, getKbPublicSettings } from "@/server/services/settings";
+import { listAllCollections } from "@/server/services/kb";
+import { visitorAddress } from "@/server/kb/public";
 import { env } from "@/lib/env";
 import { getMessages } from "@/i18n/server";
 import { LOCALE_NAMES, LOCALES } from "@/i18n/locales";
-import { DefaultLocaleForm } from "../settings-forms";
+import { DefaultLocaleForm, KbPublicForm } from "../settings-forms";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,14 @@ export const dynamic = "force-dynamic";
  */
 export default async function SettingsPage() {
   await requireUser();
-  const [chosen, t] = await Promise.all([getDefaultLocale(), getMessages()]);
+  const [chosen, t, publicSite, collections, visitor] = await Promise.all([
+    getDefaultLocale(),
+    getMessages(),
+    getKbPublicSettings(),
+    listAllCollections(),
+    visitorAddress(),
+  ]);
+  const published = collections.filter((row) => row.publicAccess && !row.archivedAt).length;
 
   const configuration: [string, string][] = [
     [t.admin.settings.storage, env.STORAGE_DRIVER],
@@ -42,6 +51,31 @@ export default async function SettingsPage() {
           chosen={chosen}
           fallback={env.APP_LOCALE}
           locales={LOCALES.map((locale) => ({ value: locale, label: LOCALE_NAMES[locale] }))}
+        />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">{t.admin.settings.publicKb}</h2>
+          <p className="text-sm text-[var(--muted-foreground)]">{t.admin.settings.publicKbHint}</p>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            {t.admin.settings.publicCollections(published)}
+            {publicSite.url && publicSite.mode !== "off" && (
+              <>
+                {" "}
+                <a href={publicSite.url} className="underline" target="_blank" rel="noreferrer">
+                  {publicSite.url}
+                </a>
+              </>
+            )}
+          </p>
+        </div>
+
+        <KbPublicForm
+          mode={publicSite.mode}
+          addresses={publicSite.addressText}
+          url={publicSite.url ?? ""}
+          visitor={visitor}
         />
       </section>
 

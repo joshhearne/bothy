@@ -3,7 +3,9 @@ import { eq } from "drizzle-orm";
 import { db } from "@/server/db";
 import { instanceSettings } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
+import { z } from "zod";
 import { isLocale, type Locale } from "@/i18n/locales";
+import { parseAddressList } from "@/server/kb/addresses";
 
 /**
  * Settings an operator chooses once for the whole installation. Today that is
@@ -41,6 +43,118 @@ export async function setDefaultLocale(locale: string | null, actorId: string): 
         entity: "instance",
         entityId: null,
         detail: { defaultLocale: value },
+      },
+      tx,
+    );
+  });
+}
+
+/* ---------- Public knowledge base ---------- */
+
+export const KB_PUBLIC_MODES = ["off", "addresses", "open"] as const;
+export type KbPublicMode = (typeof KB_PUBLIC_MODES)[number];
+
+export type KbPublicSettings = {
+  mode: KbPublicMode;
+  /** As typed, for the form. */
+  addressText: string;
+  /** What of it can be used. */
+  addresses: string[];
+  url: string | null;
+};
+
+export const kbPublicInputSchema = z
+  .object({
+    mode: z.enum(KB_PUBLIC_MODES),
+    addresses: z.string().max(10_000).default(""),
+    url: z
+      .string()
+      .trim()
+      .max(500)
+      .refine((value) => {
+        if (value === "") return true;
+        try {
+          const url = new URL(value);
+          return url.protocol === "https:" || url.protocol === "http:";
+        } catch {
+          return false;
+        }
+      }, "Enter an http or https address")
+      .default(""),
+  })
+  .superRefine((input, ctx) => {
+    const list = parseAddressList(input.addresses);
+    if (list.rejected.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["addresses"],
+        message: `Not an address or a range: ${list.rejected.slice(0, 5).join(", ")}`,
+      });
+    }
+    // Saying "these addresses" and naming none would be "off" by accident.
+    if (input.mode === "addresses" && list.entries.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["addresses"],
+        message: "List at least one address or range",
+      });
+    }
+  });
+
+export async function getKbPublicSettings(): Promise<KbPublicSettings> {
+  const [row] = await db
+    .select({
+      mode: instanceSettings.kbPublicMode,
+      addresses: instanceSettings.kbPublicAddresses,
+      url: instanceSettings.kbPublicUrl,
+    })
+    .from(instanceSettings)
+    .where(eq(instanceSettings.id, true))
+    .limit(1);
+
+  const mode = (KB_PUBLIC_MODES as readonly string[]).includes(row?.mode ?? "")
+    ? (row?.mode as KbPublicMode)
+    : "off";
+
+  return {
+    mode,
+    addressText: row?.addresses ?? "",
+    addresses: parseAddressList(row?.addresses ?? "").entries,
+    url: row?.url ?? null,
+  };
+}
+
+export async function setKbPublicSettings(
+  input: z.input<typeof kbPublicInputSchema>,
+  actorId: string,
+): Promise<void> {
+  const data = kbPublicInputSchema.parse(input);
+  const values = {
+    kbPublicMode: data.mode,
+    kbPublicAddresses: data.addresses.trim(),
+    kbPublicUrl: data.url === "" ? null : data.url.replace(/\/+$/, ""),
+  };
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(instanceSettings)
+      .values({ id: true, ...values, updatedBy: actorId })
+      .onConflictDoUpdate({
+        target: instanceSettings.id,
+        set: { ...values, updatedAt: new Date(), updatedBy: actorId },
+      });
+
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "settings.updated",
+        entity: "instance",
+        entityId: null,
+        detail: {
+          kbPublicMode: values.kbPublicMode,
+          kbPublicAddresses: parseAddressList(values.kbPublicAddresses).entries,
+          kbPublicUrl: values.kbPublicUrl,
+        },
       },
       tx,
     );

@@ -797,6 +797,162 @@ test("the import routes are an administrator's alone", async ({ browser, playwri
   await context.close();
 });
 
+/* ---------- The public site ---------- */
+
+const ON_SITE = "203.0.113.9";
+
+async function setPublicSite(page: Page, mode: "off" | "addresses" | "open", addresses = "") {
+  await page.goto("/admin/settings");
+  await page.getByLabel("Who may read it").selectOption(mode);
+  await page.getByLabel("On-site addresses").fill(addresses);
+  await page.getByLabel("Where it is published").fill("https://kb.example.com");
+  await page.getByRole("button", { name: "Update public site" }).click();
+}
+
+/** A visitor who has not signed in, arriving from the address given. */
+async function visitor(browser: import("@playwright/test").Browser, address?: string) {
+  const context = await browser.newContext({
+    ...(address ? { extraHTTPHeaders: { "X-Real-IP": address } } : {}),
+  });
+  return { context, page: await context.newPage() };
+}
+
+test("the public site is off until somebody turns it on", async ({ browser }) => {
+  const { context, page } = await visitor(browser, ON_SITE);
+  expect((await page.goto("/pub/kb"))?.status()).toBe(404);
+  await context.close();
+});
+
+test("naming no address is refused rather than read as off", async ({ page }) => {
+  await setPublicSite(page, "addresses", "");
+  await expect(page.getByText("List at least one address or range")).toBeVisible();
+
+  await setPublicSite(page, "addresses", "203.0.113.0/24\nthe office");
+  await expect(page.getByText("Not an address or a range: the, office")).toBeVisible();
+  expect(psql(`select coalesce((select kb_public_mode from instance_settings), 'off');`)).toBe("off");
+});
+
+test("on, it shows only the collections marked for it", async ({ page, browser }) => {
+  await setPublicSite(page, "addresses", "203.0.113.0/24");
+  await expect(page.getByText("Saved.")).toBeVisible();
+
+  const onSite = await visitor(browser, ON_SITE);
+  // Turned on, with nothing marked: there is a site and nothing on it.
+  expect((await onSite.page.goto("/pub/kb"))?.status()).toBe(200);
+  await expect(onSite.page.getByText("Nothing has been published here yet.")).toBeVisible();
+  expect((await onSite.page.goto(`/pub/kb/${collectionId}`))?.status()).toBe(404);
+
+  await page.goto(`/admin/kb/${collectionId}`);
+  await page.getByRole("checkbox", { name: /Show on the public site/ }).check();
+  await page.getByRole("button", { name: "Save collection" }).click();
+  await expect(page.getByText("Saved.")).toBeVisible();
+
+  await onSite.page.goto("/pub/kb");
+  await expect(onSite.page.getByRole("link", { name: new RegExp(COLLECTION) })).toBeVisible();
+  // The other collection was never marked.
+  await expect(onSite.page.getByRole("link", { name: /Calder Ridge Other KB/ })).toHaveCount(0);
+  expect((await onSite.page.goto(`/pub/kb/${otherCollectionId}`))?.status()).toBe(404);
+
+  await onSite.page.goto(`/pub/kb?q=${MARKER}deep`);
+  const hit = onSite.page.getByRole("listitem").filter({ hasText: "Firmware guide" });
+  await expect(hit.locator("mark")).toContainText(`${MARKER}deep`);
+  await hit.getByRole("link", { name: "Firmware guide" }).click();
+  await expect(onSite.page).toHaveURL(/\/pub\/kb\/articles\/[0-9a-f-]{36}$/);
+  await expect(onSite.page.getByRole("heading", { level: 1, name: "Firmware guide" })).toBeVisible();
+
+  // Nothing on it leads into the installation, and no search engine is invited.
+  expect(await onSite.page.locator('a[href^="/sign-in"], a[href^="/admin"], a[href^="/companies"], a[href^="/kb"]').count()).toBe(0);
+  await expect(onSite.page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  await onSite.context.close();
+});
+
+test("a visitor from anywhere else finds nothing there", async ({ browser }) => {
+  for (const address of ["198.51.100.1", "203.0.114.9", undefined]) {
+    const { context, page } = await visitor(browser, address);
+    expect((await page.goto("/pub/kb"))?.status()).toBe(404);
+    expect((await page.goto(`/pub/kb/${collectionId}`))?.status()).toBe(404);
+    await context.close();
+  }
+});
+
+test("being on site opens nothing but the public site", async ({ browser }) => {
+  const { context, page } = await visitor(browser, ON_SITE);
+
+  await page.goto(`/kb/${collectionId}`);
+  await expect(page).toHaveURL(/\/sign-in/);
+  await page.goto("/admin/kb");
+  await expect(page).toHaveURL(/\/sign-in/);
+
+  const mcp = await page.request.post("/api/mcp", {
+    data: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+  });
+  expect(mcp.status()).toBe(401);
+  await context.close();
+});
+
+test("an article held back is gone from the public site and nowhere else", async ({ page, browser }) => {
+  const articleId = psql(
+    `select id from kb_articles where collection_id='${collectionId}' and external_id='502';`,
+  );
+
+  await page.goto(`/kb/articles/${articleId}`);
+  await expect(page.getByText("On the public site")).toBeVisible();
+  await page.getByRole("button", { name: "Hold back" }).click();
+  await expect(page.getByText("Held back from the public site")).toBeVisible();
+
+  const onSite = await visitor(browser, ON_SITE);
+  expect((await onSite.page.goto(`/pub/kb/articles/${articleId}`))?.status()).toBe(404);
+  await onSite.page.goto(`/pub/kb?q=${MARKER}deep`);
+  await expect(onSite.page.getByText(`Nothing matches ${MARKER}deep.`)).toBeVisible();
+  await onSite.page.goto(`/pub/kb/${collectionId}`);
+  await expect(onSite.page.getByRole("link", { name: "Firmware guide" })).toHaveCount(0);
+  await expect(onSite.page.getByRole("link", { name: /Tunnel profiles/ })).toBeVisible();
+  await onSite.context.close();
+
+  // Signed in, it reads as it always did.
+  await page.goto(`/kb?q=${MARKER}deep`);
+  await expect(page.getByRole("listitem").filter({ hasText: "Firmware guide" })).toBeVisible();
+});
+
+test("a key can write an article that stays off the public site", async ({ page, request, browser }) => {
+  await grant(page, REPO_KEY_NAME, "write");
+  const written = await callTool(
+    request,
+    "upsert_kb_article",
+    {
+      collection_id: collectionId,
+      external_id: "admin/backups",
+      title: "Where backups are kept",
+      body: `The ${MARKER}vault is for administrators.`,
+      internal_only: true,
+    },
+    repoKey,
+  );
+  expect(written.structuredContent.outcome).toBe("created");
+
+  const onSite = await visitor(browser, ON_SITE);
+  expect(
+    (await onSite.page.goto(`/pub/kb/articles/${written.structuredContent.article_id}`))?.status(),
+  ).toBe(404);
+  await onSite.context.close();
+
+  await callTool(request, "archive_kb_article", { article_id: written.structuredContent.article_id }, repoKey);
+  await grant(page, REPO_KEY_NAME, "none");
+});
+
+test("open to anyone admits a visitor from anywhere, and off shuts it again", async ({ page, browser }) => {
+  await setPublicSite(page, "open", "203.0.113.0/24");
+  await expect(page.getByText("Saved.")).toBeVisible();
+
+  const anyone = await visitor(browser, "198.51.100.1");
+  expect((await anyone.page.goto("/pub/kb"))?.status()).toBe(200);
+
+  await setPublicSite(page, "off", "203.0.113.0/24");
+  await expect(page.getByText("Saved.")).toBeVisible();
+  expect((await anyone.page.goto("/pub/kb"))?.status()).toBe(404);
+  await anyone.context.close();
+});
+
 test("an archived collection disappears from readers and from search", async ({ page, request }) => {
   await page.goto(`/admin/kb/${collectionId}`);
   await page.getByRole("button", { name: "Archive", exact: true }).click();
@@ -809,5 +965,5 @@ test("an archived collection disappears from readers and from search", async ({ 
   expect(found.structuredContent.count).toBe(0);
 
   // Hidden, not deleted.
-  expect(psql(`select count(*) from kb_articles where collection_id='${collectionId}';`)).toBe("8");
+  expect(psql(`select count(*) from kb_articles where collection_id='${collectionId}';`)).toBe("9");
 });
