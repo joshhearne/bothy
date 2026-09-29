@@ -60,7 +60,9 @@ export default async function KbCollectionAdminPage({
   const available = !isWorkers();
 
   const endpoint = `${env.APP_URL.replace(/\/+$/, "")}/api/mcp`;
-  const connect = `claude mcp add --transport http bothy ${endpoint} \\\n  --header "Authorization: YOUR_API_KEY"`;
+  // One line: a command broken across two loses its second half to whatever
+  // pastes it, and what is left connects with no key at all.
+  const connect = `claude mcp add --transport http bothy ${endpoint} --header "Authorization: YOUR_API_KEY"`;
   const instruct = [
     "## Knowledge base",
     `This application's user documentation lives in Bothy, in the collection "${collection.name}"`,
