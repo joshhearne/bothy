@@ -19,6 +19,7 @@ No coupling to any specific PSA in core code.
 - Every read of company-owned data takes a `CompanyScope`. Out of scope is "not found", never "forbidden".
 - An uploaded file's type comes from its own bytes, never from what the browser claimed.
 - A lookup aimed at a user-supplied name resolves first, refuses non-public addresses, and connects to the address it checked.
+- A knowledge base article is never a document and never belongs to a company. Every read of one takes a `KbReader`.
 - Everything runs from `docker compose up`. No required external services beyond Postgres.
 
 ## Conventions
@@ -85,6 +86,12 @@ See docs/ARCHITECTURE.md.
 ### Phase 13: Schedules
 Per-document expiry and recurring maintenance, a lead time, `document.due` webhooks announced once
 per date, and Admin → Notifications listing what is due. See docs/ARCHITECTURE.md.
+
+### Phase 14: Knowledge base
+Collections of articles from outside sources (`kb_collections` / `kb_articles` / `kb_chunks`),
+kept apart from documents. Import from a zip, a folder, or a connector; upsert on
+(collection, source key); keyword search over chunks; read through MCP, and written through it by
+a key granted that on a collection. See docs/ARCHITECTURE.md.
 
 ### Later
 Tags, multi-tenant, importers (Hudu, IT Glue CSV), scheduled re-checks with expiry webhooks.

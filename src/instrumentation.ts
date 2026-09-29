@@ -53,6 +53,33 @@ export async function register(): Promise<void> {
     }
   };
 
+  // Knowledge base: an import lives in this process, so whatever was running
+  // when the last one stopped is over, and connectors are checked on a timer.
+  const { failInterruptedImports } = await import("@/server/services/kb-import");
+  const { clearScratch } = await import("@/server/services/kb-upload");
+  const { runDueConnectors } = await import("@/server/services/kb-connectors");
+  void failInterruptedImports()
+    .then(() => clearScratch())
+    .catch((error) => console.error("bothy: knowledge base cleanup failed", error));
+
+  let crawling = false;
+  const crawl = async () => {
+    if (crawling) return;
+    crawling = true;
+    try {
+      await runDueConnectors();
+    } catch (error) {
+      console.error("bothy: knowledge base connectors failed", error);
+    } finally {
+      crawling = false;
+    }
+  };
+  const connectorTimer = setInterval(
+    () => void crawl(),
+    Number(process.env.KB_CONNECTOR_POLL_SECONDS ?? 300) * 1000 || 300_000,
+  );
+  connectorTimer.unref();
+
   const timer = setInterval(() => void tick(), INTERVAL_MS);
   const scheduleTimer = setInterval(() => void announce(), SCHEDULE_INTERVAL_MS);
   // Never hold the process open just for the pollers.

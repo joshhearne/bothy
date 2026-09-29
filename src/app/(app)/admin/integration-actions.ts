@@ -35,6 +35,7 @@ export async function createApiKeyAction(
         name: text(formData, "name") ?? "",
         scopes: scopes as ("read" | "write" | "admin")[],
         allCompanies: formData.get("allCompanies") === "all",
+        knowledgeBaseOnly: formData.get("allCompanies") === "none",
         companyIds: formData.getAll("companyIds").filter((v): v is string => typeof v === "string"),
       },
       user.id,

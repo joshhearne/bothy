@@ -47,7 +47,9 @@ export default async function ApiKeysPage() {
                     <code>{key.prefix}…</code> · {key.scopes.join(", ")} ·{" "}
                     {key.allCompanies
                       ? t.admin.users.accessSummaryAll
-                      : t.admin.users.accessSummaryCount(key.companyIds.length)}{" "}
+                      : key.companyIds.length === 0
+                        ? t.access.kbOnly
+                        : t.admin.users.accessSummaryCount(key.companyIds.length)}{" "}
                     ·{" "}
                     {key.lastUsedAt
                       ? t.admin.apiKeys.lastUsed(formatDateTime(key.lastUsedAt, locale))

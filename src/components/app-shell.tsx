@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import {
+  BookOpen,
   Building2,
   Menu,
   Plus,
@@ -242,6 +243,17 @@ function SidebarNav({
             );
           })
         )}
+      </Section>
+
+      <Section title={t.nav.knowledgeBase}>
+        <NavLink
+          href="/kb"
+          icon={BookOpen}
+          active={pathname === "/kb" || pathname.startsWith("/kb/")}
+          onNavigate={onNavigate}
+        >
+          {t.nav.allCollections}
+        </NavLink>
       </Section>
 
       {/*

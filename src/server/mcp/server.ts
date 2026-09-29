@@ -10,8 +10,7 @@ import {
   type JsonRpcRequest,
   type JsonRpcResponse,
 } from "@/server/mcp/protocol";
-import { describeTools, TOOLS_BY_NAME } from "@/server/mcp/tools";
-import type { CompanyScope } from "@/server/auth/company-scope";
+import { canUse, describeTools, TOOLS_BY_NAME, type McpCaller } from "@/server/mcp/tools";
 
 /**
  * Dispatches one JSON-RPC message. Returns null for a notification, which the
@@ -19,7 +18,7 @@ import type { CompanyScope } from "@/server/auth/company-scope";
  */
 export async function handleMessage(
   message: JsonRpcRequest,
-  scope: CompanyScope,
+  caller: McpCaller,
 ): Promise<JsonRpcResponse | null> {
   if (message.jsonrpc !== "2.0" || typeof message.method !== "string") {
     return failure(message.id ?? null, ERROR_CODES.invalidRequest, "Not a JSON-RPC 2.0 message");
@@ -42,14 +41,23 @@ export async function handleMessage(
           "Bothy holds structured IT documentation: companies, their locations, and " +
           "documents built from templates. Search first, then read the document you " +
           "need. Credentials are never returned; a secret field only says that one " +
-          "exists.",
+          "exists. Knowledge base collections hold reference articles from outside " +
+          "sources, separate from client documentation: search them with search_kb " +
+          "and cite each article's source_url." +
+          (caller.grants.some((grant) => grant.canWrite)
+            ? " This connection may also maintain some collections: list_kb_collections " +
+              "marks them writable. Before writing, call list_kb_articles to see what " +
+              "exists. Give every article a stable external_id, such as a path-like " +
+              "slug, and reuse it when the article changes so it is updated rather than " +
+              "duplicated. Archive an article that no longer applies."
+            : ""),
       });
 
     case "ping":
       return success(id, {});
 
     case "tools/list":
-      return success(id, { tools: describeTools() });
+      return success(id, { tools: describeTools(caller) });
 
     case "tools/call": {
       const name = message.params?.name;
@@ -58,12 +66,15 @@ export async function handleMessage(
       }
 
       const tool = TOOLS_BY_NAME.get(name);
-      if (!tool) return failure(id, ERROR_CODES.invalidParams, `Unknown tool: ${name}`);
+      // A tool this key was not offered does not exist, as far as it can tell.
+      if (!tool || !canUse(tool, caller)) {
+        return failure(id, ERROR_CODES.invalidParams, `Unknown tool: ${name}`);
+      }
 
       const args = (message.params?.arguments ?? {}) as Record<string, unknown>;
 
       try {
-        return success(id, await tool.run(args, scope));
+        return success(id, await tool.run(args, caller.scope, caller));
       } catch (error) {
         // A failure inside a tool is a result, not a protocol error, so the
         // model can read it. The message never carries internals.

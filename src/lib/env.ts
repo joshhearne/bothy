@@ -26,6 +26,16 @@ const envSchema = z.object({
   STORAGE_PATH: z.string().default("/data/uploads"),
   MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(1024).default(25),
 
+  /**
+   * Knowledge base imports. An archive is far larger than an attachment, so it
+   * has a limit of its own, and it is unpacked from scratch space that is
+   * emptied when the import ends.
+   */
+  KB_IMPORT_MAX_MB: z.coerce.number().int().min(1).max(8192).default(1024),
+  KB_IMPORT_DIR: z.string().optional(),
+  /** How often the worker looks for a connector that is due. */
+  KB_CONNECTOR_POLL_SECONDS: z.coerce.number().int().min(10).max(86400).default(300),
+
   S3_ENDPOINT: z.string().optional(),
   S3_REGION: z.string().default("us-east-1"),
   S3_BUCKET: z.string().optional(),

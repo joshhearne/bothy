@@ -214,6 +214,77 @@ the rear is used, and what is mounted where.
   into the file. The URL carries a signature of what the rack contains, or a
   browser would keep showing the rack as it was.
 
+## Knowledge base
+Reference material from outside — a vendor's published KB, a folder of guides —
+held in collections of its own, one per source. It is not documentation: an
+article has no doc type, no fields, no revisions, and no company, and it never
+appears in the documentation search.
+
+- **Import** takes a zip, a folder, or loose files. The browser packs anything
+  that is not already a zip, so the server unpacks one kind of thing. The
+  archive goes up in 8 MB pieces, each naming its offset, because a tunnel or
+  proxy caps one request far below the size of a knowledge base; a piece sent
+  twice is harmless and a dropped upload resumes. The archive is read from
+  scratch space as a stream and never written back out.
+- **What a file is comes from its bytes**, by the attachment rules
+  (`src/server/uploads/accept.ts`). Markdown keeps its YAML frontmatter as
+  metadata; text is stored as it is; a PDF gives up its text layer only; a Word
+  document becomes Markdown. A PDF with no text layer is stored and marked
+  `unextracted` rather than failing the import. Images and the package's own
+  notes (`README.md`, `index.md`, `manifest.json`) are counted as not articles.
+- **Upsert** is on `(collection_id, source_key)`. The key is `id:<external_id>`
+  when the source names one and `path:<file path>` when it does not, so the two
+  cannot collide and a re-import updates instead of duplicating. An article
+  missing from a later import is left alone: absence from one export is not
+  proof of deletion.
+- **Incremental refresh**: with a `manifest.json`, an article whose
+  `date_modified` matches what is stored is skipped without opening its file.
+  Without one, the file's SHA-256 decides. The manifest's timestamp is kept in
+  preference to the frontmatter's, which is often only the day.
+- **Every run is recorded** in `kb_imports` with added, updated, skipped, and
+  failed, plus how many had no readable text and how many were not articles.
+  One bad file never fails a run. A run lives in the app process, so one
+  interrupted by a restart is marked failed at the next boot.
+- **Chunks**: an article is cut along its headings, then its paragraphs, into
+  pieces of about 1,600 characters and never more than 2,400
+  (`src/server/kb/chunk.ts`). Text inside a code fence is split too, because
+  that is where the pages of an attached PDF arrive. Each chunk records the
+  headings it sits under.
+- **Search** is Postgres full-text over `kb_chunks.search_vec`, with the title
+  weighted above headings above body, and one hit per article: its best chunk.
+  There is no vector search. The database is stock Postgres with no pgvector,
+  and adding an embedding service would break "no required external services".
+- **Connectors** (`kb_connectors`) read a public site on a schedule, from its
+  sitemap or by following links beneath a URL prefix, and feed the same upsert.
+  Public pages only: no credentials, no cookies, `robots.txt` honoured, a pause
+  between requests, a page cap per run. **Every address is user input or
+  written by a stranger**, so each request and each redirect resolves first,
+  refuses non-public addresses, and connects to the address it checked
+  (`src/server/kb/fetch.ts`). A sitemap may only list its own site.
+- **Access**: a collection belongs to no company, but it may be kept to some
+  (`kb_collection_companies`). Kept to none, it is for every company, which is
+  how a new one starts. Kept to some, it is read only by a person or API key
+  with access to at least one of them; administrators, and anyone who sees
+  every company, see every collection. Somebody with access to no company at
+  all sees none. `mcp_enabled` switches a collection off for MCP alone, and MCP
+  carries no tool that changes documentation. Out of reach reads as not found.
+- **Grants** (`api_key_kb_collections`): an API key may be given a collection
+  by name, to read or to read and write. These are the ordinary API keys; a
+  key made with no companies is for the knowledge base alone and reads no
+  documentation. A grant reads its collection whatever companies the
+  collection is kept to. Grants are read on every request, so changing one
+  applies to the key's next call.
+- **Writing through MCP** is how an application's own tooling keeps its
+  documentation current without anybody asking each time. A key is offered
+  `upsert_kb_article` and `archive_kb_article` only when it holds a grant that
+  writes, and they work only on the collections granted. An article is matched
+  on the `external_id` its author chose, so a rewrite replaces. Nothing is
+  deleted: an article that no longer applies is archived, and writing it again
+  restores it. Every change is an audit entry naming the key. What is written
+  is Markdown, sanitized when drawn, like everything else.
+- Imports and connectors need a filesystem and raw sockets, so on Workers they
+  report that they are unavailable. Reading and search work anywhere.
+
 ## Security baseline
 - Argon2id for local passwords
 - API keys: random 32 bytes, shown once, stored as SHA-256 hash, looked up by prefix

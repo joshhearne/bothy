@@ -18,6 +18,10 @@ export const enGB: DeepPartial<Messages> = {
     isInternal: "This is my own organisation",
   },
 
+  kb: {
+    uncategorized: "Uncategorised",
+  },
+
   admin: {
     vault: {
       organizationId: "Organisation id",

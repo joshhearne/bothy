@@ -13,7 +13,26 @@ describe("apiKeyInputSchema", () => {
       scopes: ["read"],
       allCompanies: true,
       companyIds: [],
+      knowledgeBaseOnly: false,
     });
+  });
+
+  it("accepts a key with no companies when it is for the knowledge base alone", () => {
+    expect(
+      apiKeyInputSchema.parse({ name: "repo", scopes: ["read"], knowledgeBaseOnly: true }),
+    ).toMatchObject({ allCompanies: false, companyIds: [], knowledgeBaseOnly: true });
+  });
+
+  it("gives a knowledge base key no company, whatever else was ticked", () => {
+    expect(
+      apiKeyInputSchema.parse({
+        name: "repo",
+        scopes: ["read"],
+        knowledgeBaseOnly: true,
+        allCompanies: true,
+        companyIds: [COMPANY],
+      }),
+    ).toMatchObject({ allCompanies: false, companyIds: [] });
   });
 
   it("removes duplicate scopes", () => {

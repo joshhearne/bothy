@@ -108,7 +108,7 @@ export function CreateApiKeyForm({
         </fieldset>
 
         <div className="flex flex-col gap-1">
-          <CompanyAccessFieldset companies={companies} hint={t.access.keyHint} />
+          <CompanyAccessFieldset companies={companies} hint={t.access.keyHint} allowNone />
           {fieldErrors.companyIds && (
             <p className="text-sm text-[var(--destructive)]">{fieldErrors.companyIds}</p>
           )}

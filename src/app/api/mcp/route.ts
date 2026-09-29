@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic";
  * Bothy never pushes to a client, so SSE is not offered and GET answers 405,
  * which the spec allows. Authentication is an API key with the read scope —
  * the same keys the REST API uses, so access can be revoked in one place.
+ * Writing to a knowledge base collection is a grant on the key, not a scope.
  */
 
 const JSON_HEADERS = { "Content-Type": "application/json", "Cache-Control": "no-store" };
@@ -78,7 +79,12 @@ export async function POST(request: Request): Promise<Response> {
     return rpcError(400, ERROR_CODES.invalidRequest, "Send one message per request");
   }
 
-  const response = await handleMessage(message, key.companies);
+  const response = await handleMessage(message, {
+    scope: key.companies,
+    keyId: key.id,
+    keyName: key.name,
+    grants: key.kbGrants,
+  });
 
   // A notification is acknowledged with no body.
   if (!response) return new Response(null, { status: 202 });

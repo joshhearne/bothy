@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  BookOpen,
   KeyRound,
   Layers,
   ListTree,
@@ -38,6 +39,7 @@ export function AdminNav() {
     { href: "/admin/branding" as Route, label: t.nav.branding, icon: Palette },
     { href: "/admin/doc-types" as Route, label: t.nav.docTypes, icon: Layers },
     { href: "/admin/option-lists" as Route, label: t.nav.optionLists, icon: ListTree },
+    { href: "/admin/kb" as Route, label: t.nav.knowledgeBase, icon: BookOpen },
     { href: "/admin/api-keys" as Route, label: t.nav.apiKeys, icon: KeyRound },
     { href: "/admin/vault" as Route, label: t.nav.vault, icon: ShieldCheck },
     { href: "/admin/audit" as Route, label: t.nav.auditLog, icon: ScrollText },

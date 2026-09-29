@@ -273,3 +273,11 @@
   white-space: nowrap;
   border-width: 0;
 }
+
+/* Knowledge base articles carry extracted document text in code fences: prose
+   that should wrap, not a listing that should scroll sideways. */
+.kb-article pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.kb-article img { max-width: 100%; height: auto; }

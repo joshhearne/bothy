@@ -7,6 +7,7 @@ import { apiKeyCompanies, apiKeys } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/companies";
 import { ALL_COMPANIES, only, type CompanyScope } from "@/server/auth/company-scope";
+import { grantsForKey, type KbGrant } from "@/server/services/kb-grants";
 
 /**
  * API keys, per docs/ARCHITECTURE.md: 32 random bytes, shown once, stored as a
@@ -31,13 +32,25 @@ export const apiKeyInputSchema = z
       .array(z.uuid())
       .default([])
       .transform((ids) => [...new Set(ids)]),
+    /**
+     * A key for the knowledge base alone: no company, so no documentation.
+     * What it may read and write is granted per collection afterwards.
+     */
+    knowledgeBaseOnly: z.boolean().default(false),
   })
   // A key limited to nothing would authenticate and then find every company
-  // missing, which reads as a broken integration rather than a locked-down one.
-  .refine((input) => input.allCompanies || input.companyIds.length > 0, {
-    message: "Choose at least one company, or give the key every company",
-    path: ["companyIds"],
-  });
+  // missing, which reads as a broken integration rather than a locked-down one
+  // — unless having no company is the point.
+  .refine(
+    (input) => input.knowledgeBaseOnly || input.allCompanies || input.companyIds.length > 0,
+    {
+      message: "Choose at least one company, or give the key every company",
+      path: ["companyIds"],
+    },
+  )
+  .transform((input) =>
+    input.knowledgeBaseOnly ? { ...input, allCompanies: false, companyIds: [] } : input,
+  );
 
 export type ApiKeyInput = z.input<typeof apiKeyInputSchema>;
 
@@ -178,6 +191,8 @@ export type AuthenticatedKey = {
   scopes: ApiScope[];
   /** What this key may see. Built the same way a user's scope is. */
   companies: CompanyScope;
+  /** Knowledge base collections granted to this key by name. */
+  kbGrants: KbGrant[];
 };
 
 /**
@@ -222,6 +237,7 @@ export async function authenticateApiKey(presented: string): Promise<Authenticat
       (API_SCOPES as readonly string[]).includes(scope),
     ),
     companies: row.allCompanies ? ALL_COMPANIES : only(await grantedCompanyIds(row.id)),
+    kbGrants: await grantsForKey(row.id),
   };
 }
 

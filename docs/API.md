@@ -67,3 +67,38 @@ Payload:
 ```
 Headers: `X-Bothy-Event`, `X-Bothy-Delivery`, `X-Bothy-Signature: sha256=<hmac>`.
 Retries with exponential backoff, up to 8 attempts.
+
+## MCP
+`POST /api/mcp`, Streamable HTTP with JSON responses, authenticated by the same
+API keys with the `read` scope:
+
+| Tool | What it returns |
+|---|---|
+| `search_documents`, `get_document` | Documentation, secrets redacted |
+| `list_companies`, `get_company`, `list_doc_types` | The hierarchy and the templates |
+| `list_kb_collections` | Knowledge base collections; with `collection_id`, its categories |
+| `search_kb` | One result per article: the passage that matched, and `source_url` |
+| `get_kb_article` | An article in chunks; follow `next_chunk` for a long one |
+| `list_kb_articles` | A collection's articles with their `external_id` |
+| `upsert_kb_article` | Writes an article, replacing the one with the same `external_id` |
+| `archive_kb_article` | Takes an article out of the collection; nothing is deleted |
+
+The last two are offered only to a key granted write on a collection, under
+Admin → Knowledge base → the collection → API key access, and work only there.
+
+A knowledge base collection kept to named companies is seen only by a key with
+access to one of them, and no key sees a collection with MCP turned off.
+
+## Knowledge base import (administrators, session-authenticated)
+Used by Admin → Knowledge base. Not part of `/api/v1` and not reachable with an
+API key.
+```
+POST   /api/kb/imports                { collectionId, filename, size } -> { id, pieceBytes }
+PUT    /api/kb/imports/:id?offset=N   raw bytes of one piece           -> { received_bytes }
+POST   /api/kb/imports/:id/complete                                    -> 202, import runs on
+GET    /api/kb/imports/:id                                             -> status and counts
+DELETE /api/kb/imports/:id            abandons an upload
+```
+A piece out of order answers `409` with the `received_bytes` to resume from.
+An archive already on the server can be imported without the browser:
+`npx tsx --conditions react-server scripts/kb-import.ts "<collection>" <file.zip>`.

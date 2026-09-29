@@ -616,3 +616,210 @@ export const vaultProviders = pgTable(
     check("vault_providers_kind_check", sql`${t.kind} IN ('link','bw_serve','bitwarden_public_api','op_connect','hashicorp_kv','passbolt','keeper')`),
   ],
 );
+
+/* ---------- Knowledge base ---------- */
+
+/**
+ * A knowledge base collection: one per source, such as a vendor's published
+ * KB. Collections sit beside the documentation rather than inside it — they
+ * belong to no company, and nothing in them is a document.
+ */
+export const kbCollections = pgTable("kb_collections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  /**
+   * True means anyone who can sign in may read it. False means only those
+   * with access to one of the companies in kb_collection_companies.
+   */
+  allCompanies: boolean("all_companies").notNull().default(true),
+  /** Whether the MCP tools may search and read this collection. */
+  mcpEnabled: boolean("mcp_enabled").notNull().default(true),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+});
+
+/** The companies a collection is kept to, when it is not for everyone. */
+export const kbCollectionCompanies = pgTable(
+  "kb_collection_companies",
+  {
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => kbCollections.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.collectionId, t.companyId] }),
+    index("kb_collection_companies_company_idx").on(t.companyId),
+  ],
+);
+
+/**
+ * What an API key may do with one collection, beyond what its companies
+ * already let it read. A grant that writes is how an application's own
+ * tooling is allowed to keep its documentation current.
+ */
+export const apiKeyKbCollections = pgTable(
+  "api_key_kb_collections",
+  {
+    apiKeyId: uuid("api_key_id")
+      .notNull()
+      .references(() => apiKeys.id, { onDelete: "cascade" }),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => kbCollections.id, { onDelete: "cascade" }),
+    canWrite: boolean("can_write").notNull().default(false),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.apiKeyId, t.collectionId] }),
+    index("api_key_kb_collections_collection_idx").on(t.collectionId),
+  ],
+);
+
+export const kbArticles = pgTable(
+  "kb_articles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => kbCollections.id, { onDelete: "cascade" }),
+    /**
+     * What a re-import matches on: the source's own id when it has one, and
+     * the file path when it does not, prefixed so the two can never collide.
+     */
+    sourceKey: text("source_key").notNull(),
+    externalId: text("external_id"),
+    sourcePath: text("source_path"),
+    sourceUrl: text("source_url"),
+    title: text("title").notNull(),
+    /** Markdown, or plain text when `format` says so. */
+    body: text("body").notNull().default(""),
+    format: text("format").notNull().default("markdown"),
+    /** What the file was: md, txt, pdf, docx, html. */
+    sourceType: text("source_type").notNull(),
+    category: text("category"),
+    subcategory: text("subcategory"),
+    /** Frontmatter the columns above do not cover, attachments included. */
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    dateCreated: timestamp("date_created", { withTimezone: true }),
+    dateModified: timestamp("date_modified", { withTimezone: true }),
+    /** `unextracted` is a file with no text layer: recorded, not searchable. */
+    extraction: text("extraction").notNull().default("ok"),
+    /** SHA-256 of the source bytes, so an unchanged file is not rewritten. */
+    contentHash: text("content_hash").notNull(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().default(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    unique("kb_articles_collection_source_key").on(t.collectionId, t.sourceKey),
+    check("kb_articles_format_check", sql`${t.format} IN ('markdown','text')`),
+    check("kb_articles_extraction_check", sql`${t.extraction} IN ('ok','unextracted')`),
+    index("kb_articles_category_idx").on(t.collectionId, t.category, t.subcategory),
+  ],
+);
+
+/**
+ * An article cut into pieces small enough to rank and to quote. The title is
+ * repeated on every chunk because a generated column can only see its own row.
+ */
+export const kbChunks = pgTable(
+  "kb_chunks",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    articleId: uuid("article_id")
+      .notNull()
+      .references(() => kbArticles.id, { onDelete: "cascade" }),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => kbCollections.id, { onDelete: "cascade" }),
+    ordinal: integer("ordinal").notNull(),
+    title: text("title").notNull(),
+    /** The headings this chunk sits under, outermost first. */
+    heading: text("heading").notNull().default(""),
+    content: text("content").notNull(),
+    searchVec: tsvector("search_vec").generatedAlwaysAs(
+      sql`setweight(to_tsvector('english', title), 'A') || setweight(to_tsvector('english', heading), 'B') || setweight(to_tsvector('english', content), 'D')`,
+    ),
+  },
+  (t) => [
+    unique("kb_chunks_article_ordinal").on(t.articleId, t.ordinal),
+    index("kb_chunks_search_idx").using("gin", t.searchVec),
+    index("kb_chunks_collection_idx").on(t.collectionId),
+  ],
+);
+
+/** One run of the importer, from an upload or from a connector. */
+export const kbImports = pgTable(
+  "kb_imports",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => kbCollections.id, { onDelete: "cascade" }),
+    source: text("source").notNull(),
+    connectorId: uuid("connector_id"),
+    filename: text("filename"),
+    status: text("status").notNull().default("uploading"),
+    /** Upload bookkeeping: what was promised, and how much has arrived. */
+    expectedBytes: bigint("expected_bytes", { mode: "number" }),
+    receivedBytes: bigint("received_bytes", { mode: "number" }).notNull().default(0),
+    total: integer("total").notNull().default(0),
+    added: integer("added").notNull().default(0),
+    updated: integer("updated").notNull().default(0),
+    skipped: integer("skipped").notNull().default(0),
+    failed: integer("failed").notNull().default(0),
+    /** Of those added or updated, how many had no text to extract. */
+    unextracted: integer("unextracted").notNull().default(0),
+    /** Files that are not articles: images, package notes, the manifest. */
+    ignored: integer("ignored").notNull().default(0),
+    /** [{ path, reason }], capped so one bad archive cannot fill the row. */
+    failures: jsonb("failures").$type<{ path: string; reason: string }[]>().notNull().default([]),
+    usedManifest: boolean("used_manifest").notNull().default(false),
+    error: text("error"),
+    startedBy: uuid("started_by").references(() => users.id),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().default(now),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+  },
+  (t) => [
+    check("kb_imports_source_check", sql`${t.source} IN ('upload','connector')`),
+    check(
+      "kb_imports_status_check",
+      sql`${t.status} IN ('uploading','running','done','failed')`,
+    ),
+    index("kb_imports_collection_idx").on(t.collectionId, t.startedAt),
+  ],
+);
+
+/**
+ * A public KB fetched on a schedule: a sitemap, or every page under a URL
+ * prefix. What it finds goes through the same upsert an upload does.
+ */
+export const kbConnectors = pgTable(
+  "kb_connectors",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => kbCollections.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    url: text("url").notNull(),
+    intervalHours: integer("interval_hours").notNull().default(168),
+    maxPages: integer("max_pages").notNull().default(500),
+    enabled: boolean("enabled").notNull().default(true),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    check("kb_connectors_kind_check", sql`${t.kind} IN ('sitemap','prefix')`),
+    check("kb_connectors_interval_check", sql`${t.intervalHours} BETWEEN 1 AND 8760`),
+    check("kb_connectors_max_pages_check", sql`${t.maxPages} BETWEEN 1 AND 20000`),
+    index("kb_connectors_due_idx").on(t.nextRunAt),
+  ],
+);

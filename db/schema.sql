@@ -400,3 +400,119 @@ ALTER TABLE doc_types ADD COLUMN schedule_lead_days int
 
 -- Whether a document's schedule is still the one its type stamped in.
 ALTER TABLE document_schedules ADD COLUMN from_doc_type boolean NOT NULL DEFAULT false;
+
+-- ---------- Knowledge base ----------
+-- Collections sit beside the documentation: one per source, owned by no
+-- company. Articles are upserted on (collection_id, source_key).
+CREATE TABLE kb_collections (
+  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name               text NOT NULL UNIQUE,
+  description        text,
+  all_companies      boolean NOT NULL DEFAULT true,   -- false: kept to kb_collection_companies
+  mcp_enabled        boolean NOT NULL DEFAULT true,
+  archived_at        timestamptz,
+  created_by         uuid REFERENCES users(id),
+  created_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- The companies a collection is kept to, when it is not for everyone.
+CREATE TABLE kb_collection_companies (
+  collection_id uuid NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
+  company_id    uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  PRIMARY KEY (collection_id, company_id)
+);
+CREATE INDEX kb_collection_companies_company_idx ON kb_collection_companies (company_id);
+
+-- What an API key may do with one collection, beyond what its companies let it read.
+CREATE TABLE api_key_kb_collections (
+  api_key_id    uuid NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE,
+  collection_id uuid NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
+  can_write     boolean NOT NULL DEFAULT false,
+  granted_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (api_key_id, collection_id)
+);
+CREATE INDEX api_key_kb_collections_collection_idx ON api_key_kb_collections (collection_id);
+
+CREATE TABLE kb_articles (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  collection_id uuid NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
+  source_key    text NOT NULL,              -- 'id:<external_id>' or 'path:<file path>'
+  external_id   text,
+  source_path   text,
+  source_url    text,
+  title         text NOT NULL,
+  body          text NOT NULL DEFAULT '',
+  format        text NOT NULL DEFAULT 'markdown' CHECK (format IN ('markdown','text')),
+  source_type   text NOT NULL,              -- md, txt, pdf, docx, html
+  category      text,
+  subcategory   text,
+  metadata      jsonb NOT NULL DEFAULT '{}',
+  date_created  timestamptz,
+  date_modified timestamptz,
+  extraction    text NOT NULL DEFAULT 'ok' CHECK (extraction IN ('ok','unextracted')),
+  content_hash  text NOT NULL,
+  archived_at   timestamptz,
+  imported_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (collection_id, source_key)
+);
+CREATE INDEX kb_articles_category_idx ON kb_articles (collection_id, category, subcategory);
+
+CREATE TABLE kb_chunks (
+  id            bigserial PRIMARY KEY,
+  article_id    uuid NOT NULL REFERENCES kb_articles(id) ON DELETE CASCADE,
+  collection_id uuid NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
+  ordinal       int NOT NULL,
+  title         text NOT NULL,              -- repeated: a generated column sees one row
+  heading       text NOT NULL DEFAULT '',
+  content       text NOT NULL,
+  search_vec    tsvector GENERATED ALWAYS AS (
+    setweight(to_tsvector('english', title), 'A') ||
+    setweight(to_tsvector('english', heading), 'B') ||
+    setweight(to_tsvector('english', content), 'D')
+  ) STORED,
+  UNIQUE (article_id, ordinal)
+);
+CREATE INDEX kb_chunks_search_idx ON kb_chunks USING gin (search_vec);
+CREATE INDEX kb_chunks_collection_idx ON kb_chunks (collection_id);
+
+CREATE TABLE kb_imports (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  collection_id  uuid NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
+  source         text NOT NULL CHECK (source IN ('upload','connector')),
+  connector_id   uuid,
+  filename       text,
+  status         text NOT NULL DEFAULT 'uploading'
+                 CHECK (status IN ('uploading','running','done','failed')),
+  expected_bytes bigint,
+  received_bytes bigint NOT NULL DEFAULT 0,
+  total          int NOT NULL DEFAULT 0,
+  added          int NOT NULL DEFAULT 0,
+  updated        int NOT NULL DEFAULT 0,
+  skipped        int NOT NULL DEFAULT 0,
+  failed         int NOT NULL DEFAULT 0,
+  unextracted    int NOT NULL DEFAULT 0,
+  ignored        int NOT NULL DEFAULT 0,
+  failures       jsonb NOT NULL DEFAULT '[]',
+  used_manifest  boolean NOT NULL DEFAULT false,
+  error          text,
+  started_by     uuid REFERENCES users(id),
+  started_at     timestamptz NOT NULL DEFAULT now(),
+  finished_at    timestamptz
+);
+CREATE INDEX kb_imports_collection_idx ON kb_imports (collection_id, started_at);
+
+CREATE TABLE kb_connectors (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  collection_id  uuid NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
+  kind           text NOT NULL CHECK (kind IN ('sitemap','prefix')),
+  url            text NOT NULL,
+  interval_hours int NOT NULL DEFAULT 168 CHECK (interval_hours BETWEEN 1 AND 8760),
+  max_pages      int NOT NULL DEFAULT 500 CHECK (max_pages BETWEEN 1 AND 20000),
+  enabled        boolean NOT NULL DEFAULT true,
+  last_run_at    timestamptz,
+  next_run_at    timestamptz,
+  archived_at    timestamptz,
+  created_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX kb_connectors_due_idx ON kb_connectors (next_run_at);

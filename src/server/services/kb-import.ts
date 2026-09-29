@@ -1,0 +1,576 @@
+import "server-only";
+import { createHash } from "node:crypto";
+import { and, desc, eq, lt, or, sql } from "drizzle-orm";
+import { db } from "@/server/db";
+import { kbArticles, kbChunks, kbCollections, kbImports } from "@/server/db/schema";
+import { writeAudit } from "@/server/services/audit";
+import { chunkText } from "@/server/kb/chunk";
+import {
+  extractArticle,
+  NotAnArticleError,
+  type ExtractedArticle,
+} from "@/server/kb/extract";
+import {
+  normalizePath,
+  parseManifest,
+  sameInstant,
+  type Manifest,
+} from "@/server/kb/manifest";
+import { ArchiveError, commonRoot, readArchive } from "@/server/kb/zip";
+
+/**
+ * The importer. An upload and a connector both end here: each article is
+ * upserted on (collection, source key), where the key is the source's own id
+ * and, failing that, the file's path — so bringing the same source in again
+ * updates what is there instead of adding to it.
+ *
+ * One bad file never fails a run. It is counted, named, and the run goes on.
+ */
+
+/** Files a package carries about itself. They describe the pile; they are not in it. */
+const PACKAGE_NOTES = new Set(["readme.md", "index.md", "unextracted-documents.md"]);
+const MAX_FAILURES = 200;
+const PROGRESS_EVERY = 50;
+const CHUNK_BATCH = 200;
+
+export type ImportSummary = {
+  total: number;
+  added: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  unextracted: number;
+  ignored: number;
+  failures: { path: string; reason: string }[];
+  usedManifest: boolean;
+};
+
+export type ImportRow = ImportSummary & {
+  id: string;
+  collectionId: string;
+  source: string;
+  filename: string | null;
+  status: string;
+  expectedBytes: number | null;
+  receivedBytes: number;
+  error: string | null;
+  startedAt: Date;
+  finishedAt: Date | null;
+};
+
+type Known = {
+  id: string;
+  sourcePath: string | null;
+  dateModified: Date | null;
+  contentHash: string;
+  archived: boolean;
+};
+
+export function sourceKey(externalId: string | null, path: string): string {
+  return externalId ? `id:${externalId}` : `path:${path}`;
+}
+
+/** Postgres text cannot hold a NUL, and extracted PDF text sometimes has one. */
+function clean(text: string): string {
+  return text.includes("\u0000") ? text.replaceAll("\u0000", "") : text;
+}
+
+/** What the manifest says about an article's attachments, for its metadata. */
+function unextractedAttachments(metadata: Record<string, unknown>): string[] {
+  const attachments = metadata.doc_attachments;
+  if (!Array.isArray(attachments)) return [];
+  return attachments
+    .filter(
+      (item): item is { name: string } =>
+        typeof item === "object" && item !== null && "extracted" in item &&
+        (item as { extracted: unknown }).extracted === false &&
+        typeof (item as { name: unknown }).name === "string",
+    )
+    .map((item) => item.name);
+}
+
+/**
+ * Writes one article and its chunks, replacing what was there under the same
+ * key. Everything that adds to a collection ends here — an upload, a
+ * connector, a tool call — so an article is chunked and indexed one way.
+ */
+export async function storeArticle(
+  collectionId: string,
+  key: string,
+  path: string | null,
+  article: ExtractedArticle,
+  contentHash: string,
+): Promise<string> {
+  const title = clean(article.title).slice(0, 500) || "Untitled";
+  const body = clean(article.body);
+
+  const values = {
+    externalId: article.externalId,
+    sourcePath: path,
+    sourceUrl: article.sourceUrl,
+    title,
+    body,
+    format: article.format,
+    sourceType: article.sourceType,
+    category: article.category,
+    subcategory: article.subcategory,
+    metadata: article.metadata,
+    dateCreated: article.dateCreated,
+    dateModified: article.dateModified,
+    extraction: article.extraction,
+    contentHash,
+  };
+
+  const chunks = article.extraction === "ok" ? chunkText(body) : [];
+
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(kbArticles)
+      .values({ collectionId, sourceKey: key, ...values })
+      .onConflictDoUpdate({
+        target: [kbArticles.collectionId, kbArticles.sourceKey],
+        set: { ...values, archivedAt: null, updatedAt: new Date() },
+      })
+      .returning({ id: kbArticles.id });
+    if (!row) throw new Error("Upsert returned nothing");
+
+    await tx.delete(kbChunks).where(eq(kbChunks.articleId, row.id));
+    for (let at = 0; at < chunks.length; at += CHUNK_BATCH) {
+      await tx.insert(kbChunks).values(
+        chunks.slice(at, at + CHUNK_BATCH).map((chunk) => ({
+          articleId: row.id,
+          collectionId,
+          ordinal: chunk.ordinal,
+          title,
+          heading: chunk.heading.slice(0, 500),
+          content: chunk.content,
+        })),
+      );
+    }
+
+    return row.id;
+  });
+}
+
+export class ImportRun {
+  readonly summary: ImportSummary = {
+    total: 0,
+    added: 0,
+    updated: 0,
+    skipped: 0,
+    failed: 0,
+    unextracted: 0,
+    ignored: 0,
+    failures: [],
+    usedManifest: false,
+  };
+
+  private byKey = new Map<string, Known>();
+  private byPath = new Map<string, Known>();
+  private sinceProgress = 0;
+
+  private constructor(
+    readonly collectionId: string,
+    readonly importId: string,
+    private manifest: Manifest | null,
+  ) {
+    this.summary.usedManifest = manifest !== null;
+  }
+
+  static async begin(
+    collectionId: string,
+    importId: string,
+    manifest: Manifest | null,
+  ): Promise<ImportRun> {
+    const run = new ImportRun(collectionId, importId, manifest);
+
+    const rows = await db
+      .select({
+        id: kbArticles.id,
+        sourceKey: kbArticles.sourceKey,
+        sourcePath: kbArticles.sourcePath,
+        dateModified: kbArticles.dateModified,
+        contentHash: kbArticles.contentHash,
+        archivedAt: kbArticles.archivedAt,
+      })
+      .from(kbArticles)
+      .where(eq(kbArticles.collectionId, collectionId));
+
+    for (const row of rows) {
+      const known: Known = {
+        id: row.id,
+        sourcePath: row.sourcePath,
+        dateModified: row.dateModified,
+        contentHash: row.contentHash,
+        archived: row.archivedAt !== null,
+      };
+      run.byKey.set(row.sourceKey, known);
+      if (row.sourcePath) run.byPath.set(row.sourcePath, known);
+    }
+
+    await db
+      .update(kbImports)
+      .set({ status: "running", usedManifest: manifest !== null })
+      .where(eq(kbImports.id, importId));
+
+    return run;
+  }
+
+  /**
+   * Whether the manifest already says this file has not changed, which saves
+   * opening it. Only a path can answer that before the file is read.
+   */
+  unchangedByManifest(path: string): boolean {
+    const entry = this.manifest?.byPath.get(path);
+    const known = this.byPath.get(path);
+    return !!entry && !!known && !known.archived && sameInstant(entry.dateModified, known.dateModified);
+  }
+
+  isPackageNote(path: string): boolean {
+    if (path.includes("/")) return false;
+    const name = path.toLowerCase();
+    return name === "manifest.json" || PACKAGE_NOTES.has(name);
+  }
+
+  async skip(): Promise<void> {
+    this.summary.total += 1;
+    this.summary.skipped += 1;
+    await this.progress();
+  }
+
+  async ignore(): Promise<void> {
+    this.summary.ignored += 1;
+  }
+
+  async fail(path: string, reason: string): Promise<void> {
+    this.summary.total += 1;
+    this.summary.failed += 1;
+    if (this.summary.failures.length < MAX_FAILURES) {
+      this.summary.failures.push({ path, reason: reason.slice(0, 300) });
+    }
+    await this.progress();
+  }
+
+  /** One file from an archive or a folder. */
+  async file(path: string, bytes: Buffer): Promise<void> {
+    let article: ExtractedArticle;
+    try {
+      article = await extractArticle(path, bytes);
+    } catch (error) {
+      if (error instanceof NotAnArticleError) return this.ignore();
+      return this.fail(path, "The file could not be read");
+    }
+
+    await this.article(path, article, createHash("sha256").update(bytes).digest("hex"));
+  }
+
+  /** One article, however it was come by. */
+  async article(path: string, article: ExtractedArticle, contentHash: string): Promise<void> {
+    const key = sourceKey(article.externalId, path);
+    const known = this.byKey.get(key);
+
+    // The manifest's date is the source's own, to the millisecond; the
+    // frontmatter's is often only the day.
+    const listed =
+      (article.externalId ? this.manifest?.byId.get(article.externalId) : undefined) ??
+      this.manifest?.byPath.get(path);
+    const dateModified = listed?.dateModified ?? article.dateModified;
+
+    if (known && !known.archived) {
+      const unchanged = listed
+        ? sameInstant(listed.dateModified, known.dateModified)
+        : known.contentHash === contentHash;
+      if (unchanged) return this.skip();
+    }
+
+    try {
+      const id = await this.upsert(key, path, { ...article, dateModified }, contentHash);
+      this.summary.total += 1;
+      if (known) this.summary.updated += 1;
+      else this.summary.added += 1;
+      if (
+        article.extraction === "unextracted" ||
+        unextractedAttachments(article.metadata).length > 0
+      ) {
+        this.summary.unextracted += 1;
+      }
+
+      const now: Known = { id, sourcePath: path, dateModified, contentHash, archived: false };
+      this.byKey.set(key, now);
+      this.byPath.set(path, now);
+      await this.progress();
+    } catch (error) {
+      console.error(`bothy: knowledge base import could not store ${path}`, error);
+      await this.fail(path, "The article could not be stored");
+    }
+  }
+
+  private upsert(
+    key: string,
+    path: string,
+    article: ExtractedArticle,
+    contentHash: string,
+  ): Promise<string> {
+    return storeArticle(this.collectionId, key, path, article, contentHash);
+  }
+
+  private async progress(force = false): Promise<void> {
+    this.sinceProgress += 1;
+    if (!force && this.sinceProgress < PROGRESS_EVERY) return;
+    this.sinceProgress = 0;
+
+    const { failures, usedManifest, ...counts } = this.summary;
+    await db
+      .update(kbImports)
+      .set({ ...counts, failures, usedManifest })
+      .where(eq(kbImports.id, this.importId));
+  }
+
+  async finish(actorId: string | null, error?: string): Promise<ImportSummary> {
+    const { failures, usedManifest, ...counts } = this.summary;
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(kbImports)
+        .set({
+          ...counts,
+          failures,
+          usedManifest,
+          status: error ? "failed" : "done",
+          error: error ?? null,
+          finishedAt: new Date(),
+        })
+        .where(eq(kbImports.id, this.importId));
+
+      await writeAudit(
+        {
+          userId: actorId,
+          action: error ? "kb_import.failed" : "kb_import.finished",
+          entity: "kb_import",
+          entityId: this.importId,
+          detail: { collectionId: this.collectionId, ...counts, usedManifest },
+        },
+        tx,
+      );
+    });
+
+    return this.summary;
+  }
+}
+
+/** Merges what the manifest knows about attachments into an article's own. */
+function withManifestAttachments(
+  raw: string,
+): Map<string, unknown> {
+  const attachments = new Map<string, unknown>();
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    const list = Array.isArray(parsed)
+      ? parsed
+      : ((parsed as { articles?: unknown[] } | null)?.articles ?? []);
+    for (const entry of list as Record<string, unknown>[]) {
+      if (typeof entry !== "object" || entry === null) continue;
+      if (typeof entry.path === "string" && Array.isArray(entry.doc_attachments)) {
+        attachments.set(normalizePath(entry.path), entry.doc_attachments);
+      }
+    }
+  } catch {
+    // The manifest was already judged by parseManifest; this is only extra.
+  }
+  return attachments;
+}
+
+/**
+ * Imports a zip archive from disk. Two passes: the first finds the manifest
+ * and the folder everything sits under, the second reads the articles.
+ */
+export async function importArchive(options: {
+  file: string;
+  collectionId: string;
+  importId: string;
+  actorId: string | null;
+}): Promise<ImportSummary> {
+  let run: ImportRun | null = null;
+
+  try {
+    let manifestText: string | null = null;
+    const names = await readArchive(
+      options.file,
+      (path) => /(^|\/)manifest\.json$/i.test(path) && path.split("/").length <= 2,
+      async (entry) => {
+        if (entry.bytes) manifestText ??= entry.bytes.toString("utf8");
+      },
+    );
+
+    const root = commonRoot(names);
+    const manifest = manifestText ? parseManifest(manifestText) : null;
+    const attachments = manifestText ? withManifestAttachments(manifestText) : new Map();
+    const importing = await ImportRun.begin(options.collectionId, options.importId, manifest);
+    run = importing;
+
+    const relative = (path: string) => (root && path.startsWith(root) ? path.slice(root.length) : path);
+
+    // Decided while the archive is being read, acted on once the entry is whole.
+    const skipped: string[] = [];
+
+    await readArchive(
+      options.file,
+      (full) => {
+        const path = relative(full);
+        if (importing.isPackageNote(path)) {
+          void importing.ignore();
+          return false;
+        }
+        if (importing.unchangedByManifest(path)) {
+          skipped.push(path);
+          return false;
+        }
+        return true;
+      },
+      async (entry) => {
+        while (skipped.length > 0) {
+          skipped.pop();
+          await importing.skip();
+        }
+
+        const path = relative(entry.path);
+        if (entry.tooLarge) return importing.fail(path, "The file is too large to import");
+        if (!entry.bytes) return importing.fail(path, "The file could not be unpacked");
+
+        let article: ExtractedArticle;
+        try {
+          article = await extractArticle(path, entry.bytes);
+        } catch (error) {
+          if (error instanceof NotAnArticleError) return importing.ignore();
+          return importing.fail(path, "The file could not be read");
+        }
+
+        const listed = attachments.get(path);
+        if (listed) article.metadata = { ...article.metadata, doc_attachments: listed };
+
+        await importing.article(
+          path,
+          article,
+          createHash("sha256").update(entry.bytes).digest("hex"),
+        );
+      },
+    );
+
+    while (skipped.length > 0) {
+      skipped.pop();
+      await importing.skip();
+    }
+
+    return await importing.finish(options.actorId);
+  } catch (error) {
+    const message =
+      error instanceof ArchiveError ? error.message : "The import stopped unexpectedly";
+    if (!(error instanceof ArchiveError)) {
+      console.error("bothy: knowledge base import failed", error);
+    }
+
+    if (run) return run.finish(options.actorId, message);
+
+    await db
+      .update(kbImports)
+      .set({ status: "failed", error: message, finishedAt: new Date() })
+      .where(eq(kbImports.id, options.importId));
+    throw error;
+  }
+}
+
+/* ---------- Import records ---------- */
+
+const importColumns = {
+  id: kbImports.id,
+  collectionId: kbImports.collectionId,
+  source: kbImports.source,
+  filename: kbImports.filename,
+  status: kbImports.status,
+  expectedBytes: kbImports.expectedBytes,
+  receivedBytes: kbImports.receivedBytes,
+  total: kbImports.total,
+  added: kbImports.added,
+  updated: kbImports.updated,
+  skipped: kbImports.skipped,
+  failed: kbImports.failed,
+  unextracted: kbImports.unextracted,
+  ignored: kbImports.ignored,
+  failures: kbImports.failures,
+  usedManifest: kbImports.usedManifest,
+  error: kbImports.error,
+  startedAt: kbImports.startedAt,
+  finishedAt: kbImports.finishedAt,
+};
+
+export async function getImport(id: string): Promise<ImportRow | null> {
+  const [row] = await db.select(importColumns).from(kbImports).where(eq(kbImports.id, id)).limit(1);
+  return row ?? null;
+}
+
+export async function listImports(collectionId: string, limit = 10): Promise<ImportRow[]> {
+  return db
+    .select(importColumns)
+    .from(kbImports)
+    .where(eq(kbImports.collectionId, collectionId))
+    .orderBy(desc(kbImports.startedAt))
+    .limit(limit);
+}
+
+export async function createImportRecord(input: {
+  collectionId: string;
+  source: "upload" | "connector";
+  filename?: string | null;
+  expectedBytes?: number | null;
+  connectorId?: string | null;
+  actorId: string | null;
+  status?: "uploading" | "running";
+}): Promise<string> {
+  const [collection] = await db
+    .select({ id: kbCollections.id })
+    .from(kbCollections)
+    .where(eq(kbCollections.id, input.collectionId))
+    .limit(1);
+  if (!collection) throw new Error("Collection not found");
+
+  const [row] = await db
+    .insert(kbImports)
+    .values({
+      collectionId: input.collectionId,
+      source: input.source,
+      filename: input.filename?.slice(0, 300) ?? null,
+      expectedBytes: input.expectedBytes ?? null,
+      connectorId: input.connectorId ?? null,
+      startedBy: input.actorId,
+      status: input.status ?? "uploading",
+    })
+    .returning({ id: kbImports.id });
+  if (!row) throw new Error("Failed to record the import");
+  return row.id;
+}
+
+/**
+ * An import runs inside this process. One that was under way when the process
+ * stopped will never finish, and says so rather than spinning for ever.
+ */
+export async function failInterruptedImports(): Promise<number> {
+  const rows = await db
+    .update(kbImports)
+    .set({
+      status: "failed",
+      error: "The server restarted before this import finished. Run it again.",
+      finishedAt: new Date(),
+    })
+    .where(
+      or(
+        eq(kbImports.status, "running"),
+        // An upload may be resumed for a while; one abandoned for a day will not be.
+        and(
+          eq(kbImports.status, "uploading"),
+          lt(kbImports.startedAt, sql`now() - interval '1 day'`),
+        ),
+      ),
+    )
+    .returning({ id: kbImports.id });
+  return rows.length;
+}

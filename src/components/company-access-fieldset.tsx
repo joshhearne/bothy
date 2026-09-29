@@ -15,11 +15,14 @@ export function CompanyAccessFieldset({
   allCompanies = false,
   selected = [],
   hint,
+  allowNone = false,
 }: {
   companies: AccessCompany[];
   allCompanies?: boolean;
   selected?: string[];
   hint?: string;
+  /** Offers "no companies", for a key that is for the knowledge base alone. */
+  allowNone?: boolean;
 }) {
   const t = useMessages();
   const [all, setAll] = useState(allCompanies);
@@ -52,6 +55,24 @@ export function CompanyAccessFieldset({
         />
         {t.access.only}
       </label>
+
+      {allowNone && (
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="radio"
+            name="allCompanies"
+            value="none"
+            onChange={() => setAll(true)}
+            className="mt-0.5 size-4"
+          />
+          <span>
+            {t.access.kbOnly}
+            <span className="block text-xs text-[var(--muted-foreground)]">
+              {t.access.kbOnlyHint}
+            </span>
+          </span>
+        </label>
+      )}
 
       {companies.length === 0 ? (
         <p className="text-xs text-[var(--muted-foreground)]">{t.access.none}</p>
