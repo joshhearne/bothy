@@ -61,6 +61,9 @@ export type KbPublicSettings = {
   /** What of it can be used. */
   addresses: string[];
   url: string | null;
+  /** Cloudflare Access in front of the site, when both are set. */
+  accessTeam: string | null;
+  accessAud: string | null;
 };
 
 export const kbPublicInputSchema = z
@@ -81,8 +84,29 @@ export const kbPublicInputSchema = z
         }
       }, "Enter an http or https address")
       .default(""),
+    /** The team's domain as Cloudflare names it: "example" for example.cloudflareaccess.com. */
+    accessTeam: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .max(100)
+      .regex(/^[a-z0-9-]*$/, "The team name is the part before .cloudflareaccess.com")
+      .default(""),
+    accessAud: z
+      .string()
+      .trim()
+      .max(200)
+      .regex(/^[a-f0-9]*$/i, "The audience tag is hexadecimal")
+      .default(""),
   })
   .superRefine((input, ctx) => {
+    if ((input.accessTeam === "") !== (input.accessAud === "")) {
+      ctx.addIssue({
+        code: "custom",
+        path: [input.accessTeam === "" ? "accessTeam" : "accessAud"],
+        message: "Set both the team and the audience tag, or neither",
+      });
+    }
     const list = parseAddressList(input.addresses);
     if (list.rejected.length > 0) {
       ctx.addIssue({
@@ -107,6 +131,8 @@ export async function getKbPublicSettings(): Promise<KbPublicSettings> {
       mode: instanceSettings.kbPublicMode,
       addresses: instanceSettings.kbPublicAddresses,
       url: instanceSettings.kbPublicUrl,
+      accessTeam: instanceSettings.kbPublicAccessTeam,
+      accessAud: instanceSettings.kbPublicAccessAud,
     })
     .from(instanceSettings)
     .where(eq(instanceSettings.id, true))
@@ -121,6 +147,8 @@ export async function getKbPublicSettings(): Promise<KbPublicSettings> {
     addressText: row?.addresses ?? "",
     addresses: parseAddressList(row?.addresses ?? "").entries,
     url: row?.url ?? null,
+    accessTeam: row?.accessTeam ?? null,
+    accessAud: row?.accessAud ?? null,
   };
 }
 
@@ -133,6 +161,8 @@ export async function setKbPublicSettings(
     kbPublicMode: data.mode,
     kbPublicAddresses: data.addresses.trim(),
     kbPublicUrl: data.url === "" ? null : data.url.replace(/\/+$/, ""),
+    kbPublicAccessTeam: data.accessTeam === "" ? null : data.accessTeam,
+    kbPublicAccessAud: data.accessAud === "" ? null : data.accessAud,
   };
 
   await db.transaction(async (tx) => {
@@ -154,6 +184,7 @@ export async function setKbPublicSettings(
           kbPublicMode: values.kbPublicMode,
           kbPublicAddresses: parseAddressList(values.kbPublicAddresses).entries,
           kbPublicUrl: values.kbPublicUrl,
+          kbPublicAccessTeam: values.kbPublicAccessTeam,
         },
       },
       tx,

@@ -4,12 +4,17 @@ import { ChevronLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { KbSort } from "@/components/kb-sort";
+import { reactionSummary } from "@/components/kb-reactions";
 import type { ArticleSummary, CategoryCount, CollectionRow } from "@/server/services/kb";
 import { formatDateTime, formatNumber, plural } from "@/i18n/format";
 import type { Messages } from "@/i18n";
 import type { Locale } from "@/i18n/locales";
 
 export type CollectionFilter = { category?: string; subcategory?: string };
+
+/** How the articles are ordered, when the reader may choose. */
+export type CollectionOrder = { sort: string; dir: "asc" | "desc"; sorts: readonly string[] };
 
 /**
  * One collection: its categories beside its articles, which scroll on their
@@ -22,6 +27,7 @@ export function KbCollection({
   articles,
   nextCursor,
   filter,
+  order,
   base,
   locale,
   t,
@@ -31,6 +37,7 @@ export function KbCollection({
   articles: ArticleSummary[];
   nextCursor: string | null;
   filter: CollectionFilter;
+  order?: CollectionOrder;
   base: string;
   locale: Locale;
   t: Messages;
@@ -51,6 +58,7 @@ export function KbCollection({
       ...(category !== undefined ? { category } : {}),
       ...(subcategory ? { subcategory } : {}),
       ...(cursor ? { cursor } : {}),
+      ...(order ? { sort: order.sort, dir: order.dir } : {}),
     },
   });
 
@@ -149,6 +157,11 @@ export function KbCollection({
         </nav>
 
         <div className="min-w-0 flex-1">
+          {order && articles.length > 0 && (
+            <div className="mb-3">
+              <KbSort scope="articles" sorts={order.sorts} sort={order.sort} dir={order.dir} />
+            </div>
+          )}
           {articles.length === 0 ? (
             <p className="text-sm text-[var(--muted-foreground)]">{t.kb.noArticles}</p>
           ) : (
@@ -169,6 +182,7 @@ export function KbCollection({
                         ? t.kb.modified(formatDateTime(article.dateModified, locale))
                         : null,
                       article.extraction === "unextracted" ? t.kb.unextracted : null,
+                      ...reactionSummary(article, t),
                     ]
                       .filter(Boolean)
                       .join(" · ")}

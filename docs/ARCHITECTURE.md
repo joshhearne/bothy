@@ -315,6 +315,25 @@ appears in the documentation search.
   the rest of the installation, asks not to be indexed, and is meant to be
   published on a hostname of its own whose proxy passes `/pub/kb` and the
   static assets and nothing else. See docs/CLOUDFLARE.md.
+- **Readers on the public site** may keep favorites and vote an article
+  helpful or not (`kb_favorites`, `kb_votes`) when Cloudflare Access is in
+  front of the site and named in the settings (`kb_public_access_team`,
+  `kb_public_access_aud`). Access puts a signed token naming the visitor on
+  every request; it is checked against the team's published keys
+  (`src/server/kb/identity.ts`), and the reader is then known only by a hash
+  of their address and `AUTH_SECRET`. No account is made here, nothing is
+  administered, and a dump of those rows names nobody. Without Access, or
+  without a token, the site reads the same and offers nothing of the reader's
+  own. Every reaction takes the public `KbReader` too: nobody reacts to an
+  article they could not open.
+- **Ordering and lists**: collections and articles sort by name, last change
+  (the source's date, or arrival where the source gave none), article count,
+  favorites, and helpfulness, which is the share of votes in favor, 0 to 100,
+  null until somebody votes. The choice rides in the address and is remembered
+  per browser in `localStorage`, which is the right place for a preference and
+  the wrong place for anything shared. The public home page ends with the
+  reader's favorites, the five most helpful pages (share, then number of votes,
+  so one thumbs-up does not outrank a hundred), and the ten changed last.
 - Imports and connectors need a filesystem and raw sockets, so on Workers they
   report that they are unavailable. Reading and search work anywhere.
 

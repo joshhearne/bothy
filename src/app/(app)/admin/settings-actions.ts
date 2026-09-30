@@ -32,6 +32,8 @@ export async function setKbPublicAction(_prev: FormState, formData: FormData): P
         mode: (text(formData, "mode") ?? "off") as "off" | "addresses" | "open",
         addresses: String(formData.get("addresses") ?? ""),
         url: text(formData, "url") ?? "",
+        accessTeam: text(formData, "accessTeam") ?? "",
+        accessAud: text(formData, "accessAud") ?? "",
       },
       user.id,
     );

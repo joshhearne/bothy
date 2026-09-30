@@ -423,6 +423,13 @@ export const instanceSettings = pgTable(
     kbPublicAddresses: text("kb_public_addresses").notNull().default(""),
     /** Where the public site is published, for the links the interface shows. */
     kbPublicUrl: text("kb_public_url"),
+    /**
+     * Cloudflare Access in front of the public site, when there is one: the
+     * team's domain and the application's audience tag. With both set, a
+     * visitor's Access token names them, and they can keep favorites and vote.
+     */
+    kbPublicAccessTeam: text("kb_public_access_team"),
+    kbPublicAccessAud: text("kb_public_access_aud"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
     updatedBy: uuid("updated_by").references(() => users.id),
   },
@@ -802,6 +809,44 @@ export const kbImages = pgTable(
     unique("kb_images_collection_path").on(t.collectionId, t.sourcePath),
     // Exports disagree with themselves about case; the lookup forgives that.
     index("kb_images_lookup_idx").on(t.collectionId, sql`lower(${t.sourcePath})`),
+  ],
+);
+
+/**
+ * What a public reader keeps for themselves. The reader is known by a key
+ * made from their identity and the instance secret, never by the identity
+ * itself, so a dump of these rows names nobody.
+ */
+export const kbFavorites = pgTable(
+  "kb_favorites",
+  {
+    readerKey: text("reader_key").notNull(),
+    articleId: uuid("article_id")
+      .notNull()
+      .references(() => kbArticles.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.readerKey, t.articleId] }),
+    index("kb_favorites_article_idx").on(t.articleId),
+  ],
+);
+
+/** One vote per reader per article: helpful or not. Changing it replaces it. */
+export const kbVotes = pgTable(
+  "kb_votes",
+  {
+    readerKey: text("reader_key").notNull(),
+    articleId: uuid("article_id")
+      .notNull()
+      .references(() => kbArticles.id, { onDelete: "cascade" }),
+    helpful: boolean("helpful").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.readerKey, t.articleId] }),
+    index("kb_votes_article_idx").on(t.articleId),
   ],
 );
 

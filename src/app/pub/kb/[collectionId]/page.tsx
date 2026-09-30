@@ -1,7 +1,13 @@
 import { notFound } from "next/navigation";
 import { KbCollection } from "@/components/kb-collection";
 import { requirePublicReader } from "@/server/kb/public";
-import { getCollection, listArticles, listCategories } from "@/server/services/kb";
+import {
+  ARTICLE_SORTS,
+  articleOrder,
+  getCollection,
+  listArticles,
+  listCategories,
+} from "@/server/services/kb";
 import { getI18n } from "@/i18n/server";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +17,13 @@ export default async function PublicCollectionPage({
   searchParams,
 }: {
   params: Promise<{ collectionId: string }>;
-  searchParams: Promise<{ category?: string; subcategory?: string; cursor?: string }>;
+  searchParams: Promise<{
+    category?: string;
+    subcategory?: string;
+    cursor?: string;
+    sort?: string;
+    dir?: string;
+  }>;
 }) {
   const reader = await requirePublicReader();
   const { collectionId } = await params;
@@ -21,6 +33,7 @@ export default async function PublicCollectionPage({
   if (!collection) notFound();
 
   const filter = await searchParams;
+  const order = articleOrder(filter.sort, filter.dir);
   const [categories, page, { locale, messages: t }] = await Promise.all([
     listCategories(collectionId, reader),
     listArticles(
@@ -29,6 +42,7 @@ export default async function PublicCollectionPage({
         category: filter.category || undefined,
         subcategory: filter.subcategory || undefined,
         cursor: filter.cursor,
+        ...order,
       },
       reader,
     ),
@@ -45,6 +59,7 @@ export default async function PublicCollectionPage({
         ...(filter.category ? { category: filter.category } : {}),
         ...(filter.subcategory ? { subcategory: filter.subcategory } : {}),
       }}
+      order={{ ...order, sorts: ARTICLE_SORTS }}
       base="/pub/kb"
       locale={locale}
       t={t}

@@ -75,6 +75,8 @@ export default async function SettingsPage() {
           mode={publicSite.mode}
           addresses={publicSite.addressText}
           url={publicSite.url ?? ""}
+          accessTeam={publicSite.accessTeam ?? ""}
+          accessAud={publicSite.accessAud ?? ""}
           visitor={visitor}
         />
       </section>

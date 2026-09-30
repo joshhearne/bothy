@@ -372,6 +372,41 @@ export const enUS = {
     withheld: "Held back from the public site",
     withhold: "Hold back",
     publish: "Put back",
+
+    view: "View",
+    viewCards: "Cards",
+    viewList: "List",
+    sortBy: "Sort by",
+    direction: "Order",
+    ascending: "Ascending",
+    descending: "Descending",
+    sorts: {
+      name: "Name",
+      modified: "Last edited",
+      articles: "Most articles",
+      favorites: "Most favorites",
+      helpful: "Most helpful",
+    },
+    collections: "Knowledge bases",
+    favorites: "My favorites",
+    favoritesHint: "Kept for you, wherever you sign in.",
+    noFavorites: "Nothing yet. Open an article and choose Favorite to keep it here.",
+    favorite: "Favorite",
+    unfavorite: "Favorited",
+    favoriteCount: (count: number) =>
+      count === 1 ? "1 favorite" : `${count} favorites`,
+    helpfulPages: "Helpful pages",
+    helpfulHint: "What readers found most helpful.",
+    noHelpful: "Nobody has voted yet.",
+    recentPages: "Recently updated",
+    recentHint: "The pages that changed last.",
+    wasHelpful: "Was this helpful?",
+    thumbsUp: "Helpful",
+    thumbsDown: "Not helpful",
+    helpfulScore: (percent: number, votes: number) =>
+      `${percent}% helpful · ${votes === 1 ? "1 vote" : `${votes} votes`}`,
+    noVotes: "No votes yet",
+    yourVote: "Your vote is counted. Choose it again to take it back.",
   },
 
   access: {
@@ -429,6 +464,13 @@ export const enUS = {
           : count === 1
             ? "1 collection is marked for the public site."
             : `${count} collections are marked for the public site.`,
+      publicAccess: "Cloudflare Access",
+      publicAccessHint:
+        "When Cloudflare Access signs readers in ahead of the site, name the team and the application's audience tag here. Readers can then keep favorites and vote on articles without an account in this installation. Leave both empty otherwise.",
+      publicAccessTeam: "Team",
+      publicAccessTeamHint: "The part before .cloudflareaccess.com.",
+      publicAccessAud: "Application audience tag",
+      publicAccessAudHint: "From the application's Overview in Zero Trust: a long hexadecimal string.",
       publicSave: "Update public site",
       configuration: "Configuration",
       configurationHint:

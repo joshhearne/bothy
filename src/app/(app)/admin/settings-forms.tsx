@@ -65,11 +65,15 @@ export function KbPublicForm({
   mode,
   addresses,
   url,
+  accessTeam,
+  accessAud,
   visitor,
 }: {
   mode: "off" | "addresses" | "open";
   addresses: string;
   url: string;
+  accessTeam: string;
+  accessAud: string;
   /** The address this administrator is arriving from, to save them looking it up. */
   visitor: string | null;
 }) {
@@ -135,6 +139,41 @@ export function KbPublicForm({
           className={`h-10 ${controlClass}`}
         />
       </Field>
+
+      <fieldset className="flex flex-col gap-3 rounded-md border p-3">
+        <legend className="px-1 text-sm font-medium">{t.admin.settings.publicAccess}</legend>
+        <p className="text-sm text-[var(--muted-foreground)]">{t.admin.settings.publicAccessHint}</p>
+        <Field
+          id="kb-public-access-team"
+          label={t.admin.settings.publicAccessTeam}
+          hint={t.admin.settings.publicAccessTeamHint}
+          error={state.fieldErrors?.accessTeam}
+        >
+          <input
+            id="kb-public-access-team"
+            name="accessTeam"
+            defaultValue={accessTeam}
+            autoComplete="off"
+            spellCheck={false}
+            className={`h-10 ${controlClass}`}
+          />
+        </Field>
+        <Field
+          id="kb-public-access-aud"
+          label={t.admin.settings.publicAccessAud}
+          hint={t.admin.settings.publicAccessAudHint}
+          error={state.fieldErrors?.accessAud}
+        >
+          <input
+            id="kb-public-access-aud"
+            name="accessAud"
+            defaultValue={accessAud}
+            autoComplete="off"
+            spellCheck={false}
+            className={`h-10 font-mono ${controlClass}`}
+          />
+        </Field>
+      </fieldset>
 
       <div className="flex items-center gap-3">
         <Button type="submit" disabled={pending}>

@@ -7,6 +7,8 @@ import {
   kbChunks,
   kbCollectionCompanies,
   kbCollections,
+  kbFavorites,
+  kbVotes,
 } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/errors";
@@ -36,7 +38,7 @@ export type KbReader = {
   granted?: readonly string[];
 };
 
-function readable(reader: KbReader): SQL[] {
+export function readable(reader: KbReader): SQL[] {
   const filters: SQL[] = [isNull(kbCollections.archivedAt) as SQL];
   if (reader.via === "public") {
     filters.push(eq(kbCollections.publicAccess, true), eq(kbArticlesPublic(), true));
@@ -73,6 +75,56 @@ function kbArticlesPublic(): SQL<boolean> {
   return sql<boolean>`coalesce(NOT ${kbArticles.publicHidden}, true)`;
 }
 
+/* ---------- Ordering ---------- */
+
+export const COLLECTION_SORTS = ["name", "modified", "articles", "favorites", "helpful"] as const;
+export const ARTICLE_SORTS = ["name", "modified", "favorites", "helpful"] as const;
+export type CollectionSort = (typeof COLLECTION_SORTS)[number];
+export type ArticleSort = (typeof ARTICLE_SORTS)[number];
+export type SortDirection = "asc" | "desc";
+
+/** What a reader asked to sort by, or the default when they asked for nothing. */
+export function collectionOrder(
+  sort?: string,
+  dir?: string,
+): { sort: CollectionSort; dir: SortDirection } {
+  const chosen = (COLLECTION_SORTS as readonly string[]).includes(sort ?? "")
+    ? (sort as CollectionSort)
+    : "name";
+  return { sort: chosen, dir: direction(chosen, dir) };
+}
+
+export function articleOrder(sort?: string, dir?: string): { sort: ArticleSort; dir: SortDirection } {
+  const chosen = (ARTICLE_SORTS as readonly string[]).includes(sort ?? "")
+    ? (sort as ArticleSort)
+    : "name";
+  return { sort: chosen, dir: direction(chosen, dir) };
+}
+
+/** Names run A to Z unless asked otherwise; everything else runs most first. */
+function direction(sort: string, dir?: string): SortDirection {
+  if (dir === "asc" || dir === "desc") return dir;
+  return sort === "name" ? "asc" : "desc";
+}
+
+/** When an article last changed: what the source said, or failing that when it arrived. */
+const articleChanged = sql<Date>`coalesce(${kbArticles.dateModified}, ${kbArticles.updatedAt})`;
+
+/** Readers' favorites and votes on one article, as columns beside it. */
+const articleFavorites = sql<number>`(select count(*) from ${kbFavorites} f where f.article_id = ${kbArticles.id})::int`;
+const articleVotes = sql<number>`(select count(*) from ${kbVotes} v where v.article_id = ${kbArticles.id})::int`;
+/** 0 to 100, the share of votes that found it helpful; null before anyone has voted. */
+const articleHelpful = sql<number | null>`(select round(100.0 * count(*) filter (where v.helpful) / nullif(count(*), 0)) from ${kbVotes} v where v.article_id = ${kbArticles.id})::int`;
+
+/** The same, over every article a collection holds. */
+const collectionFavorites = sql<number>`(select count(*) from ${kbFavorites} f join ${kbArticles} a on a.id = f.article_id where a.collection_id = ${kbCollections.id} and a.archived_at is null)::int`;
+const collectionHelpful = sql<number | null>`(select round(100.0 * count(*) filter (where v.helpful) / nullif(count(*), 0)) from ${kbVotes} v join ${kbArticles} a on a.id = v.article_id where a.collection_id = ${kbCollections.id} and a.archived_at is null)::int`;
+
+function directed(expression: SQL, dir: SortDirection): SQL {
+  // What has no value yet goes last whichever way the list runs.
+  return dir === "desc" ? sql`${expression} desc nulls last` : sql`${expression} asc nulls last`;
+}
+
 /* ---------- Collections ---------- */
 
 export const collectionInputSchema = z.object({
@@ -101,6 +153,9 @@ export type CollectionRow = {
   articleCount: number;
   unextractedCount: number;
   lastModified: Date | null;
+  favorites: number;
+  /** 0 to 100 across every vote in the collection, or null before any. */
+  helpful: number | null;
 };
 
 export class DuplicateCollectionError extends Error {
@@ -121,10 +176,26 @@ const collectionColumns = {
   createdAt: kbCollections.createdAt,
   articleCount: sql<number>`count(${kbArticles.id})::int`,
   unextractedCount: sql<number>`(count(${kbArticles.id}) FILTER (WHERE ${kbArticles.extraction} = 'unextracted'))::int`,
-  lastModified: sql<Date | null>`max(${kbArticles.dateModified})`,
+  lastModified: sql<Date | null>`max(${articleChanged})`,
+  favorites: collectionFavorites,
+  helpful: collectionHelpful,
 };
 
-export async function listCollections(reader: KbReader): Promise<CollectionRow[]> {
+function collectionOrderBy(order: { sort: CollectionSort; dir: SortDirection }): SQL[] {
+  const by: Record<CollectionSort, SQL> = {
+    name: sql`lower(${kbCollections.name})`,
+    modified: sql`max(${articleChanged})`,
+    articles: sql`count(${kbArticles.id})`,
+    favorites: collectionFavorites,
+    helpful: collectionHelpful,
+  };
+  return [directed(by[order.sort], order.dir), sql`lower(${kbCollections.name}) asc`];
+}
+
+export async function listCollections(
+  reader: KbReader,
+  order: { sort: CollectionSort; dir: SortDirection } = { sort: "name", dir: "asc" },
+): Promise<CollectionRow[]> {
   return db
     .select(collectionColumns)
     .from(kbCollections)
@@ -134,7 +205,7 @@ export async function listCollections(reader: KbReader): Promise<CollectionRow[]
     )
     .where(and(...readable(reader)))
     .groupBy(kbCollections.id)
-    .orderBy(asc(kbCollections.name));
+    .orderBy(...collectionOrderBy(order));
 }
 
 /** Everything, archived included. For the administration pages only. */
@@ -308,6 +379,25 @@ export type ArticleSummary = {
   sourceUrl: string | null;
   extraction: string;
   dateModified: Date | null;
+  favorites: number;
+  votes: number;
+  /** 0 to 100, or null before anyone has voted. */
+  helpful: number | null;
+};
+
+/** What a list shows of an article, with what readers made of it. */
+export const articleSummaryColumns = {
+  id: kbArticles.id,
+  externalId: kbArticles.externalId,
+  title: kbArticles.title,
+  category: kbArticles.category,
+  subcategory: kbArticles.subcategory,
+  sourceUrl: kbArticles.sourceUrl,
+  extraction: kbArticles.extraction,
+  dateModified: kbArticles.dateModified,
+  favorites: articleFavorites,
+  votes: articleVotes,
+  helpful: articleHelpful,
 };
 
 export type ArticleDetail = ArticleSummary & {
@@ -332,7 +422,23 @@ export const articleListSchema = z.object({
   unextractedOnly: z.boolean().default(false),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   cursor: z.string().optional(),
+  sort: z.enum(ARTICLE_SORTS).default("name"),
+  dir: z.enum(["asc", "desc"]).default("asc"),
 });
+
+function articleOrderBy(order: { sort: ArticleSort; dir: SortDirection }): SQL[] {
+  const by: Record<ArticleSort, SQL> = {
+    name: sql`lower(${kbArticles.title})`,
+    modified: articleChanged,
+    favorites: articleFavorites,
+    helpful: articleHelpful,
+  };
+  return [
+    directed(by[order.sort], order.dir),
+    sql`lower(${kbArticles.title}) asc`,
+    sql`${kbArticles.id} asc`,
+  ];
+}
 
 function decodeCursor(cursor: string | undefined): number {
   if (!cursor) return 0;
@@ -357,20 +463,11 @@ export async function listArticles(
   if (data.unextractedOnly) filters.push(eq(kbArticles.extraction, "unextracted"));
 
   const rows = await db
-    .select({
-      id: kbArticles.id,
-      externalId: kbArticles.externalId,
-      title: kbArticles.title,
-      category: kbArticles.category,
-      subcategory: kbArticles.subcategory,
-      sourceUrl: kbArticles.sourceUrl,
-      extraction: kbArticles.extraction,
-      dateModified: kbArticles.dateModified,
-    })
+    .select(articleSummaryColumns)
     .from(kbArticles)
     .innerJoin(kbCollections, eq(kbCollections.id, kbArticles.collectionId))
     .where(and(...filters))
-    .orderBy(asc(kbArticles.title), asc(kbArticles.id))
+    .orderBy(...articleOrderBy({ sort: data.sort, dir: data.dir }))
     .limit(data.limit + 1)
     .offset(offset);
 
@@ -415,6 +512,9 @@ export async function getArticle(id: string, reader: KbReader): Promise<ArticleD
       sourceUrl: kbArticles.sourceUrl,
       extraction: kbArticles.extraction,
       dateModified: kbArticles.dateModified,
+      favorites: articleFavorites,
+      votes: articleVotes,
+      helpful: articleHelpful,
       collectionId: kbCollections.id,
       collectionName: kbCollections.name,
       publicHidden: kbArticles.publicHidden,

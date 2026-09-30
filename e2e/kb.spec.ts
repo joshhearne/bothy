@@ -867,6 +867,104 @@ test("on, it shows only the collections marked for it", async ({ page, browser }
   await onSite.context.close();
 });
 
+test("readers' favorites and votes order the lists, and the visitor sees the counts", async ({
+  page,
+  browser,
+}) => {
+  const guide = psql(
+    `select id from kb_articles where collection_id='${collectionId}' and external_id='502';`,
+  );
+  const tunnels = psql(
+    `select id from kb_articles where collection_id='${collectionId}' and external_id='501';`,
+  );
+  // What readers made of them, as the site would record it: keys, never addresses.
+  psql(
+    `insert into kb_votes (reader_key, article_id, helpful) values ` +
+      `('r1','${guide}',true),('r2','${guide}',true),('r3','${guide}',true),('r4','${guide}',false),` +
+      `('r1','${tunnels}',true);`,
+  );
+  psql(`insert into kb_favorites (reader_key, article_id) values ('r1','${guide}'),('r2','${guide}');`);
+
+  const onSite = await visitor(browser, ON_SITE);
+  await onSite.page.goto("/pub/kb");
+
+  // Every vote for it beats three of four, and a page nobody voted on is not listed.
+  const helpful = onSite.page.getByRole("region", { name: "Helpful pages" });
+  await expect(helpful.getByRole("listitem")).toHaveCount(2);
+  await expect(helpful.getByRole("listitem").first()).toContainText("Tunnel profiles");
+  await expect(helpful.getByRole("listitem").first()).toContainText("100% helpful · 1 vote");
+  await expect(helpful.getByRole("listitem").nth(1)).toContainText("75% helpful · 4 votes");
+  await expect(helpful.getByRole("listitem").nth(1)).toContainText("2 favorites");
+
+  // Dated by the source where it said, and by arrival where it did not: the
+  // loose files came last, and among the dated ones the tunnels changed latest.
+  const recent = onSite.page.getByRole("region", { name: "Recently updated" });
+  const titles = await recent.getByRole("link").allTextContents();
+  expect(titles.indexOf("second note")).toBeLessThan(titles.indexOf(`Tunnel profiles ${MARKER}`));
+  expect(titles.indexOf(`Tunnel profiles ${MARKER}`)).toBeLessThan(titles.indexOf("Firmware guide"));
+
+  // Nobody is signed in to Access here, so there is nothing of their own to show.
+  await expect(onSite.page.getByRole("heading", { name: "My favorites" })).toHaveCount(0);
+  await onSite.page.goto(`/pub/kb/articles/${guide}`);
+  await expect(onSite.page.getByText("75% helpful · 4 votes")).toBeVisible();
+  await expect(onSite.page.getByRole("button", { name: "Favorite" })).toHaveCount(0);
+
+  // The collection sorts each way it offers.
+  // The category list on the left is a list too; the articles are the one with the modified dates.
+  const first = () =>
+    onSite.page.getByRole("listitem").filter({ hasText: /Modified|helpful|favorite/ }).first();
+  await onSite.page.goto(`/pub/kb/${collectionId}?sort=favorites&dir=desc`);
+  await expect(first()).toContainText("Firmware guide");
+  await onSite.page.goto(`/pub/kb/${collectionId}?sort=helpful&dir=desc`);
+  await expect(first()).toContainText("Tunnel profiles");
+  await onSite.page.goto(`/pub/kb/${collectionId}?sort=name&dir=desc`);
+  await expect(first()).toContainText("Tunnel profiles");
+  await onSite.page.goto(`/pub/kb/${collectionId}?sort=name&dir=asc`);
+  await expect(first()).toContainText("Firmware guide");
+
+  // A choice made in the controls is kept in this browser and used next time.
+  await onSite.page.getByLabel("Sort by").selectOption("favorites");
+  await expect(onSite.page).toHaveURL(/sort=favorites/);
+  await onSite.page.goto(`/pub/kb/${collectionId}`);
+  await expect(onSite.page).toHaveURL(/sort=favorites&dir=desc/);
+  await expect(first()).toContainText("Firmware guide");
+
+  // Knowledge bases sort too: by what their articles gathered.
+  await onSite.page.goto("/pub/kb?sort=favorites&dir=desc");
+  await expect(onSite.page.getByRole("link", { name: new RegExp(COLLECTION) })).toContainText("2 favorites");
+
+  // Cards or a list, as this browser prefers.
+  const shelf = onSite.page.getByRole("region", { name: "Knowledge bases" }).getByRole("list");
+  await expect(shelf).toHaveClass(/grid/);
+  await onSite.page.getByRole("button", { name: "List" }).click();
+  await expect(onSite.page).toHaveURL(/view=list/);
+  await expect(shelf).toHaveClass(/divide-y/);
+  await expect(onSite.page.getByRole("button", { name: "List" })).toHaveAttribute("aria-pressed", "true");
+  await onSite.page.goto("/pub/kb");
+  await expect(onSite.page).toHaveURL(/view=list/);
+  await expect(shelf).toHaveClass(/divide-y/);
+  await onSite.page.getByRole("button", { name: "Cards" }).click();
+  await expect(shelf).toHaveClass(/grid/);
+  await onSite.context.close();
+
+  // Cloudflare Access is named on the settings page, both halves or neither.
+  await page.goto("/admin/settings");
+  await page.getByLabel("Team").fill("calder-ridge");
+  await page.getByRole("button", { name: "Update public site" }).click();
+  await expect(page.getByText("Set both the team and the audience tag, or neither")).toBeVisible();
+  await page.getByLabel("Team").fill("calder-ridge");
+  await page.getByLabel("Application audience tag").fill("0123456789abcdef0123456789abcdef");
+  await page.getByRole("button", { name: "Update public site" }).click();
+  await expect(page.getByText("Saved.")).toBeVisible();
+  expect(psql(`select kb_public_access_team from instance_settings;`)).toBe("calder-ridge");
+
+  // Named or not, a visitor without a token reads as before.
+  const again = await visitor(browser, ON_SITE);
+  expect((await again.page.goto(`/pub/kb/articles/${guide}`))?.status()).toBe(200);
+  await expect(again.page.getByRole("button", { name: "Favorite" })).toHaveCount(0);
+  await again.context.close();
+});
+
 test("a visitor from anywhere else finds nothing there", async ({ browser }) => {
   for (const address of ["198.51.100.1", "203.0.114.9", undefined]) {
     const { context, page } = await visitor(browser, address);

@@ -544,3 +544,27 @@ CREATE TABLE kb_images (
 );
 CREATE INDEX kb_images_lookup_idx ON kb_images (collection_id, lower(source_path));
 ALTER TABLE kb_imports ADD COLUMN images int NOT NULL DEFAULT 0;
+
+-- ---------- Public readers' favorites and votes ----------
+-- A reader is known by a key made from their identity and the instance
+-- secret, never by the identity itself.
+ALTER TABLE instance_settings ADD COLUMN kb_public_access_team text;
+ALTER TABLE instance_settings ADD COLUMN kb_public_access_aud text;
+
+CREATE TABLE kb_favorites (
+  reader_key text NOT NULL,
+  article_id uuid NOT NULL REFERENCES kb_articles(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_key, article_id)
+);
+CREATE INDEX kb_favorites_article_idx ON kb_favorites (article_id);
+
+CREATE TABLE kb_votes (
+  reader_key text NOT NULL,
+  article_id uuid NOT NULL REFERENCES kb_articles(id) ON DELETE CASCADE,
+  helpful    boolean NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (reader_key, article_id)
+);
+CREATE INDEX kb_votes_article_idx ON kb_votes (article_id);

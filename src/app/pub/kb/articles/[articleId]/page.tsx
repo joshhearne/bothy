@@ -1,9 +1,13 @@
 import { notFound } from "next/navigation";
 import { KbArticle } from "@/components/kb-article";
+import { ReactionBar } from "@/components/kb-reactions";
+import { publicIdentity } from "@/server/kb/identity";
 import { requirePublicReader } from "@/server/kb/public";
 import { getArticle } from "@/server/services/kb";
 import { withImages } from "@/server/services/kb-images";
+import { readerReaction } from "@/server/services/kb-reactions";
 import { getI18n } from "@/i18n/server";
+import { toggleFavoriteAction, voteAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,9 +22,12 @@ export default async function PublicArticlePage({
 
   const found = await getArticle(articleId, reader);
   if (!found) notFound();
-  const article = await withImages(found, `/pub/kb/articles/${found.id}/images`);
-
-  const { locale, messages: t } = await getI18n();
+  const [article, identity, { locale, messages: t }] = await Promise.all([
+    withImages(found, `/pub/kb/articles/${found.id}/images`),
+    publicIdentity(),
+    getI18n(),
+  ]);
+  const reaction = identity ? await readerReaction(identity.key, article.id) : null;
 
   return (
     <KbArticle
@@ -28,6 +35,21 @@ export default async function PublicArticlePage({
       backHref={`/pub/kb/${article.collectionId}`}
       locale={locale}
       t={t}
+      actions={
+        reaction ? (
+          <ReactionBar
+            article={article}
+            reaction={reaction}
+            toggleFavorite={toggleFavoriteAction}
+            vote={voteAction}
+            t={t}
+          />
+        ) : article.helpful !== null ? (
+          <span className="text-sm text-[var(--muted-foreground)]">
+            {t.kb.helpfulScore(article.helpful, article.votes)}
+          </span>
+        ) : undefined
+      }
     />
   );
 }

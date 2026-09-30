@@ -93,6 +93,16 @@ composes with Bothy's own sign-in rather than replacing it. If you add it, leave
 is HTML, and an API client or an MCP client presenting a bearer token has
 nowhere to put it.
 
+**The public knowledge base** is the one place Access does more than gate.
+Put an Access application on its hostname and name the team and the
+application's audience tag under Admin → Settings → Public knowledge base, and
+readers can keep favorites and vote on articles: Bothy checks the token Access
+adds to each request against the team's published keys and knows the reader by
+a hash, with no account of its own. The audience tag is on the application's
+Overview page in Zero Trust, and appears as `aud` in the token. With Access
+deciding who gets in, set "Who may read it" to anyone who can reach it; an
+address list on top of it only shuts out staff who are away from a site.
+
 **Single sign-on** redirect URIs move with the hostname. Register
 `https://bothy.yourdomain.com/api/auth/callback/oidc` with your identity
 provider.
