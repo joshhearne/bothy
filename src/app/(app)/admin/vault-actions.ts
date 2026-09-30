@@ -7,6 +7,7 @@ import {
   ForbiddenError,
   getCompanyScope,
   requireAdmin,
+  requireRecentMfa,
   type Role,
 } from "@/server/auth/session";
 import { NotFoundError } from "@/server/services/companies";
@@ -45,6 +46,7 @@ export async function saveVaultProviderAction(
 
   try {
     const user = await requireAdmin();
+    await requireRecentMfa(user);
     if (id) await updateVaultProvider(id, providerInput(formData), user.id);
     else await createVaultProvider(providerInput(formData), user.id);
   } catch (err) {
@@ -68,6 +70,7 @@ export async function mapCollectionAction(
 
   try {
     const user = await requireAdmin();
+    await requireRecentMfa(user);
     await upsertExternalRef(
       {
         entity: "company",
@@ -90,6 +93,7 @@ export async function unmapCollectionAction(formData: FormData): Promise<void> {
   const id = text(formData, "id");
   if (!id) return;
   const user = await requireAdmin();
+    await requireRecentMfa(user);
   await removeExternalRef(id, user.id, await getCompanyScope(user));
   revalidatePath("/admin/vault");
 }
@@ -100,6 +104,7 @@ export async function setUserRoleAction(formData: FormData): Promise<void> {
   if (!id || !role) return;
 
   const user = await requireAdmin();
+    await requireRecentMfa(user);
   await setUserRole(id, role, user.id);
   revalidatePath("/admin/users");
 }
@@ -109,6 +114,7 @@ export async function setCanRevealAction(formData: FormData): Promise<void> {
   if (!id) return;
 
   const user = await requireAdmin();
+    await requireRecentMfa(user);
   await setCanRevealSecrets(id, checkbox(formData, "canReveal"), user.id);
   revalidatePath("/admin/users");
 }
@@ -119,6 +125,7 @@ export async function setUserCompaniesAction(formData: FormData): Promise<void> 
   if (!id) return;
 
   const user = await requireAdmin();
+    await requireRecentMfa(user);
   await setUserCompanies(
     id,
     {
@@ -137,6 +144,7 @@ export async function setCompanyVaultAction(formData: FormData): Promise<void> {
   if (!companyId) return;
 
   const user = await requireAdmin();
+    await requireRecentMfa(user);
   await setCompanyVaultProvider(
     companyId,
     text(formData, "providerId") ?? null,

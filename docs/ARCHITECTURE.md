@@ -337,6 +337,58 @@ appears in the documentation search.
 - Imports and connectors need a filesystem and raw sockets, so on Workers they
   report that they are unavailable. Reading and search work anywhere.
 
+## Accounts and second factors
+Bothy has accounts of its own, so it has a second step of its own: single
+sign-on in front of it, or Cloudflare Access, is not a substitute.
+
+- **Passwords** (`src/server/auth/password-policy.ts`): 8 to 128 characters
+  with an uppercase letter, a lowercase letter, a number, and a symbol or
+  space; any printable Unicode; never the person's own name or address. The
+  form lists the rules and ticks each as it is met. A password is then asked
+  of the Pwned Passwords range service by k-anonymity (five characters of its
+  SHA-1 leave the server), and refused if it has been in a breach; the service
+  being away is not a refusal. Argon2id, as before. Nothing expires on a
+  timer: a password is replaced when an administrator sets a temporary one
+  (`users.must_change_password`, and nothing else opens until it is changed)
+  or when the person chooses to, and every other session ends when it is.
+  A reset by mail (`SMTP_URL`, `MAIL_FROM`) is a single-use link good for an
+  hour, judged by the same policy; without mail, a temporary password from an
+  administrator is the way back in.
+- **Guessing**: ten wrong passwords in a row close the account for fifteen
+  minutes (`users.failed_sign_ins`, `locked_until`), through Better Auth's
+  before/after hooks on sign-in. A closed account answers exactly as a wrong
+  password does. Every failure and every closing is an audit entry; an
+  administrator opens an account again from the users page.
+- **Second factors** (`src/server/services/mfa.ts`): an authenticator app
+  (RFC 6238, thirty-second steps, one step of drift either way, the last
+  accepted step kept so a code is never accepted twice), any number of
+  passkeys (WebAuthn through `@simplewebauthn`, security keys and platform
+  or password-manager passkeys alike, each named by its owner and revocable on
+  its own, with its public key and sign counter), and ten single-use recovery
+  codes, hashed, shown once when the first factor is enrolled and whenever a
+  new set is made. The app's seed is sealed with AES-256-GCM under a key
+  derived from `AUTH_SECRET` for that purpose alone
+  (`src/server/auth/secret-box.ts`).
+- **Who must**: administrators. One who has enrolled nothing gets a week from
+  the first time the question is asked (`users.mfa_deadline`), then nothing
+  but the enrollment page opens. Everyone else is offered it. An
+  administrator cannot remove their last factor.
+- **Sessions**: passing the step stamps the session
+  (`sessions.mfa_verified_at`). `requireUser` sends a session that has a
+  factor and no stamp to `/mfa`; the pages that issue keys, change people,
+  or change security settings call `requireRecentMfa`, which asks again when
+  the stamp is older than fifteen minutes. The pages where sign-in is
+  finished (`/mfa`, `/account`) sit outside the gated layout and use
+  `requireSession`.
+- **Guessing the step**: five attempts a minute per person, and ten wrong in
+  a row close the step for fifteen minutes (`users.mfa_failures`,
+  `mfa_locked_until`); every wrong answer is an audit entry.
+- **Recovery**: an administrator resets somebody's second step from the users
+  page, which removes everything enrolled, unstamps their sessions, and
+  starts their week again, audited. Nothing is done by hand in the database.
+- **API keys** are not accounts and have no second step; they are scoped,
+  rotated, and revoked instead.
+
 ## Security baseline
 - Argon2id for local passwords
 - API keys: random 32 bytes, shown once, stored as SHA-256 hash, looked up by prefix

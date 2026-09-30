@@ -169,7 +169,7 @@ test("an SSO user gets the permissions of their role, nothing more", async ({ pa
 test("the local sign-in form still works alongside SSO", async ({ page }) => {
   await page.goto("/sign-in");
   await page.getByLabel("Email").fill("e2e-admin@example.com");
-  await page.getByLabel("Password").fill("an-e2e-admin-password");
+  await page.getByLabel("Password", { exact: true }).fill("an-e2e-admin-password");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/companies/);
 });

@@ -1,4 +1,4 @@
-import { requireUser } from "@/server/auth/session";
+import { requireRecentMfa, requireUser } from "@/server/auth/session";
 import { getDefaultLocale, getKbPublicSettings } from "@/server/services/settings";
 import { listAllCollections } from "@/server/services/kb";
 import { visitorAddress } from "@/server/kb/public";
@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
  * out how their own instance is running.
  */
 export default async function SettingsPage() {
-  await requireUser();
+  await requireRecentMfa(await requireUser(), "/admin/settings");
   const [chosen, t, publicSite, collections, visitor] = await Promise.all([
     getDefaultLocale(),
     getMessages(),

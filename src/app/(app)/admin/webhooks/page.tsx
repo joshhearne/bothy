@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { canManageIntegrations, requireUser } from "@/server/auth/session";
+import { canManageIntegrations, requireRecentMfa, requireUser } from "@/server/auth/session";
 import { listRecentDeliveries, listWebhooks, WEBHOOK_EVENTS } from "@/server/services/webhooks";
 import { formatDateTime, plural } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function WebhooksPage() {
   const user = await requireUser();
   if (!canManageIntegrations(user.role)) redirect("/companies");
+  await requireRecentMfa(user, "/admin/webhooks");
 
   const hooks = await listWebhooks();
   const deliveries = await Promise.all(

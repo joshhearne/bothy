@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { canManageIntegrations, requireScopedUser } from "@/server/auth/session";
+import { canManageIntegrations, requireRecentMfa, requireScopedUser } from "@/server/auth/session";
 import { listCompanies } from "@/server/services/companies";
 import { listRefsForSystem } from "@/server/services/external-refs";
 import { getActiveVault, listVaultProviders, mappingSystem } from "@/server/services/vault";
@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function VaultPage() {
   const { user, scope } = await requireScopedUser();
   if (!canManageIntegrations(user.role)) redirect("/companies");
+  await requireRecentMfa(user, "/admin/vault");
 
   const [providers, companies, active] = await Promise.all([
     listVaultProviders(),

@@ -277,6 +277,30 @@ system and is what a new reader gets.
 The choice is a cookie read on the server, so the right palette is in the first
 byte of HTML — no script, and no flash of the wrong colors on load.
 
+## Accounts, passwords, and the second step
+
+Bothy has accounts of its own, so it has a second sign-in step of its own.
+Single sign-on in front of it, or Cloudflare Access, does not stand in for it.
+
+Passwords are 8 to 128 characters with an uppercase letter, a lowercase
+letter, a number, and a symbol or a space, never the person's own name or
+address, and never one that has appeared in a known breach (asked of the Pwned
+Passwords service by k-anonymity, so the password itself never leaves the
+server). They do not expire on a timer. Ten wrong passwords in a row close an
+account for fifteen minutes; an administrator can open it again. Set
+`SMTP_URL` and `MAIL_FROM` and the sign-in page offers a reset link by mail;
+without them, an administrator sets a temporary password under Admin → Users,
+which must be changed at the next sign-in.
+
+Under the account menu, Personal settings → Security, anyone can enroll an
+authenticator app, passkeys (a YubiKey, or the passkey a phone, laptop, or
+password manager holds), or both, and receives ten single-use recovery codes.
+Administrators must enroll something within a week of their first sign-in;
+the pages that issue API keys, change people, or change security settings ask
+for the step again after fifteen minutes. An administrator who has lost
+everything is put right by another administrator from Admin → Users, and it is
+all in the audit log.
+
 ## Single sign-on
 
 Set `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CLIENT_SECRET` (all three or

@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { LogOut, Shield } from "lucide-react";
+import { LogOut, Shield, UserCog } from "lucide-react";
+import type { Route } from "next";
 import { Button } from "@/components/ui/button";
 import { initialsFor } from "@/lib/initials";
 import { useMessages } from "@/i18n/client";
@@ -98,6 +99,17 @@ export function UserMenu({
             <span className="mt-1 w-fit rounded-full border px-2 py-0.5 text-xs text-[var(--muted-foreground)]">
               {user.role}
             </span>
+          </div>
+
+          <div className="border-b py-3">
+            <Link
+              href={"/account/security" as Route}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--muted)]"
+            >
+              <UserCog className="size-4" aria-hidden />
+              {t.account.title}
+            </Link>
           </div>
 
           {canAdminister && (

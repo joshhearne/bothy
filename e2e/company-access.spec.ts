@@ -135,7 +135,7 @@ async function setCompanyAccess(
   // The summary is rendered by the page the save revalidates, so waiting for
   // it is what proves the grant landed. Leaving before it does cancels the
   // request, which only shows up on a slow machine.
-  await expect(row.locator("summary")).toContainText(expected);
+  await expect(row.locator("summary").filter({ hasText: "Company access" })).toContainText(expected);
 }
 
 test("granting and revoking take effect without signing in again", async ({ page, browser }) => {

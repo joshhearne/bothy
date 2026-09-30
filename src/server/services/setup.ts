@@ -3,16 +3,15 @@ import { z } from "zod";
 import { sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { users, accounts } from "@/server/db/schema";
-import { hashPassword, MIN_PASSWORD_LENGTH } from "@/server/services/password";
+import { hashPassword } from "@/server/services/password";
+import { MAX_PASSWORD_LENGTH } from "@/server/auth/password-policy";
+import { judgePassword } from "@/server/services/accounts";
 import { writeAudit } from "@/server/services/audit";
 
 export const firstAdminSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   email: z.email("Enter a valid email address").max(320).transform((v) => v.toLowerCase()),
-  password: z
-    .string()
-    .min(MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`)
-    .max(128),
+  password: z.string().min(1, "Enter a password").max(MAX_PASSWORD_LENGTH),
 });
 
 export type FirstAdminInput = z.infer<typeof firstAdminSchema>;
@@ -36,6 +35,7 @@ export class SetupAlreadyCompleteError extends Error {
  */
 export async function createFirstAdmin(input: FirstAdminInput): Promise<{ id: string }> {
   const data = firstAdminSchema.parse(input);
+  await judgePassword(data.password, data);
   const passwordHash = await hashPassword(data.password);
 
   return db.transaction(async (tx) => {

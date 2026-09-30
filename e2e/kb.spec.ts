@@ -449,7 +449,7 @@ test("kept to a company, its own people read it and others do not", async ({ pag
     const reader = await context.newPage();
     await reader.goto("/sign-in");
     await reader.getByLabel("Email").fill(email);
-    await reader.getByLabel("Password").fill("a-reader-password-for-kb");
+    await reader.getByLabel("Password", { exact: true }).fill("a-reader-password-for-kb");
     await reader.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(reader).not.toHaveURL(/sign-in/);
 

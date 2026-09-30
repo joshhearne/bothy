@@ -5,6 +5,9 @@ import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Link from "next/link";
+import type { Route } from "next";
+import { PasswordInput } from "@/components/password-field";
 import { FormError } from "@/components/ui/alert";
 import { authClient } from "@/lib/auth-client";
 import { useMessages } from "@/i18n/client";
@@ -34,7 +37,13 @@ async function startSso() {
   if (data?.url) window.location.href = data.url;
 }
 
-export function SignInForm({ ssoEnabled = false }: { ssoEnabled?: boolean }) {
+export function SignInForm({
+  ssoEnabled = false,
+  canReset = false,
+}: {
+  ssoEnabled?: boolean;
+  canReset?: boolean;
+}) {
   const [state, formAction] = useActionState<SignInState, FormData>(signInAction, {});
   const t = useMessages();
 
@@ -63,16 +72,18 @@ export function SignInForm({ ssoEnabled = false }: { ssoEnabled?: boolean }) {
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="password">{t.signIn.password}</Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-        />
+        <PasswordInput id="password" name="password" autoComplete="current-password" />
       </div>
 
         <SubmitButton />
+        {canReset && (
+          <Link
+            href={"/forgot-password" as Route}
+            className="text-center text-sm text-[var(--muted-foreground)] underline"
+          >
+            {t.signIn.forgot}
+          </Link>
+        )}
       </form>
     </div>
   );

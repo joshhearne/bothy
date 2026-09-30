@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { isSetupComplete } from "@/server/services/setup";
-import { MIN_PASSWORD_LENGTH } from "@/server/services/password";
 import { getMessages } from "@/i18n/server";
 import { SetupForm } from "./setup-form";
 
@@ -19,7 +18,7 @@ export default async function SetupPage() {
           <CardDescription>{t.setup.description}</CardDescription>
         </CardHeader>
         <CardContent>
-          <SetupForm minPasswordLength={MIN_PASSWORD_LENGTH} />
+          <SetupForm />
         </CardContent>
       </Card>
     </main>

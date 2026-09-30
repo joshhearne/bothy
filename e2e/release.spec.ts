@@ -200,7 +200,7 @@ test("the audit viewer is closed to non-admins", async ({ browser }) => {
   const tech = await context.newPage();
   await tech.goto("/sign-in");
   await tech.getByLabel("Email").fill("e2e-audit-tech@example.com");
-  await tech.getByLabel("Password").fill("an-audit-tech-password");
+  await tech.getByLabel("Password", { exact: true }).fill("an-audit-tech-password");
   await tech.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(tech).toHaveURL(/\/companies/);
 

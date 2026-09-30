@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hashPassword, verifyPassword, MIN_PASSWORD_LENGTH } from "./password";
+import { hashPassword, verifyPassword } from "./password";
 
 describe("password hashing", () => {
   it("produces an Argon2id hash", async () => {
@@ -29,9 +29,5 @@ describe("password hashing", () => {
 
   it("returns false for a malformed hash instead of throwing", async () => {
     expect(await verifyPassword("not-a-hash", "whatever")).toBe(false);
-  });
-
-  it("requires at least 12 characters", () => {
-    expect(MIN_PASSWORD_LENGTH).toBeGreaterThanOrEqual(12);
   });
 });

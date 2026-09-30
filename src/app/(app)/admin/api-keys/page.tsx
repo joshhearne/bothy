@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { canManageIntegrations, requireScopedUser } from "@/server/auth/session";
+import { canManageIntegrations, requireRecentMfa, requireScopedUser } from "@/server/auth/session";
 import { API_SCOPES, listApiKeys } from "@/server/services/api-keys";
 import { listCompanies } from "@/server/services/companies";
 import { formatDateTime } from "@/i18n/format";
@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function ApiKeysPage() {
   const { user, scope } = await requireScopedUser();
   if (!canManageIntegrations(user.role)) redirect("/companies");
+  await requireRecentMfa(user, "/admin/api-keys");
 
   const [keys, companies] = await Promise.all([listApiKeys(), listCompanies(scope)]);
   const { locale, messages: t } = await getI18n();

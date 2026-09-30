@@ -10,6 +10,7 @@ import {
   isSetupComplete,
   SetupAlreadyCompleteError,
 } from "@/server/services/setup";
+import { passwordProblem } from "@/server/services/accounts";
 
 export type SetupState = { error?: string; fieldErrors?: Record<string, string> };
 
@@ -42,6 +43,8 @@ export async function createFirstAdminAction(
     await createFirstAdmin(parsed.data);
   } catch (err) {
     if (err instanceof SetupAlreadyCompleteError) redirect("/sign-in");
+    const problem = passwordProblem(err);
+    if (problem) return { fieldErrors: { password: problem } };
     throw err;
   }
 

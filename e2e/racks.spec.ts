@@ -181,7 +181,7 @@ test("the drawing is not readable across the company boundary", async ({ page })
 
   await scoped.goto("/sign-in");
   await scoped.getByLabel("Email").fill("e2e-scoped-tech@example.com");
-  await scoped.getByLabel("Password").fill("a-scoped-tech-password");
+  await scoped.getByLabel("Password", { exact: true }).fill("a-scoped-tech-password");
   await scoped.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(scoped).toHaveURL(/\/companies/);
 

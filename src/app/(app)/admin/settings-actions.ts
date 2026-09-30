@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { text, type FormState } from "@/lib/form";
-import { ForbiddenError, requireAdmin } from "@/server/auth/session";
+import { ForbiddenError, requireAdmin, requireRecentMfa } from "@/server/auth/session";
 import { ZodError } from "zod";
 import { toFieldErrors } from "@/lib/form";
 import { setDefaultLocale, setKbPublicSettings } from "@/server/services/settings";
@@ -13,6 +13,7 @@ export async function setDefaultLocaleAction(
 ): Promise<FormState> {
   try {
     const user = await requireAdmin();
+    await requireRecentMfa(user);
     await setDefaultLocale(text(formData, "defaultLocale") ?? null, user.id);
   } catch (err) {
     if (err instanceof ForbiddenError) return { error: err.message };
@@ -27,6 +28,7 @@ export async function setDefaultLocaleAction(
 export async function setKbPublicAction(_prev: FormState, formData: FormData): Promise<FormState> {
   try {
     const user = await requireAdmin();
+    await requireRecentMfa(user);
     await setKbPublicSettings(
       {
         mode: (text(formData, "mode") ?? "off") as "off" | "addresses" | "open",

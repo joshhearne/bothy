@@ -93,5 +93,12 @@ kept apart from documents. Import from a zip, a folder, or a connector; upsert o
 (collection, source key); keyword search over chunks; read through MCP, and written through it by
 a key granted that on a collection. See docs/ARCHITECTURE.md.
 
+### Phase 15: Accounts and second factors
+Password policy with live validation and a breach check, lockout on guessing, temporary
+passwords that must be changed, reset by mail when SMTP is set. Second factors: authenticator
+app, passkeys, recovery codes; required for admins after a week, offered to everyone; the
+session is stamped and the sensitive pages ask again. Admins reset a person's factors from the
+UI. See docs/ARCHITECTURE.md.
+
 ### Later
 Tags, multi-tenant, importers (Hudu, IT Glue CSV), scheduled re-checks with expiry webhooks.

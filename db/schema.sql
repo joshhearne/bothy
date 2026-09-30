@@ -568,3 +568,46 @@ CREATE TABLE kb_votes (
   PRIMARY KEY (reader_key, article_id)
 );
 CREATE INDEX kb_votes_article_idx ON kb_votes (article_id);
+
+-- ---------- Passwords and second factors ----------
+ALTER TABLE users ADD COLUMN must_change_password boolean NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN failed_sign_ins int NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN locked_until timestamptz;
+ALTER TABLE users ADD COLUMN mfa_deadline timestamptz;
+ALTER TABLE users ADD COLUMN mfa_failures int NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN mfa_locked_until timestamptz;
+ALTER TABLE sessions ADD COLUMN mfa_verified_at timestamptz;
+
+-- An authenticator app. The seed is encrypted with a key derived from the
+-- instance secret; the last accepted step stops a code being used twice.
+CREATE TABLE mfa_totp (
+  user_id          uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  secret_encrypted text NOT NULL,
+  last_used_step   bigint,
+  enrolled_at      timestamptz NOT NULL DEFAULT now(),
+  last_used_at     timestamptz
+);
+
+CREATE TABLE mfa_passkeys (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  label         text NOT NULL,
+  credential_id text NOT NULL UNIQUE,
+  public_key    text NOT NULL,
+  counter       bigint NOT NULL DEFAULT 0,
+  transports    text NOT NULL DEFAULT '',
+  device_type   text NOT NULL DEFAULT 'singleDevice',
+  backed_up     boolean NOT NULL DEFAULT false,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  last_used_at  timestamptz
+);
+CREATE INDEX mfa_passkeys_user_idx ON mfa_passkeys (user_id);
+
+CREATE TABLE mfa_recovery_codes (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  code_hash  text NOT NULL,
+  used_at    timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX mfa_recovery_codes_user_idx ON mfa_recovery_codes (user_id);

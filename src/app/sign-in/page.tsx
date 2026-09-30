@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { auth, oidcConfigured } from "@/lib/auth";
+import { mailConfigured } from "@/server/mail";
 import { isSetupComplete } from "@/server/services/setup";
 import { getMessages } from "@/i18n/server";
 import { getInstanceBranding } from "@/server/services/branding";
@@ -11,8 +12,13 @@ import { SignInForm } from "./sign-in-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reset?: string }>;
+}) {
   if (!(await isSetupComplete())) redirect("/setup");
+  const justReset = (await searchParams).reset === "1";
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (session) redirect("/");
@@ -34,7 +40,12 @@ export default async function SignInPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <SignInForm ssoEnabled={oidcConfigured} />
+          {justReset && (
+            <p role="status" className="mb-4 rounded-md border px-3 py-2 text-sm">
+              {t.signIn.resetDone}
+            </p>
+          )}
+          <SignInForm ssoEnabled={oidcConfigured} canReset={mailConfigured} />
         </CardContent>
       </Card>
 

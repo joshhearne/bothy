@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { firstAdminSchema } from "./setup";
-import { MIN_PASSWORD_LENGTH } from "./password";
 
 const valid = {
   name: "Ada Lovelace",
@@ -26,8 +25,8 @@ describe("firstAdminSchema", () => {
     expect(firstAdminSchema.safeParse({ ...valid, email: "ada@" }).success).toBe(false);
   });
 
-  it("rejects a short password", () => {
-    const short = "x".repeat(MIN_PASSWORD_LENGTH - 1);
-    expect(firstAdminSchema.safeParse({ ...valid, password: short }).success).toBe(false);
+  it("rejects an empty password; the policy judges the rest", () => {
+    expect(firstAdminSchema.safeParse({ ...valid, password: "" }).success).toBe(false);
+    expect(firstAdminSchema.safeParse({ ...valid, password: "x".repeat(129) }).success).toBe(false);
   });
 });

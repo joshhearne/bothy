@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { checkbox, text, toFieldErrors, type FormState } from "@/lib/form";
-import { ForbiddenError, requireAdmin } from "@/server/auth/session";
+import { ForbiddenError, requireAdmin, requireRecentMfa } from "@/server/auth/session";
 import { NotFoundError } from "@/server/services/companies";
 import { createApiKey, revokeApiKey } from "@/server/services/api-keys";
 import {
@@ -29,6 +29,7 @@ export async function createApiKeyAction(
 ): Promise<ApiKeyState> {
   try {
     const user = await requireAdmin();
+    await requireRecentMfa(user);
     const scopes = formData.getAll("scopes").filter((v): v is string => typeof v === "string");
     const { row, key } = await createApiKey(
       {
@@ -52,6 +53,7 @@ export async function revokeApiKeyAction(formData: FormData): Promise<void> {
   const id = text(formData, "id");
   if (!id) return;
   const user = await requireAdmin();
+    await requireRecentMfa(user);
   await revokeApiKey(id, user.id);
   revalidatePath("/admin/api-keys");
 }
@@ -64,6 +66,7 @@ export async function createWebhookAction(
 ): Promise<WebhookState> {
   try {
     const user = await requireAdmin();
+    await requireRecentMfa(user);
     const events = formData
       .getAll("events")
       .filter((v): v is string => typeof v === "string")
@@ -89,6 +92,7 @@ export async function setWebhookActiveAction(formData: FormData): Promise<void> 
   const id = text(formData, "id");
   if (!id) return;
   const user = await requireAdmin();
+    await requireRecentMfa(user);
   await setWebhookActive(id, checkbox(formData, "active"), user.id);
   revalidatePath("/admin/webhooks");
 }
@@ -97,6 +101,7 @@ export async function deleteWebhookAction(formData: FormData): Promise<void> {
   const id = text(formData, "id");
   if (!id) return;
   const user = await requireAdmin();
+    await requireRecentMfa(user);
   await deleteWebhook(id, user.id);
   revalidatePath("/admin/webhooks");
 }

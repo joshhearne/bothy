@@ -2,7 +2,7 @@ import { expect, type Page } from "@playwright/test";
 
 export const ADMIN = {
   email: "e2e-admin@example.com",
-  password: "an-e2e-admin-password",
+  password: "Correct horse battery 7!",
   name: "E2E Admin",
 };
 
@@ -24,7 +24,7 @@ export async function signInAsAdmin(page: Page): Promise<void> {
   } else {
     await page.goto("/sign-in");
     await page.getByLabel("Email").fill(ADMIN.email);
-    await page.getByLabel("Password").fill(ADMIN.password);
+    await page.getByLabel("Password", { exact: true }).fill(ADMIN.password);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
   }
 
@@ -35,7 +35,7 @@ export async function signInAsAdmin(page: Page): Promise<void> {
 export async function signInAs(page: Page, email: string, password: string): Promise<void> {
   await page.goto("/sign-in");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/companies/);
 }

@@ -82,6 +82,7 @@ export const enUS = {
     password: "Password",
     confirmPassword: "Confirm password",
     passwordHint: (min: number) => `At least ${min} characters.`,
+    mfaNext: "You will be asked to set up a second sign-in step within a week.",
     submit: "Create admin account",
     submitting: "Creating account…",
     passwordsDiffer: "Passwords do not match",
@@ -99,6 +100,122 @@ export const enUS = {
     orLocal: "or use a local account",
     invalid: "Incorrect email or password",
     rateLimited: "Too many attempts. Try again shortly.",
+    forgot: "Forgot your password?",
+    forgotHeading: "Reset your password",
+    forgotDescription: "Enter your email address. If there is an account for it, a link to choose a new password is on its way, good for an hour.",
+    forgotSubmit: "Send the link",
+    forgotSent: "If there is an account for that address, a link is on its way. Check your mail.",
+    resetHeading: "Choose a new password",
+    resetDescription: "Your other sessions will be signed out.",
+    resetSubmit: "Set password",
+    resetExpired: "That link has expired or was already used. Ask for another.",
+    resetDone: "Your password is changed. Sign in with it.",
+  },
+
+  password: {
+    show: "Show password",
+    hide: "Hide password",
+    rulesHeading: "A password needs",
+    rules: {
+      length: "8 to 128 characters",
+      upper: "an uppercase letter",
+      lower: "a lowercase letter",
+      number: "a number",
+      special: "a symbol or a space",
+      identity: "none of your name or email address",
+    },
+    policy: "The password does not meet the rules listed.",
+    breached: (count: number) =>
+      `That password has appeared in ${count.toLocaleString("en-US")} data breaches. Choose another.`,
+    wrongCurrent: "The current password is not right.",
+  },
+
+  mfa: {
+    heading: "One more step",
+    description: "Enter the code from your authenticator app, or use a passkey.",
+    again: "This part of the site asks for your second step again.",
+    code: "Six-digit code",
+    verify: "Verify",
+    verifying: "Verifying…",
+    usePasskey: "Use a passkey",
+    passkeyWaiting: "Waiting for your passkey…",
+    passkeyFailed: "The passkey was not accepted. Try again, or use a code.",
+    useRecovery: "Use a recovery code instead",
+    recoveryCode: "Recovery code",
+    recoveryLeft: (left: number) =>
+      left === 0
+        ? "That was your last recovery code. Make a new set under Personal settings."
+        : left === 1
+          ? "1 recovery code left."
+          : `${left} recovery codes left.`,
+    wrongCode: "That code is not right.",
+    locked: (until: string) => `Too many wrong answers. Try again after ${until}.`,
+    expired: "Start again: that setup has expired.",
+    signOut: "Sign out",
+  },
+
+  account: {
+    title: "Personal settings",
+    security: "Security",
+    password: "Password",
+    passwordHint: "Choose your own. Your other sessions are signed out when it changes.",
+    passwordRequired: "You signed in with a temporary password. Choose your own to carry on.",
+    current: "Current password",
+    next: "New password",
+    confirm: "Confirm new password",
+    mismatch: "The two passwords do not match.",
+    changePassword: "Change password",
+    passwordChanged: "Your password is changed.",
+
+    mfaTitle: "Second sign-in step",
+    mfaHint:
+      "A code from an authenticator app, a passkey, or both. Once anything is enrolled, every sign-in asks for it.",
+    mfaRequired: (when: string) => `Administrators must enroll a second step. Yours is due by ${when}.`,
+    mfaOverdue: "Administrators must enroll a second step before going on. Set one up below.",
+    mfaEncouraged: "Optional for your role, and worth having: it keeps a stolen password from being enough.",
+    enrolledNothing: "Nothing enrolled yet.",
+
+    totp: "Authenticator app",
+    totpHint: "Microsoft Authenticator, Google Authenticator, 1Password, or any app that takes a code.",
+    totpEnrolled: (when: string) => `Enrolled ${when}.`,
+    totpSetUp: "Set up an authenticator app",
+    totpScan: "Scan this with your app, or type the key into it.",
+    totpKey: "Key",
+    totpConfirm: "Then enter the code the app shows",
+    totpConfirmSubmit: "Turn on",
+    totpRemove: "Remove the app",
+    totpRemoveHint: "Sign-in will no longer ask for a code from it.",
+
+    passkeys: "Passkeys",
+    passkeysHint:
+      "A security key such as a YubiKey, or a passkey held by your device or password manager. Passkeys cannot be phished.",
+    passkeyAdd: "Add a passkey",
+    passkeyLabel: "Name for this passkey",
+    passkeyLabelHint: "So you know which is which: \"Work YubiKey\", \"Laptop\".",
+    passkeyAdding: "Follow your browser's prompt…",
+    passkeyFailed: "The passkey could not be added. Try again.",
+    passkeyUnsupported: "This browser cannot make passkeys.",
+    passkeyAdded: (when: string) => `Added ${when}`,
+    passkeyUsed: (when: string) => `last used ${when}`,
+    passkeyNeverUsed: "never used",
+    passkeyRename: "Rename",
+    passkeyRemove: "Remove",
+    hardware: "security key",
+    software: "device or password manager",
+
+    recovery: "Recovery codes",
+    recoveryHint:
+      "For when the app and the passkey are both out of reach. Each works once. Keep them somewhere safe, away from your password.",
+    recoveryLeft: (left: number) => (left === 1 ? "1 unused code." : `${left} unused codes.`),
+    recoveryNone: "You have none. Make a set.",
+    recoveryMake: "Make a new set",
+    recoveryMakeHint: "The old set stops working.",
+    recoveryShown: "Copy these now. They will not be shown again.",
+    recoveryDone: "I have saved them",
+
+    lastFactorWarning:
+      "This is your only second step. Removing it turns the second step off for your account.",
+    adminNeedsOne: "Administrators must keep at least one second step enrolled.",
   },
 
   companies: {
@@ -649,6 +766,30 @@ export const enUS = {
       accessSummaryCount: (count: number) =>
         count === 1 ? "1 company" : `${count} companies`,
       adminSeesEverything: "Administrators always see every company.",
+
+      addUser: "Add a user",
+      addUserHint:
+        "A local account with a temporary password, to be changed at their first sign-in. Tell them the password some other way than email.",
+      temporaryPassword: "Temporary password",
+      create: "Create user",
+      created: (email: string) => `Created ${email}.`,
+      duplicate: "A user with that email address already exists.",
+      setTemporary: "Set a temporary password",
+      setTemporaryHint: "Signs them out everywhere. They choose their own at the next sign-in.",
+      temporarySet: (email: string) => `Temporary password set for ${email}.`,
+      mfa: "Second step",
+      mfaNone: "not enrolled",
+      mfaTotp: "authenticator app",
+      mfaPasskeys: (count: number) => (count === 1 ? "1 passkey" : `${count} passkeys`),
+      mfaDue: (when: string) => `due by ${when}`,
+      mfaOverdue: "overdue",
+      resetMfa: "Reset second step",
+      resetMfaHint:
+        "For a lost phone or key. Removes everything they enrolled; they set it up again at the next sign-in.",
+      resetMfaDone: (email: string) => `Second step reset for ${email}.`,
+      locked: (until: string) => `Locked until ${until}`,
+      unlock: "Unlock",
+      unlocked: (email: string) => `Unlocked ${email}.`,
     },
     kb: {
       title: "Knowledge base",

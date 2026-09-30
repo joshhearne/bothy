@@ -1,11 +1,20 @@
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { ROLES, canManageIntegrations, requireScopedUser } from "@/server/auth/session";
+import {
+  ROLES,
+  canManageIntegrations,
+  requireRecentMfa,
+  requireScopedUser,
+} from "@/server/auth/session";
 import { listUsers } from "@/server/services/users";
 import { listCompanies } from "@/server/services/companies";
+import { mfaSummaries } from "@/server/services/mfa";
 import { CompanyAccessFieldset } from "@/components/company-access-fieldset";
-import { getMessages } from "@/i18n/server";
+import { formatDateTime } from "@/i18n/format";
+import { getI18n } from "@/i18n/server";
 import { setCanRevealAction, setUserCompaniesAction, setUserRoleAction } from "../vault-actions";
+import { resetMfaAction, unlockUserAction } from "../user-actions";
+import { NewUserForm, TemporaryPasswordForm } from "../user-forms";
 import { Select } from "@/components/ui/select";
 
 export const dynamic = "force-dynamic";
@@ -13,12 +22,14 @@ export const dynamic = "force-dynamic";
 export default async function UsersPage() {
   const { user, scope } = await requireScopedUser();
   if (!canManageIntegrations(user.role)) redirect("/companies");
+  await requireRecentMfa(user, "/admin/users");
 
-  const [users, companies, t] = await Promise.all([
+  const [users, companies, { locale, messages: t }] = await Promise.all([
     listUsers(),
     listCompanies(scope),
-    getMessages(),
+    getI18n(),
   ]);
+  const security = await mfaSummaries(users.map((row) => row.id));
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,13 +40,52 @@ export default async function UsersPage() {
         </p>
       </div>
 
+      <NewUserForm roles={ROLES} />
+
       <ul className="flex flex-col gap-2">
-        {users.map((row) => (
+        {users.map((row) => {
+          const mfa = security.get(row.id);
+          const factors = [
+            mfa?.totp ? t.admin.users.mfaTotp : null,
+            mfa && mfa.passkeys > 0 ? t.admin.users.mfaPasskeys(mfa.passkeys) : null,
+          ].filter(Boolean);
+          const enrolled = factors.length > 0;
+          const due =
+            !enrolled && row.role === "admin" && mfa?.deadline
+              ? mfa.overdue
+                ? t.admin.users.mfaOverdue
+                : t.admin.users.mfaDue(formatDateTime(mfa.deadline, locale))
+              : null;
+          const lockedUntil = mfa?.lockedUntil ?? null;
+
+          return (
           <li key={row.id} className="flex flex-wrap items-center gap-3 rounded-md border px-4 py-3">
             <div className="min-w-0 flex-1">
               <p className="font-medium">{row.name}</p>
               <p className="text-sm text-[var(--muted-foreground)]">{row.email}</p>
+              <p className="text-xs text-[var(--muted-foreground)]">
+                {t.admin.users.mfa}: {enrolled ? factors.join(", ") : t.admin.users.mfaNone}
+                {due ? ` · ${due}` : ""}
+                {lockedUntil ? ` · ${t.admin.users.locked(formatDateTime(lockedUntil, locale))}` : ""}
+              </p>
             </div>
+
+            {lockedUntil && (
+              <form action={unlockUserAction}>
+                <input type="hidden" name="id" value={row.id} />
+                <Button type="submit" variant="outline" size="sm">
+                  {t.admin.users.unlock}
+                </Button>
+              </form>
+            )}
+            {enrolled && row.id !== user.id && (
+              <form action={resetMfaAction}>
+                <input type="hidden" name="id" value={row.id} />
+                <Button type="submit" variant="outline" size="sm" title={t.admin.users.resetMfaHint}>
+                  {t.admin.users.resetMfa}
+                </Button>
+              </form>
+            )}
 
             <form action={setUserRoleAction} className="flex items-center gap-2">
               <input type="hidden" name="id" value={row.id} />
@@ -108,8 +158,13 @@ export default async function UsersPage() {
                 </form>
               )}
             </details>
+
+            {row.id !== user.id && (
+              <TemporaryPasswordForm userId={row.id} owner={{ email: row.email, name: row.name }} />
+            )}
           </li>
-        ))}
+          );
+        })}
       </ul>
     </div>
   );

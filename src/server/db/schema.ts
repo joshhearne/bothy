@@ -47,6 +47,16 @@ export const users = pgTable(
     canRevealSecrets: boolean("can_reveal_secrets").notNull().default(false),
     /** False means the user sees only what user_companies grants them. */
     allCompanies: boolean("all_companies").notNull().default(false),
+    /** Set by an administrator's temporary password; cleared when the user chooses their own. */
+    mustChangePassword: boolean("must_change_password").notNull().default(false),
+    /** Wrong passwords in a row, and until when the account is closed to sign-in. */
+    failedSignIns: integer("failed_sign_ins").notNull().default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    /** When an administrator must have enrolled a second factor by. Null for others. */
+    mfaDeadline: timestamp("mfa_deadline", { withTimezone: true }),
+    /** Wrong codes in a row, and until when the second step is closed. */
+    mfaFailures: integer("mfa_failures").notNull().default(0),
+    mfaLockedUntil: timestamp("mfa_locked_until", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
   },
@@ -62,9 +72,64 @@ export const sessions = pgTable("sessions", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
+  /** When this session last passed the second step. Null until it has. */
+  mfaVerifiedAt: timestamp("mfa_verified_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
 });
+
+/* ---------- Second factors ---------- */
+
+/**
+ * An authenticator app. The seed is encrypted with a key derived from the
+ * instance secret, never stored as it is; the last step that was accepted is
+ * kept so a code cannot be used twice.
+ */
+export const mfaTotp = pgTable("mfa_totp", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  secretEncrypted: text("secret_encrypted").notNull(),
+  lastUsedStep: bigint("last_used_step", { mode: "number" }),
+  enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().default(now),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+});
+
+/** A passkey: a security key or a platform credential, named by its owner. */
+export const mfaPasskeys = pgTable(
+  "mfa_passkeys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    credentialId: text("credential_id").notNull().unique(),
+    publicKey: text("public_key").notNull(),
+    counter: bigint("counter", { mode: "number" }).notNull().default(0),
+    transports: text("transports").notNull().default(""),
+    deviceType: text("device_type").notNull().default("singleDevice"),
+    backedUp: boolean("backed_up").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  },
+  (t) => [index("mfa_passkeys_user_idx").on(t.userId)],
+);
+
+/** Single-use codes for when the other factors are out of reach. Hashed; shown once. */
+export const mfaRecoveryCodes = pgTable(
+  "mfa_recovery_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    codeHash: text("code_hash").notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [index("mfa_recovery_codes_user_idx").on(t.userId)],
+);
 
 export const accounts = pgTable("accounts", {
   id: uuid("id").primaryKey().defaultRandom(),

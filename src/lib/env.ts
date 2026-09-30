@@ -22,6 +22,13 @@ const envSchema = z.object({
   OIDC_CLIENT_ID: z.string().optional(),
   OIDC_CLIENT_SECRET: z.string().optional(),
 
+  /**
+   * Outgoing mail, for password reset links. Optional: without it, a forgotten
+   * password is an administrator's temporary password instead.
+   */
+  SMTP_URL: z.string().url().optional(),
+  MAIL_FROM: z.string().max(320).optional(),
+
   STORAGE_DRIVER: z.enum(["local", "s3", "r2"]).default("local"),
   STORAGE_PATH: z.string().default("/data/uploads"),
   MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(1024).default(25),

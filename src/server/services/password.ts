@@ -14,8 +14,6 @@ import { argon2id } from "@noble/hashes/argon2.js";
  * readable by any other Argon2 implementation, and theirs by this one.
  */
 
-export const MIN_PASSWORD_LENGTH = 12;
-
 const MEMORY_KIB = 19456;
 const TIME_COST = 2;
 const PARALLELISM = 1;

@@ -1,41 +1,17 @@
 import { redirect } from "next/navigation";
-import { AppShell } from "@/components/app-shell";
-import {
-  canManageDocTypes,
-  canManageHierarchy,
-  requireScopedUser,
-} from "@/server/auth/session";
+import { AppFrame } from "@/components/app-frame";
+import { requireScopedUser } from "@/server/auth/session";
 import { isSetupComplete } from "@/server/services/setup";
-import { listCompanies } from "@/server/services/companies";
-import { signOutAction } from "@/app/sign-in/actions";
-import { getTheme } from "@/server/theme";
-import { getInstanceBranding } from "@/server/services/branding";
-import { AppFooter } from "@/components/app-footer";
 
 export const dynamic = "force-dynamic";
 
+/** Everything here needs a person who has finished signing in. */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   if (!(await isSetupComplete())) redirect("/setup");
   const { user, scope } = await requireScopedUser();
-  const companies = await listCompanies(scope);
-  const [theme, branding] = await Promise.all([getTheme(), getInstanceBranding()]);
-
   return (
-    <AppShell
-      user={{ name: user.name, email: user.email, role: user.role }}
-      canCreateCompanies={canManageHierarchy(user.role)}
-      canManageDocTypes={canManageDocTypes(user.role)}
-      theme={theme}
-      branding={branding}
-      footer={<AppFooter />}
-      signOut={signOutAction}
-      companies={companies.map((company) => ({
-        id: company.id,
-        name: company.name,
-        isInternal: company.isInternal,
-      }))}
-    >
+    <AppFrame user={user} scope={scope}>
       {children}
-    </AppShell>
+    </AppFrame>
   );
 }
