@@ -8,7 +8,7 @@ import { useMessages } from "@/i18n/client";
 const SHOWN_FOR_MS = 1800;
 
 /** The clipboard API needs https; the fallback is for an instance still on http. */
-async function copy(text: string): Promise<boolean> {
+export async function copyText(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard && window.isSecureContext) {
       await navigator.clipboard.writeText(text);
@@ -64,7 +64,7 @@ export function CopyBlock({
     // Somebody dragging across part of it wants that part, not all of it.
     if ((window.getSelection()?.toString() ?? "") !== "") return;
 
-    setState((await copy(value)) ? "copied" : "failed");
+    setState((await copyText(value)) ? "copied" : "failed");
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setState("idle"), SHOWN_FOR_MS);
   }

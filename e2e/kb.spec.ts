@@ -1129,6 +1129,84 @@ test("pictures come in with their articles and are read only through them", asyn
   await stranger.context.close();
 });
 
+test("the sections fold, stay folded on the same content, and open when it changes", async ({
+  browser,
+}) => {
+  const onSite = await visitor(browser, ON_SITE);
+  await onSite.page.goto("/pub/kb");
+  const helpful = onSite.page.getByRole("region", { name: "Helpful pages" });
+  await expect(helpful.getByRole("listitem").first()).toBeVisible();
+
+  await helpful.getByRole("button", { name: /Helpful pages/ }).click();
+  await expect(helpful.getByRole("listitem")).toHaveCount(0);
+  await expect(helpful.getByRole("button", { name: /Helpful pages/ })).toHaveAttribute("aria-expanded", "false");
+
+  // Still folded on the next visit: nothing changed.
+  await onSite.page.goto("/pub/kb");
+  await expect(helpful.getByRole("button", { name: /Helpful pages/ })).toHaveAttribute("aria-expanded", "false");
+  await expect(helpful.getByRole("listitem")).toHaveCount(0);
+
+  // A new vote changes what the section holds, and it opens by itself. (The
+  // guide was held back from the public site above; the tunnels are on it.)
+  const tunnels = psql(
+    `select id from kb_articles where collection_id='${collectionId}' and external_id='501';`,
+  );
+  psql(`insert into kb_votes (reader_key, article_id, helpful) values ('r9','${tunnels}',true);`);
+  await onSite.page.goto("/pub/kb");
+  await expect(helpful.getByRole("button", { name: /Helpful pages/ })).toHaveAttribute("aria-expanded", "true");
+  await expect(helpful.getByRole("listitem").first()).toBeVisible();
+  await onSite.context.close();
+});
+
+test("a signed-in reader has the same favorites as on the public site, and a link to hand out", async ({
+  page,
+}) => {
+  const guide = psql(
+    `select id from kb_articles where collection_id='${collectionId}' and external_id='502';`,
+  );
+  const tunnels = psql(
+    `select id from kb_articles where collection_id='${collectionId}' and external_id='501';`,
+  );
+
+  // Signed in, the same buttons as on the public site.
+  await page.goto(`/kb/articles/${guide}`);
+  await page.getByRole("button", { name: "Favorite" }).click();
+  await expect(page.getByRole("button", { name: "Favorited" })).toBeVisible();
+  await page.getByRole("button", { name: "Helpful", exact: true }).click();
+  // Three for and one against before this vote; four for and one against now.
+  await expect(page.getByText("80% helpful · 5 votes")).toBeVisible();
+
+  await page.goto("/kb");
+  const favorites = page.getByRole("region", { name: "My favorites" });
+  await expect(favorites.getByRole("link", { name: "Firmware guide" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Knowledge bases" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Helpful pages" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Recently updated" })).toBeVisible();
+  await page.getByRole("button", { name: "List" }).click();
+  await expect(page).toHaveURL(/view=list/);
+
+  // The public address, only for what a public reader could open: the
+  // tunnels are on the public site; the guide was held back above.
+  await page.goto(`/kb/articles/${tunnels}`);
+  const link = page.getByRole("button", { name: "Copy public link" });
+  await expect(link).toHaveAttribute("title", `https://kb.example.com/pub/kb/articles/${tunnels}`);
+  await page.goto(`/kb/${collectionId}`);
+  await expect(page.getByRole("button", { name: "Copy public link" })).toHaveAttribute(
+    "title",
+    `https://kb.example.com/pub/kb/${collectionId}`,
+  );
+  await page.goto(`/kb/articles/${guide}`);
+  await expect(page.getByRole("button", { name: "Copy public link" })).toHaveCount(0);
+
+  // A collection that is not on the public site: none either.
+  await page.goto(`/kb/${otherCollectionId}`);
+  await expect(page.getByRole("button", { name: "Copy public link" })).toHaveCount(0);
+
+  // The favorite is keyed on the address, so the same person on the public site has it too.
+  const key = psql(`select reader_key from kb_favorites where article_id='${guide}' and reader_key not like 'r%';`);
+  expect(key).toMatch(/^[0-9a-f]{64}$/);
+});
+
 test("open to anyone admits a visitor from anywhere, and off shuts it again", async ({ page, browser }) => {
   await setPublicSite(page, "open", "203.0.113.0/24");
   await expect(page.getByText("Saved.")).toBeVisible();

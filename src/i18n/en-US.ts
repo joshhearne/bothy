@@ -490,6 +490,10 @@ export const enUS = {
     withhold: "Hold back",
     publish: "Put back",
 
+    collapse: "Collapse",
+    expand: "Expand",
+    publicLink: "Copy public link",
+    publicLinkCopied: "Public link copied",
     view: "View",
     viewCards: "Cards",
     viewList: "List",

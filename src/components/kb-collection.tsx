@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { KbSort } from "@/components/kb-sort";
+import { CopyLink } from "@/components/ui/copy-link";
 import { reactionSummary } from "@/components/kb-reactions";
 import type { ArticleSummary, CategoryCount, CollectionRow } from "@/server/services/kb";
 import { formatDateTime, formatNumber, plural } from "@/i18n/format";
@@ -28,6 +29,7 @@ export function KbCollection({
   nextCursor,
   filter,
   order,
+  publicHref,
   base,
   locale,
   t,
@@ -38,6 +40,8 @@ export function KbCollection({
   nextCursor: string | null;
   filter: CollectionFilter;
   order?: CollectionOrder;
+  /** Where a public reader would open this, when they could. */
+  publicHref?: string | null;
   base: string;
   locale: Locale;
   t: Messages;
@@ -117,16 +121,21 @@ export function KbCollection({
           <ChevronLeft className="size-4" aria-hidden />
           {t.kb.backTo(t.kb.title)}
         </Link>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight break-words">{collection.name}</h1>
-          <p className="text-sm text-[var(--muted-foreground)]">
-            {[
-              collection.description,
-              plural(collection.articleCount, t.units.article, t.units.articles, locale),
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight break-words">{collection.name}</h1>
+            <p className="text-sm text-[var(--muted-foreground)]">
+              {[
+                collection.description,
+                plural(collection.articleCount, t.units.article, t.units.articles, locale),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
+          {publicHref && (
+            <CopyLink href={publicHref} label={t.kb.publicLink} copiedLabel={t.kb.publicLinkCopied} />
+          )}
         </div>
 
         <form action={base} className="flex flex-col gap-3 sm:flex-row sm:items-center">
