@@ -505,7 +505,7 @@ CREATE INDEX kb_imports_collection_idx ON kb_imports (collection_id, started_at)
 CREATE TABLE kb_connectors (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   collection_id  uuid NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
-  kind           text NOT NULL CHECK (kind IN ('sitemap','prefix')),
+  kind           text NOT NULL CHECK (kind IN ('sitemap','prefix','helpcenter')),
   url            text NOT NULL,
   interval_hours int NOT NULL DEFAULT 168 CHECK (interval_hours BETWEEN 1 AND 8760),
   max_pages      int NOT NULL DEFAULT 500 CHECK (max_pages BETWEEN 1 AND 20000),
@@ -611,3 +611,6 @@ CREATE TABLE mfa_recovery_codes (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX mfa_recovery_codes_user_idx ON mfa_recovery_codes (user_id);
+
+-- A category given for a whole import, in place of the uploaded folder's name.
+ALTER TABLE kb_imports ADD COLUMN category text;

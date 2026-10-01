@@ -1,0 +1,1 @@
+ALTER TABLE "kb_imports" ADD COLUMN "category" text;

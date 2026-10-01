@@ -12,6 +12,8 @@ import {
   type AcceptedUpload,
 } from "@/server/uploads/accept";
 import { referencedPaths, rewriteReferences } from "@/server/kb/images";
+import { originalOf } from "@/server/services/kb-import";
+import { contentDisposition } from "@/server/storage/filename";
 import { getArticle, type ArticleDetail, type KbReader } from "@/server/services/kb";
 
 /**
@@ -228,4 +230,48 @@ export async function serveArticleImage(
   }
   if (!image) return new Response("Not found", { status: 404 });
   return imageResponse(image, etag);
+}
+
+/* ---------- The file an article was made from ---------- */
+
+/**
+ * The document behind an article, for a reader who may read the article.
+ * A PDF is shown in the browser; anything else is handed over as a file.
+ */
+export async function serveArticleOriginal(
+  request: Request,
+  articleId: string,
+  reader: KbReader,
+): Promise<Response> {
+  if (!/^[0-9a-f-]{36}$/i.test(articleId)) return new Response("Not found", { status: 404 });
+  const article = await getArticle(articleId, reader);
+  const original = article ? originalOf(article.metadata) : null;
+  if (!original) return new Response("Not found", { status: 404 });
+
+  const etag = `"${original.key.split("/").pop() ?? original.key}"`;
+  if (request.headers.get("if-none-match") === etag) {
+    return new Response(null, { status: 304, headers: { ETag: etag } });
+  }
+
+  let body: Buffer;
+  try {
+    body = await (await getStorage()).get(original.key);
+  } catch {
+    return new Response("The file is missing from storage", { status: 502 });
+  }
+
+  const inline = original.mime === "application/pdf";
+  return new Response(new Uint8Array(body), {
+    headers: {
+      "Content-Type": original.mime,
+      "Content-Length": String(body.byteLength),
+      "Content-Disposition": contentDisposition(original.name, inline),
+      "X-Content-Type-Options": "nosniff",
+      // A PDF viewer will not draw inside a sandboxed response; the policy
+      // still lets the document load nothing from anywhere.
+      "Content-Security-Policy": inline ? "default-src 'none'" : "default-src 'none'; sandbox",
+      "Cache-Control": "private, max-age=3600",
+      ETag: etag,
+    },
+  });
 }

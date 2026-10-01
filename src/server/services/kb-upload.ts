@@ -38,6 +38,8 @@ export const startUploadSchema = z.object({
   collectionId: z.uuid(),
   filename: z.string().trim().min(1).max(300),
   size: z.number().int().positive(),
+  /** For every article in it that names no category of its own. */
+  category: z.string().trim().max(200).optional(),
 });
 
 function scratch(): string {
@@ -70,6 +72,7 @@ export async function startUpload(
       collectionId: data.collectionId,
       source: "upload",
       filename: data.filename,
+    category: data.category || null,
       expectedBytes: data.size,
       actorId,
     });
@@ -135,7 +138,13 @@ export async function completeUpload(importId: string, actorId: string): Promise
 
   await db.update(kbImports).set({ status: "running" }).where(eq(kbImports.id, importId));
 
-  void importArchive({ file, collectionId: record.collectionId, importId, actorId })
+  void importArchive({
+    file,
+    collectionId: record.collectionId,
+    importId,
+    actorId,
+    category: record.category,
+  })
     .catch(() => undefined) // Already recorded on the import.
     .finally(() => rm(file, { force: true }).catch(() => undefined));
 }

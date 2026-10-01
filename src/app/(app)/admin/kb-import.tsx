@@ -88,6 +88,7 @@ export function KbImport({ collectionId, maxMb }: { collectionId: string; maxMb:
   const router = useRouter();
 
   const [files, setFiles] = useState<File[]>([]);
+  const [category, setCategory] = useState("");
   const [phase, setPhase] = useState<Phase>({ step: "idle" });
   const [error, setError] = useState<string | null>(null);
 
@@ -216,7 +217,12 @@ export function KbImport({ collectionId, maxMb }: { collectionId: string; maxMb:
       const announced = await fetch("/api/kb/imports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ collectionId, filename, size: blob.size }),
+        body: JSON.stringify({
+          collectionId,
+          filename,
+          size: blob.size,
+          ...(category.trim() ? { category: category.trim() } : {}),
+        }),
       });
       if (!announced.ok) {
         const body = (await announced.json().catch(() => null)) as {
@@ -325,6 +331,22 @@ export function KbImport({ collectionId, maxMb }: { collectionId: string; maxMb:
       {files.length > 0 && (
         <p className="text-sm break-words">{t.admin.kb.chosen(label, formatBytes(size, locale))}</p>
       )}
+
+      <div className="flex max-w-md flex-col gap-2">
+        <label htmlFor="import-category" className="text-sm font-medium">
+          {t.admin.kb.importCategory}
+        </label>
+        <input
+          id="import-category"
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+          maxLength={200}
+          disabled={busy}
+          placeholder={files[0]?.webkitRelativePath?.split("/")[0] ?? ""}
+          className="h-10 w-full rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        />
+        <p className="text-xs text-[var(--muted-foreground)]">{t.admin.kb.importCategoryHint}</p>
+      </div>
 
       {progress && (
         <div className="flex flex-col gap-2" role="status" aria-live="polite">

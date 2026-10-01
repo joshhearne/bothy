@@ -2,7 +2,10 @@
  * Imports a knowledge base archive that is already on this machine, without
  * going through the browser:
  *
- *   npx tsx --conditions react-server scripts/kb-import.ts "Calder Ridge KB" ./export.zip
+ *   npx tsx --conditions react-server scripts/kb-import.ts "Calder Ridge KB" ./export.zip ["Manuals"]
+ *
+ * A third argument is the category for every article in the archive; without
+ * it, the archive's top folder names the category of articles that have none.
  *
  * The collection is created if it does not exist. Running it again with a
  * newer export updates what changed and skips the rest.
@@ -11,7 +14,7 @@ import "dotenv/config";
 import { resolve } from "node:path";
 import { statSync } from "node:fs";
 
-const [name, file] = process.argv.slice(2);
+const [name, file, category] = process.argv.slice(2);
 if (!name || !file) {
   console.error('usage: kb-import "<collection name>" <archive.zip>');
   process.exit(2);
@@ -40,10 +43,17 @@ const importId = await createImportRecord({
   expectedBytes: size,
   actorId: null,
   status: "running",
+  category: category ?? null,
 });
 
 const started = Date.now();
-const summary = await importArchive({ file: path, collectionId, importId, actorId: null });
+const summary = await importArchive({
+  file: path,
+  collectionId,
+  importId,
+  actorId: null,
+  category: category ?? null,
+});
 const { failures, ...counts } = summary;
 
 console.log(JSON.stringify(counts, null, 2));

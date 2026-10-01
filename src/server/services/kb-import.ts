@@ -17,6 +17,7 @@ import {
   type Manifest,
 } from "@/server/kb/manifest";
 import { ArchiveError, commonRoot, readArchive } from "@/server/kb/zip";
+import { getStorage } from "@/server/storage";
 import {
   acceptImage,
   knownImages,
@@ -64,6 +65,7 @@ export type ImportRow = ImportSummary & {
   error: string | null;
   startedAt: Date;
   finishedAt: Date | null;
+  category: string | null;
 };
 
 type Known = {
@@ -72,7 +74,50 @@ type Known = {
   dateModified: Date | null;
   contentHash: string;
   archived: boolean;
+  /** Whether the file it was made from is kept, for one that came as a document. */
+  hasOriginal: boolean;
 };
+
+/**
+ * The file an article was made from, kept as it came for a reader who wants
+ * the document itself: a PDF's layout, a Word file's tables. Noted on the
+ * article's metadata under `original`.
+ */
+export type OriginalFile = { key: string; mime: string; bytes: number; name: string };
+
+const ORIGINAL_MIME: Partial<Record<string, string>> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+
+export function originalOf(metadata: Record<string, unknown>): OriginalFile | null {
+  const value = metadata.original;
+  if (typeof value !== "object" || value === null) return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.key !== "string" || typeof record.mime !== "string") return null;
+  return {
+    key: record.key,
+    mime: record.mime,
+    bytes: typeof record.bytes === "number" ? record.bytes : 0,
+    name: typeof record.name === "string" ? record.name : "document",
+  };
+}
+
+/** Keeps the file beside the article it became, under a key made from its content. */
+async function keepOriginal(
+  collectionId: string,
+  path: string,
+  bytes: Buffer,
+  sourceType: string,
+  contentHash: string,
+): Promise<OriginalFile | null> {
+  const mime = ORIGINAL_MIME[sourceType];
+  if (!mime) return null;
+  const key = `kb/${collectionId}/${contentHash}.${sourceType}`;
+  const storage = await getStorage();
+  await storage.put(key, bytes, mime);
+  return { key, mime, bytes: bytes.byteLength, name: path.split("/").pop() || "document" };
+}
 
 export function sourceKey(externalId: string | null, path: string): string {
   return externalId ? `id:${externalId}` : `path:${path}`;
@@ -203,6 +248,7 @@ export class ImportRun {
         dateModified: kbArticles.dateModified,
         contentHash: kbArticles.contentHash,
         archivedAt: kbArticles.archivedAt,
+        hasOriginal: sql<boolean>`${kbArticles.metadata} ? 'original'`,
       })
       .from(kbArticles)
       .where(eq(kbArticles.collectionId, collectionId));
@@ -214,6 +260,7 @@ export class ImportRun {
         dateModified: row.dateModified,
         contentHash: row.contentHash,
         archived: row.archivedAt !== null,
+        hasOriginal: row.hasOriginal === true,
       };
       run.byKey.set(row.sourceKey, known);
       if (row.sourcePath) run.byPath.set(row.sourcePath, known);
@@ -227,6 +274,36 @@ export class ImportRun {
       .where(eq(kbImports.id, importId));
 
     return run;
+  }
+
+  /** Reads what the collection holds again, after rows were re-keyed under it. */
+  async reload(): Promise<void> {
+    this.byKey.clear();
+    this.byPath.clear();
+    const rows = await db
+      .select({
+        id: kbArticles.id,
+        sourceKey: kbArticles.sourceKey,
+        sourcePath: kbArticles.sourcePath,
+        dateModified: kbArticles.dateModified,
+        contentHash: kbArticles.contentHash,
+        archivedAt: kbArticles.archivedAt,
+        hasOriginal: sql<boolean>`${kbArticles.metadata} ? 'original'`,
+      })
+      .from(kbArticles)
+      .where(eq(kbArticles.collectionId, this.collectionId));
+    for (const row of rows) {
+      const known: Known = {
+        id: row.id,
+        sourcePath: row.sourcePath,
+        dateModified: row.dateModified,
+        contentHash: row.contentHash,
+        archived: row.archivedAt !== null,
+        hasOriginal: row.hasOriginal === true,
+      };
+      this.byKey.set(row.sourceKey, known);
+      if (row.sourcePath) this.byPath.set(row.sourcePath, known);
+    }
   }
 
   /**
@@ -306,11 +383,49 @@ export class ImportRun {
       return this.fail(path, "The file could not be read");
     }
 
-    await this.article(path, article, createHash("sha256").update(bytes).digest("hex"));
+    await this.document(path, article, bytes);
   }
 
-  /** One article, however it was come by. */
-  async article(path: string, article: ExtractedArticle, contentHash: string): Promise<void> {
+  /**
+   * An article made from a file, with the file itself kept beside it when
+   * it was a document: what a PDF or a Word file looks like is often the
+   * point, and the text alone does not show it.
+   */
+  async document(path: string, article: ExtractedArticle, bytes: Buffer): Promise<void> {
+    const contentHash = createHash("sha256").update(bytes).digest("hex");
+    if (!(article.sourceType in ORIGINAL_MIME)) return this.article(path, article, contentHash);
+
+    const known = this.byKey.get(sourceKey(article.externalId, path));
+    const unchanged = !!known && !known.archived && known.contentHash === contentHash;
+    // An unchanged document is skipped as ever, unless its file was not kept
+    // last time: that one is brought in again, for the file.
+    if (unchanged && known.hasOriginal) return this.skip();
+    await this.upsertWithOriginal(path, article, bytes, contentHash);
+  }
+
+  private async upsertWithOriginal(
+    path: string,
+    article: ExtractedArticle,
+    bytes: Buffer,
+    contentHash: string,
+  ): Promise<void> {
+    let original: OriginalFile | null = null;
+    try {
+      original = await keepOriginal(this.collectionId, path, bytes, article.sourceType, contentHash);
+    } catch (error) {
+      console.error(`bothy: knowledge base import could not keep the file ${path}`, error);
+    }
+    const withFile = original ? { ...article, metadata: { ...article.metadata, original } } : article;
+    await this.article(path, withFile, contentHash, true);
+  }
+
+  /** One article, however it was come by. `force` writes it even when nothing changed. */
+  async article(
+    path: string,
+    article: ExtractedArticle,
+    contentHash: string,
+    force = false,
+  ): Promise<void> {
     const key = sourceKey(article.externalId, path);
     const known = this.byKey.get(key);
 
@@ -321,7 +436,7 @@ export class ImportRun {
       this.manifest?.byPath.get(path);
     const dateModified = listed?.dateModified ?? article.dateModified;
 
-    if (known && !known.archived) {
+    if (known && !known.archived && !force) {
       const unchanged = listed
         ? sameInstant(listed.dateModified, known.dateModified)
         : known.contentHash === contentHash;
@@ -340,7 +455,14 @@ export class ImportRun {
         this.summary.unextracted += 1;
       }
 
-      const now: Known = { id, sourcePath: path, dateModified, contentHash, archived: false };
+      const now: Known = {
+        id,
+        sourcePath: path,
+        dateModified,
+        contentHash,
+        archived: false,
+        hasOriginal: originalOf(article.metadata) !== null,
+      };
       this.byKey.set(key, now);
       this.byPath.set(path, now);
       await this.progress();
@@ -434,6 +556,8 @@ export async function importArchive(options: {
   collectionId: string;
   importId: string;
   actorId: string | null;
+  /** Given for the whole archive; the folder's own name is used without it. */
+  category?: string | null;
 }): Promise<ImportSummary> {
   let run: ImportRun | null = null;
 
@@ -448,6 +572,10 @@ export async function importArchive(options: {
     );
 
     const root = commonRoot(names);
+    // The folder somebody picked is the category of what is in it, unless
+    // they gave a better name for it, or an article names its own.
+    const given = options.category?.trim() || null;
+    const folder = root ? root.slice(0, -1) : null;
     const manifest = manifestText ? parseManifest(manifestText) : null;
     const attachments = manifestText ? withManifestAttachments(manifestText) : new Map();
     const importing = await ImportRun.begin(options.collectionId, options.importId, manifest);
@@ -493,11 +621,16 @@ export async function importArchive(options: {
         const listed = attachments.get(path);
         if (listed) article.metadata = { ...article.metadata, doc_attachments: listed };
 
-        await importing.article(
-          path,
-          article,
-          createHash("sha256").update(entry.bytes).digest("hex"),
-        );
+        if (given) {
+          // The name given here replaces whatever the path said; what the
+          // path said becomes the section, if the article had none.
+          article.subcategory = article.subcategory ?? article.category;
+          article.category = given;
+        } else if (!article.category && folder) {
+          article.category = folder;
+        }
+
+        await importing.document(path, article, entry.bytes);
       },
     );
 
@@ -544,6 +677,7 @@ const importColumns = {
   images: kbImports.images,
   failures: kbImports.failures,
   usedManifest: kbImports.usedManifest,
+  category: kbImports.category,
   error: kbImports.error,
   startedAt: kbImports.startedAt,
   finishedAt: kbImports.finishedAt,
@@ -571,6 +705,7 @@ export async function createImportRecord(input: {
   connectorId?: string | null;
   actorId: string | null;
   status?: "uploading" | "running";
+  category?: string | null;
 }): Promise<string> {
   const [collection] = await db
     .select({ id: kbCollections.id })
@@ -587,6 +722,7 @@ export async function createImportRecord(input: {
       filename: input.filename?.slice(0, 300) ?? null,
       expectedBytes: input.expectedBytes ?? null,
       connectorId: input.connectorId ?? null,
+      category: input.category?.trim() || null,
       startedBy: input.actorId,
       status: input.status ?? "uploading",
     })

@@ -7,12 +7,18 @@ import { cn } from "@/lib/utils";
 import { KbSort } from "@/components/kb-sort";
 import { CopyLink } from "@/components/ui/copy-link";
 import { reactionSummary } from "@/components/kb-reactions";
-import type { ArticleSummary, CategoryCount, CollectionRow } from "@/server/services/kb";
+import type {
+  ArticleSummary,
+  ArticleType,
+  CategoryCount,
+  CollectionRow,
+  TypeCount,
+} from "@/server/services/kb";
 import { formatDateTime, formatNumber, plural } from "@/i18n/format";
 import type { Messages } from "@/i18n";
 import type { Locale } from "@/i18n/locales";
 
-export type CollectionFilter = { category?: string; subcategory?: string };
+export type CollectionFilter = { category?: string; subcategory?: string; type?: ArticleType };
 
 /** How the articles are ordered, when the reader may choose. */
 export type CollectionOrder = { sort: string; dir: "asc" | "desc"; sorts: readonly string[] };
@@ -25,6 +31,7 @@ export type CollectionOrder = { sort: string; dir: "asc" | "desc"; sorts: readon
 export function KbCollection({
   collection,
   categories,
+  types = [],
   articles,
   nextCursor,
   filter,
@@ -36,6 +43,8 @@ export function KbCollection({
 }: {
   collection: CollectionRow;
   categories: CategoryCount[];
+  /** What the articles came from; a filter only when there is more than one kind. */
+  types?: TypeCount[];
   articles: ArticleSummary[];
   nextCursor: string | null;
   filter: CollectionFilter;
@@ -56,12 +65,19 @@ export function KbCollection({
   }
 
   const path = `${base}/${collection.id}` as Route;
-  const href = (category?: string, subcategory?: string, cursor?: string) => ({
+  // `type` null takes the kind filter off; left out, the current one stays.
+  const href = (
+    category?: string,
+    subcategory?: string,
+    cursor?: string,
+    type: ArticleType | null | undefined = filter.type,
+  ) => ({
     pathname: path,
     query: {
       ...(category !== undefined ? { category } : {}),
       ...(subcategory ? { subcategory } : {}),
       ...(cursor ? { cursor } : {}),
+      ...(type ? { type } : {}),
       ...(order ? { sort: order.sort, dir: order.dir } : {}),
     },
   });
@@ -73,6 +89,23 @@ export function KbCollection({
         ? "bg-[var(--primary)] font-medium text-[var(--primary-foreground)]"
         : "text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]",
     );
+
+  const typeList =
+    types.length > 1 ? (
+      <ul aria-label={t.kb.types} className="mb-2 flex flex-col gap-0.5 border-b pb-2">
+        {types.map((row) => (
+          <li key={row.type}>
+            <Link
+              href={href(filter.category, filter.subcategory, undefined, filter.type === row.type ? null : row.type)}
+              className={linkClass(filter.type === row.type)}
+              aria-pressed={filter.type === row.type}
+            >
+              <span className="min-w-0 truncate">{t.kb.typeNames[row.type](row.articles)}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    ) : null;
 
   const categoryList = (
     <ul className="mt-2 flex flex-col gap-0.5 lg:mt-0">
@@ -160,9 +193,13 @@ export function KbCollection({
             <summary className="cursor-pointer rounded-md border px-3 py-2 text-sm font-medium">
               {filter.subcategory ?? filter.category ?? t.kb.categories}
             </summary>
+            {typeList}
             {categoryList}
           </details>
-          <div className="hidden lg:block">{categoryList}</div>
+          <div className="hidden lg:block">
+            {typeList}
+            {categoryList}
+          </div>
         </nav>
 
         <div className="min-w-0 flex-1">

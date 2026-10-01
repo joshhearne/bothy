@@ -469,6 +469,12 @@ export const enUS = {
     source: "Open the source",
     sourceShort: "Source",
     categories: "Categories",
+    types: "Kinds",
+    typeNames: {
+      pdf: (count: number) => (count === 1 ? "1 PDF" : `${count} PDFs`),
+      docx: (count: number) => (count === 1 ? "1 Word doc" : `${count} Word docs`),
+      article: (count: number) => (count === 1 ? "1 Imported Doc" : `${count} Imported Docs`),
+    },
     allCategories: "Everything",
     uncategorized: "Uncategorized",
     noArticles: "No articles here.",
@@ -490,6 +496,8 @@ export const enUS = {
     withhold: "Hold back",
     publish: "Put back",
 
+    openPdf: "Open the PDF",
+    downloadOriginal: "Download the original",
     collapse: "Collapse",
     expand: "Expand",
     publicLink: "Copy public link",
@@ -838,6 +846,9 @@ export const enUS = {
       importHeading: "Import",
       importHint: (mb: number) =>
         `A zip archive, a folder, or individual files: Markdown, text, PDF, and Word, with the images the articles show. Up to ${mb} MB. Importing the same source again updates its articles instead of duplicating them.`,
+      importCategory: "Category for these articles",
+      importCategoryHint:
+        "Left empty, the folder you chose gives its name to every article that has none of its own. Type a readable name here when the folder's is not one: it becomes the category of everything in this import, and a category an article had becomes its section.",
       chooseZip: "Choose files or a zip",
       chooseFolder: "Choose a folder",
       chosen: (name: string, size: string) => `${name} · ${size}`,
@@ -906,9 +917,12 @@ export const enUS = {
       kind: "What to read",
       kindSitemap: "A sitemap",
       kindPrefix: "Every page under an address",
+      kindHelpCenter: "A help center, by its categories and sections",
       url: "Address",
       urlHintSitemap: "The sitemap's own address, such as https://example.com/sitemap.xml.",
       urlHintPrefix: "Pages are followed from here, and only beneath it.",
+      urlHintHelpCenter:
+        "The help center's front page in one language, such as https://support.example.com/hc/en-us. Each article arrives under its category and section.",
       interval: "How often, in hours",
       intervalHint: "24 for daily, 168 for weekly.",
       maxPages: "Most pages per run",

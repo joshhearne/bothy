@@ -1,9 +1,10 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { ChevronLeft, ExternalLink } from "lucide-react";
+import { ChevronLeft, ExternalLink, FileText } from "lucide-react";
 import { renderMarkdown } from "@/server/fields/render";
 import type { ArticleDetail } from "@/server/services/kb";
-import { formatDateTime } from "@/i18n/format";
+import { originalOf } from "@/server/services/kb-import";
+import { formatBytes, formatDateTime } from "@/i18n/format";
 import type { Messages } from "@/i18n";
 import type { Locale } from "@/i18n/locales";
 
@@ -43,17 +44,21 @@ function withoutLeadingTitle(body: string, title: string): string {
 export function KbArticle({
   article,
   backHref,
+  originalHref,
   actions,
   locale,
   t,
 }: {
   article: ArticleDetail;
   backHref: string;
+  /** Where the document the article was made from is served, when it was kept. */
+  originalHref?: string;
   actions?: React.ReactNode;
   locale: Locale;
   t: Messages;
 }) {
   const unread = attachments(article.metadata.doc_attachments).filter((item) => !item.extracted);
+  const original = originalHref ? originalOf(article.metadata) : null;
 
   return (
     <article className="flex max-w-4xl flex-col gap-6">
@@ -94,6 +99,22 @@ export function KbArticle({
               <ExternalLink className="size-4 shrink-0" aria-hidden />
               <span className="shrink-0 font-medium">{t.kb.source}</span>
               <span className="truncate text-[var(--muted-foreground)]">{article.sourceUrl}</span>
+            </a>
+          )}
+          {original && (
+            <a
+              href={originalHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex max-w-full items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]"
+            >
+              <FileText className="size-4 shrink-0" aria-hidden />
+              <span className="shrink-0 font-medium">
+                {original.mime === "application/pdf" ? t.kb.openPdf : t.kb.downloadOriginal}
+              </span>
+              <span className="truncate text-[var(--muted-foreground)]">
+                {original.name} · {formatBytes(original.bytes, locale)}
+              </span>
             </a>
           )}
           {actions}

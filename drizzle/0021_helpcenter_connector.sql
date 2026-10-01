@@ -1,0 +1,2 @@
+ALTER TABLE "kb_connectors" DROP CONSTRAINT "kb_connectors_kind_check";--> statement-breakpoint
+ALTER TABLE "kb_connectors" ADD CONSTRAINT "kb_connectors_kind_check" CHECK ("kb_connectors"."kind" IN ('sitemap','prefix','helpcenter'));

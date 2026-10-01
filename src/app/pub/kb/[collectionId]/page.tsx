@@ -7,6 +7,8 @@ import {
   getCollection,
   listArticles,
   listCategories,
+  listTypes,
+  ARTICLE_TYPES as TYPES,
 } from "@/server/services/kb";
 import { getI18n } from "@/i18n/server";
 
@@ -23,6 +25,7 @@ export default async function PublicCollectionPage({
     cursor?: string;
     sort?: string;
     dir?: string;
+    type?: string;
   }>;
 }) {
   const reader = await requirePublicReader();
@@ -34,8 +37,12 @@ export default async function PublicCollectionPage({
 
   const filter = await searchParams;
   const order = articleOrder(filter.sort, filter.dir);
-  const [categories, page, { locale, messages: t }] = await Promise.all([
+  const type = (TYPES as readonly string[]).includes(filter.type ?? "")
+    ? (filter.type as (typeof TYPES)[number])
+    : undefined;
+  const [categories, types, page, { locale, messages: t }] = await Promise.all([
     listCategories(collectionId, reader),
+    listTypes(collectionId, reader),
     listArticles(
       {
         collectionId,
@@ -43,6 +50,7 @@ export default async function PublicCollectionPage({
         subcategory: filter.subcategory || undefined,
         cursor: filter.cursor,
         ...order,
+        ...(type ? { type } : {}),
       },
       reader,
     ),
@@ -53,11 +61,13 @@ export default async function PublicCollectionPage({
     <KbCollection
       collection={collection}
       categories={categories}
+      types={types}
       articles={page.articles}
       nextCursor={page.nextCursor}
       filter={{
         ...(filter.category ? { category: filter.category } : {}),
         ...(filter.subcategory ? { subcategory: filter.subcategory } : {}),
+        ...(type ? { type } : {}),
       }}
       order={{ ...order, sorts: ARTICLE_SORTS }}
       base="/pub/kb"

@@ -183,7 +183,7 @@ export function ConnectorForm({ collectionId }: { collectionId: string }) {
     createConnectorAction,
     {},
   );
-  const [kind, setKind] = useState<"sitemap" | "prefix">("sitemap");
+  const [kind, setKind] = useState<"sitemap" | "prefix" | "helpcenter">("sitemap");
   const t = useMessages();
 
   return (
@@ -196,18 +196,33 @@ export function ConnectorForm({ collectionId }: { collectionId: string }) {
           id="connector-kind"
           name="kind"
           value={kind}
-          onChange={(event) => setKind(event.target.value === "prefix" ? "prefix" : "sitemap")}
+          onChange={(event) =>
+            setKind(
+              event.target.value === "prefix"
+                ? "prefix"
+                : event.target.value === "helpcenter"
+                  ? "helpcenter"
+                  : "sitemap",
+            )
+          }
           className={selectClass}
         >
           <option value="sitemap">{t.admin.kb.kindSitemap}</option>
           <option value="prefix">{t.admin.kb.kindPrefix}</option>
+          <option value="helpcenter">{t.admin.kb.kindHelpCenter}</option>
         </Select>
       </Field>
 
       <Field
         id="connector-url"
         label={t.admin.kb.url}
-        hint={kind === "sitemap" ? t.admin.kb.urlHintSitemap : t.admin.kb.urlHintPrefix}
+        hint={
+          kind === "sitemap"
+            ? t.admin.kb.urlHintSitemap
+            : kind === "helpcenter"
+              ? t.admin.kb.urlHintHelpCenter
+              : t.admin.kb.urlHintPrefix
+        }
         error={state.fieldErrors?.url}
       >
         <Input

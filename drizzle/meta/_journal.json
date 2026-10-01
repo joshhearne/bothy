@@ -148,6 +148,20 @@
       "when": 1790795725455,
       "tag": "0020_accounts_and_mfa",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790863731351,
+      "tag": "0021_helpcenter_connector",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790865601681,
+      "tag": "0022_import_category",
+      "breakpoints": true
     }
   ]
 }

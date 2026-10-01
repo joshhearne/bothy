@@ -941,6 +941,8 @@ export const kbImports = pgTable(
     ignored: integer("ignored").notNull().default(0),
     /** Pictures in the archive that the collection now holds. */
     images: integer("images").notNull().default(0),
+    /** A category given for the whole import, in place of the folder's name. */
+    category: text("category"),
     /** [{ path, reason }], capped so one bad archive cannot fill the row. */
     failures: jsonb("failures").$type<{ path: string; reason: string }[]>().notNull().default([]),
     usedManifest: boolean("used_manifest").notNull().default(false),
@@ -981,7 +983,7 @@ export const kbConnectors = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
   },
   (t) => [
-    check("kb_connectors_kind_check", sql`${t.kind} IN ('sitemap','prefix')`),
+    check("kb_connectors_kind_check", sql`${t.kind} IN ('sitemap','prefix','helpcenter')`),
     check("kb_connectors_interval_check", sql`${t.intervalHours} BETWEEN 1 AND 8760`),
     check("kb_connectors_max_pages_check", sql`${t.maxPages} BETWEEN 1 AND 20000`),
     index("kb_connectors_due_idx").on(t.nextRunAt),

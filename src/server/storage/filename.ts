@@ -14,7 +14,7 @@ export function sanitizeFilename(input: string, fallback = "attachment"): string
 }
 
 /** RFC 6266 value for Content-Disposition, safe for non-ASCII names. */
-export function contentDisposition(filename: string): string {
+export function contentDisposition(filename: string, inline = false): string {
   const ascii = filename.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+  return `${inline ? "inline" : "attachment"}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 }

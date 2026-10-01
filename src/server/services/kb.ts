@@ -83,6 +83,14 @@ export type CollectionSort = (typeof COLLECTION_SORTS)[number];
 export type ArticleSort = (typeof ARTICLE_SORTS)[number];
 export type SortDirection = "asc" | "desc";
 
+/**
+ * What an article came from, as a reader would sort it: a PDF, a Word
+ * document, or an article written or imported as one. Shown as a filter only
+ * when a collection holds more than one kind.
+ */
+export const ARTICLE_TYPES = ["pdf", "docx", "article"] as const;
+export type ArticleType = (typeof ARTICLE_TYPES)[number];
+
 /** What a reader asked to sort by, or the default when they asked for nothing. */
 export function collectionOrder(
   sort?: string,
@@ -420,6 +428,8 @@ export const articleListSchema = z.object({
   category: z.string().trim().max(200).optional(),
   subcategory: z.string().trim().max(200).optional(),
   unextractedOnly: z.boolean().default(false),
+  /** What the articles came from: documents brought in as files, or articles proper. */
+  type: z.enum(ARTICLE_TYPES).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   cursor: z.string().optional(),
   sort: z.enum(ARTICLE_SORTS).default("name"),
@@ -461,6 +471,7 @@ export async function listArticles(
   if (data.category) filters.push(eq(kbArticles.category, data.category));
   if (data.subcategory) filters.push(eq(kbArticles.subcategory, data.subcategory));
   if (data.unextractedOnly) filters.push(eq(kbArticles.extraction, "unextracted"));
+  if (data.type) filters.push(typeFilter(data.type));
 
   const rows = await db
     .select(articleSummaryColumns)
@@ -478,6 +489,36 @@ export async function listArticles(
 }
 
 export type CategoryCount = { category: string | null; subcategory: string | null; articles: number };
+
+/** See ARTICLE_TYPES, declared with the ordering above. */
+
+function typeFilter(type: ArticleType): SQL {
+  if (type === "pdf") return eq(kbArticles.sourceType, "pdf");
+  if (type === "docx") return eq(kbArticles.sourceType, "docx");
+  return sql`${kbArticles.sourceType} not in ('pdf', 'docx')`;
+}
+
+export type TypeCount = { type: ArticleType; articles: number };
+
+export async function listTypes(collectionId: string, reader: KbReader): Promise<TypeCount[]> {
+  const rows = await db
+    .select({
+      type: sql<ArticleType>`case when ${kbArticles.sourceType} in ('pdf', 'docx') then ${kbArticles.sourceType} else 'article' end`,
+      articles: count(kbArticles.id),
+    })
+    .from(kbArticles)
+    .innerJoin(kbCollections, eq(kbCollections.id, kbArticles.collectionId))
+    .where(
+      and(
+        eq(kbArticles.collectionId, collectionId),
+        isNull(kbArticles.archivedAt),
+        ...readable(reader),
+      ),
+    )
+    .groupBy(sql`1`);
+  const order = new Map(ARTICLE_TYPES.map((type, index) => [type, index]));
+  return rows.sort((a, b) => (order.get(a.type) ?? 9) - (order.get(b.type) ?? 9));
+}
 
 export async function listCategories(
   collectionId: string,

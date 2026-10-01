@@ -254,7 +254,9 @@ export default async function KbCollectionAdminPage({
                         {[
                           connector.kind === "sitemap"
                             ? t.admin.kb.kindSitemap
-                            : t.admin.kb.kindPrefix,
+                            : connector.kind === "helpcenter"
+                              ? t.admin.kb.kindHelpCenter
+                              : t.admin.kb.kindPrefix,
                           t.admin.kb.every(connector.intervalHours),
                           connector.lastRunAt
                             ? t.admin.kb.lastRun(formatDateTime(connector.lastRunAt, locale))

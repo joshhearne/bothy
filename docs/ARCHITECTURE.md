@@ -253,6 +253,12 @@ appears in the documentation search.
   picture, so an article held back from the public site takes its pictures
   with it. It is served with `nosniff` and a sandboxing policy, like any
   upload, and counted apart from pages by the public site's limiter.
+- **Where an article lands**: its frontmatter's category first, then its
+  folders inside the archive, then the archive's top folder, which an
+  earlier version threw away; a category given with the import replaces all
+  of that and demotes what the path said to the section. A collection that
+  holds documents (PDF, Word) beside articles offers the kinds as a filter
+  above its categories.
 - **Upsert** is on `(collection_id, source_key)`. The key is `id:<external_id>`
   when the source names one and `path:<file path>` when it does not, so the two
   cannot collide and a re-import updates instead of duplicating. An article
@@ -276,7 +282,20 @@ appears in the documentation search.
   There is no vector search. The database is stock Postgres with no pgvector,
   and adding an embedding service would break "no required external services".
 - **Connectors** (`kb_connectors`) read a public site on a schedule, from its
-  sitemap or by following links beneath a URL prefix, and feed the same upsert.
+  sitemap, by following links beneath a URL prefix, or through the structure
+  a help center publishes (`src/server/kb/helpcenter.ts`: categories hold
+  sections hold articles, read from the Zendesk-style
+  `/api/v2/help_center/<locale>/` lists, so an article arrives under its
+  category and section with its own id and dates; an article a crawl brought
+  in earlier is adopted by the id in its address rather than added beside
+  itself), and feed the same upsert.
+- **The file behind a document** (a PDF, a Word file) is kept in storage beside
+  the article made from it, noted on the article as `metadata.original`, and
+  served through the article at `/api/kb/articles/:id/original` and on the
+  public site, inline for a PDF, since what a document looks like is often
+  the point and its text alone does not show it. A document imported before
+  this whose file was not kept is taken in again on the next import of the
+  same file, hash unchanged or not.
   Public pages only: no credentials, no cookies, `robots.txt` honoured, a pause
   between requests, a page cap per run. **Every address is user input or
   written by a stranger**, so each request and each redirect resolves first,

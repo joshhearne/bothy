@@ -33,6 +33,7 @@ export default async function PublicArticlePage({
     <KbArticle
       article={article}
       backHref={`/pub/kb/${article.collectionId}`}
+      originalHref={`/pub/kb/articles/${article.id}/original`}
       locale={locale}
       t={t}
       actions={

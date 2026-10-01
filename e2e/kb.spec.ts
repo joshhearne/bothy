@@ -107,8 +107,9 @@ function archive(options: { tunnelModified: string; tunnelBody: string }): Buffe
 const FIRST = { tunnelModified: "2024-01-01T09:00:00.000Z", tunnelBody: "Remove unused profiles from the setup screen." };
 const SECOND = { tunnelModified: "2025-06-01T09:00:00.000Z", tunnelBody: `Remove unused profiles from the ${MARKER}revised screen.` };
 
-async function importArchive(page: Page, name: string, buffer: Buffer) {
+async function importArchive(page: Page, name: string, buffer: Buffer, category?: string) {
   await page.goto(`/admin/kb/${collectionId}`);
+  if (category) await page.getByLabel("Category for these articles").fill(category);
   await page.locator('input[type="file"]').first().setInputFiles({
     name,
     mimeType: "application/zip",
@@ -289,6 +290,61 @@ test("loose files are packed and imported the same way", async ({ page }) => {
   expect(await summary(page)).toEqual({ Added: 2, Updated: 0, Skipped: 0, Failed: 0 });
 });
 
+test("a folder names the category of what is in it, unless a better name is given", async ({ page }) => {
+  const folder = (name: string, files: Record<string, string>) =>
+    Buffer.from(
+      zipSync(
+        Object.fromEntries(Object.entries(files).map(([path, body]) => [`${name}/${path}`, text(body)])),
+      ),
+    );
+
+  // Nothing in these files says where they belong: the folder does.
+  await importArchive(
+    page,
+    "2026-09_PDF_MANUALS.zip",
+    folder("2026-09_PDF_MANUALS", {
+      "install.md": `# Installing ${MARKER}\n\nRun the installer.\n`,
+      "Setup/first-run.md": `# First run ${MARKER}\n\nSign in.\n`,
+    }),
+  );
+  expect(await summary(page)).toEqual({ Added: 2, Updated: 0, Skipped: 0, Failed: 0 });
+  expect(
+    psql(
+      `select coalesce(category,'') || '|' || coalesce(subcategory,'') from kb_articles ` +
+        `where collection_id='${collectionId}' and source_path in ('install.md','Setup/first-run.md') order by lower(source_path);`,
+    ).split("\n"),
+  ).toEqual(["2026-09_PDF_MANUALS|", "Setup|"]);
+
+  // The same files again, under a name a person would choose.
+  await page.goto(`/admin/kb/${collectionId}`);
+  await page.getByLabel("Category for these articles").fill("Manuals");
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: "2026-09_PDF_MANUALS.zip",
+    mimeType: "application/zip",
+    buffer: folder("2026-09_PDF_MANUALS", {
+      "install.md": `# Installing ${MARKER}\n\nRun the installer.\n`,
+      "Setup/first-run.md": `# First run ${MARKER}\n\nSign in.\n`,
+    }),
+  });
+  await page.getByRole("button", { name: "Start import" }).click();
+  await expect(page.getByText("Import finished.")).toBeVisible({ timeout: 60_000 });
+  // The files are unchanged, so they are skipped; the name is for what is new.
+  expect(await summary(page)).toEqual({ Added: 0, Updated: 0, Skipped: 2, Failed: 0 });
+
+  await importArchive(
+    page,
+    "more-manuals.zip",
+    folder("2026-09_PDF_MANUALS", { "Setup/upgrade.md": `# Upgrading ${MARKER}\n\nBack up first.\n` }),
+    "Manuals",
+  );
+  expect(
+    psql(
+      `select coalesce(category,'') || '|' || coalesce(subcategory,'') from kb_articles ` +
+        `where collection_id='${collectionId}' and source_path='Setup/upgrade.md';`,
+    ),
+  ).toBe("Manuals|Setup");
+});
+
 test("search finds a passage deep in an attachment and links to the source", async ({ page }) => {
   await page.goto("/kb");
   await expect(page.getByRole("link", { name: new RegExp(COLLECTION) })).toBeVisible();
@@ -323,6 +379,44 @@ test("a scan is listed and says it could not be read", async ({ page }) => {
   await expect(page.getByRole("note")).toContainText("no text layer");
 });
 
+test("the file a document came from is kept, and offered from the article", async ({ page }) => {
+  const scan = psql(
+    `select id from kb_articles where collection_id='${collectionId}' and source_path='articles/Licensing/Forms/scanned-form.pdf';`,
+  );
+  expect(psql(`select metadata->'original'->>'mime' from kb_articles where id='${scan}';`)).toBe("application/pdf");
+
+  await page.goto(`/kb/articles/${scan}`);
+  const link = page.getByRole("link", { name: /Open the PDF/ });
+  await expect(link).toContainText("scanned-form.pdf");
+  await expect(link).toHaveAttribute("href", `/api/kb/articles/${scan}/original`);
+
+  const served = await page.request.get(`/api/kb/articles/${scan}/original`);
+  expect(served.status()).toBe(200);
+  expect(served.headers()["content-type"]).toBe("application/pdf");
+  expect(served.headers()["content-disposition"]).toContain("inline");
+  expect((await served.body()).subarray(0, 5).toString()).toBe("%PDF-");
+
+  // A collection holding more than one kind offers them as a filter above the categories.
+  await page.goto(`/kb/${collectionId}`);
+  const kinds = page.getByRole("list", { name: "Kinds" });
+  await expect(kinds.getByRole("link", { name: "1 PDF" })).toBeVisible();
+  await expect(kinds.getByRole("link", { name: /Imported Docs/ })).toBeVisible();
+  await kinds.getByRole("link", { name: "1 PDF" }).click();
+  await expect(page).toHaveURL(/type=pdf/);
+  const rows = page.getByRole("listitem").filter({ hasText: /Modified|No text could be read|helpful|favorite/ });
+  await expect(rows).toHaveCount(1);
+  await expect(rows.first()).toContainText("scanned form");
+  // Chosen, the same link takes the filter off again.
+  await expect(kinds.getByRole("link", { name: "1 PDF" })).toHaveAttribute("aria-pressed", "true");
+  await kinds.getByRole("link", { name: "1 PDF" }).click();
+  await expect(page).not.toHaveURL(/type=pdf/);
+
+  // Not served to somebody who cannot read the article.
+  const stranger = await page.context().browser()!.newContext();
+  expect((await stranger.request.get(`/api/kb/articles/${scan}/original`)).status()).toBe(401);
+  await stranger.close();
+});
+
 test("MCP lists, searches, and reads the collection", async ({ request }) => {
   const listed = await request.post("/api/mcp", {
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -338,7 +432,7 @@ test("MCP lists, searches, and reads the collection", async ({ request }) => {
   const mine = collections.structuredContent.collections.find(
     (row: { collection_id: string }) => row.collection_id === collectionId,
   );
-  expect(mine).toMatchObject({ name: COLLECTION, articles: 6 });
+  expect(mine).toMatchObject({ name: COLLECTION, articles: 9 });
 
   const categories = await callTool(request, "list_kb_collections", { collection_id: collectionId });
   expect(categories.structuredContent.categories).toEqual(
@@ -1242,5 +1336,5 @@ test("an archived collection disappears from readers and from search", async ({ 
   expect(found.structuredContent.count).toBe(0);
 
   // Hidden, not deleted.
-  expect(psql(`select count(*) from kb_articles where collection_id='${collectionId}';`)).toBe("9");
+  expect(psql(`select count(*) from kb_articles where collection_id='${collectionId}';`)).toBe("12");
 });
