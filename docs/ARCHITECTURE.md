@@ -311,6 +311,9 @@ appears in the documentation search.
   open to anyone, or to visitors from listed addresses and ranges, which is
   how "anyone on site" is said. The visitor's address is the one the proxy in
   front reports; the app must not be reachable except through that proxy.
+  Once a published address is set (`kb_public_url`), the site answers only
+  on that hostname: the same pages on the installation's own hostname would
+  be the knowledge base without whatever gate the public hostname carries.
   A visitor who is not admitted gets "not found". The site links nowhere into
   the rest of the installation, asks not to be indexed, and is meant to be
   published on a hostname of its own whose proxy passes `/pub/kb` and the

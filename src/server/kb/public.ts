@@ -69,10 +69,33 @@ export class TooManyRequestsError extends Error {
   }
 }
 
+/**
+ * The hostname this request arrived on, as the proxy in front reports it.
+ * The public site is published on a hostname of its own, and answers there
+ * alone: the same pages on the installation's own hostname would be the
+ * knowledge base without the gate that hostname carries.
+ */
+async function arrivedOn(): Promise<string | null> {
+  const list = await headers();
+  const host = list.get("x-forwarded-host") ?? list.get("host");
+  return host?.split(",")[0]?.trim().toLowerCase().replace(/:\d+$/, "") || null;
+}
+
+/** Whether the request is on the hostname the site is published at, when one is set. */
+async function onPublishedHost(settings: { url: string | null }): Promise<boolean> {
+  if (!settings.url) return true;
+  try {
+    return new URL(settings.url).hostname.toLowerCase() === (await arrivedOn());
+  } catch {
+    return true;
+  }
+}
+
 /** Admits the visitor or answers "not found". Every public page starts here. */
 export async function requirePublicReader(): Promise<KbReader> {
   const settings = await getKbPublicSettings();
   if (settings.mode === "off") notFound();
+  if (!(await onPublishedHost(settings))) notFound();
 
   const address = await visitorAddress();
   if (settings.mode === "addresses" && !isListed(address, settings.addresses)) notFound();
@@ -88,6 +111,7 @@ export async function requirePublicReader(): Promise<KbReader> {
 export async function admitPublicImageReader(): Promise<KbReader | null> {
   const settings = await getKbPublicSettings();
   if (settings.mode === "off") return null;
+  if (!(await onPublishedHost(settings))) return null;
 
   const address = await visitorAddress();
   if (settings.mode === "addresses" && !isListed(address, settings.addresses)) return null;

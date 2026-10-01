@@ -801,12 +801,14 @@ test("the import routes are an administrator's alone", async ({ browser, playwri
 /* ---------- The public site ---------- */
 
 const ON_SITE = "203.0.113.9";
+/** Where the public site is published: the stack under test itself, so its hostname matches. */
+const PUBLIC_URL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3090";
 
 async function setPublicSite(page: Page, mode: "off" | "addresses" | "open", addresses = "") {
   await page.goto("/admin/settings");
   await page.getByLabel("Who may read it").selectOption(mode);
   await page.getByLabel("On-site addresses").fill(addresses);
-  await page.getByLabel("Where it is published").fill("https://kb.example.com");
+  await page.getByLabel("Where it is published").fill(PUBLIC_URL);
   await page.getByRole("button", { name: "Update public site" }).click();
 }
 
@@ -963,6 +965,14 @@ test("readers' favorites and votes order the lists, and the visitor sees the cou
   expect((await again.page.goto(`/pub/kb/articles/${guide}`))?.status()).toBe(200);
   await expect(again.page.getByRole("button", { name: "Favorite" })).toHaveCount(0);
   await again.context.close();
+});
+
+test("the public site answers only on the hostname it is published at", async ({ request }) => {
+  const elsewhere = { "X-Real-IP": ON_SITE, Host: "bothy.example.com" };
+  expect((await request.get("/pub/kb", { headers: elsewhere })).status()).toBe(404);
+  expect((await request.get(`/pub/kb/${collectionId}`, { headers: elsewhere })).status()).toBe(404);
+  // The same request on the published hostname is answered.
+  expect((await request.get("/pub/kb", { headers: { "X-Real-IP": ON_SITE } })).status()).toBe(200);
 });
 
 test("a visitor from anywhere else finds nothing there", async ({ browser }) => {
@@ -1189,11 +1199,11 @@ test("a signed-in reader has the same favorites as on the public site, and a lin
   // tunnels are on the public site; the guide was held back above.
   await page.goto(`/kb/articles/${tunnels}`);
   const link = page.getByRole("button", { name: "Copy public link" });
-  await expect(link).toHaveAttribute("title", `https://kb.example.com/pub/kb/articles/${tunnels}`);
+  await expect(link).toHaveAttribute("title", `${PUBLIC_URL}/pub/kb/articles/${tunnels}`);
   await page.goto(`/kb/${collectionId}`);
   await expect(page.getByRole("button", { name: "Copy public link" })).toHaveAttribute(
     "title",
-    `https://kb.example.com/pub/kb/${collectionId}`,
+    `${PUBLIC_URL}/pub/kb/${collectionId}`,
   );
   await page.goto(`/kb/articles/${guide}`);
   await expect(page.getByRole("button", { name: "Copy public link" })).toHaveCount(0);

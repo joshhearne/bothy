@@ -575,7 +575,8 @@ export const enUS = {
       publicAddressesHint:
         "One per line: an address such as 203.0.113.7, or a range such as 198.51.100.0/24. These are the public addresses your sites reach the internet from, not addresses inside your network.",
       publicUrl: "Where it is published",
-      publicUrlHint: "Such as https://kb.example.com. Used for the links shown here.",
+      publicUrlHint:
+        "Such as https://kb.example.com. The public site answers only on this hostname, so the same pages on this installation's own address stay closed. Also used for the links shown here.",
       publicYourAddress: (address: string) => `You are visiting from ${address}.`,
       publicOpenWarning:
         "Anyone with the address can read every collection marked for the public site.",
