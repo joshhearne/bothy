@@ -20,6 +20,9 @@ import type { Locale } from "@/i18n/locales";
 
 export type CollectionFilter = { category?: string; subcategory?: string; type?: ArticleType };
 
+/** The address of the articles with no category: `category` alone would read as none chosen. */
+export const UNCATEGORIZED = "~";
+
 /** How the articles are ordered, when the reader may choose. */
 export type CollectionOrder = { sort: string; dir: "asc" | "desc"; sorts: readonly string[] };
 
@@ -118,7 +121,7 @@ export function KbCollection({
       {[...grouped.entries()].map(([name, group]) => (
         <li key={name}>
           <Link
-            href={href(name)}
+            href={href(name === "" ? UNCATEGORIZED : name)}
             className={linkClass(filter.category === name && !filter.subcategory)}
           >
             <span className="min-w-0 truncate">{name === "" ? t.kb.uncategorized : name}</span>

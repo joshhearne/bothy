@@ -428,6 +428,8 @@ export const articleListSchema = z.object({
   category: z.string().trim().max(200).optional(),
   subcategory: z.string().trim().max(200).optional(),
   unextractedOnly: z.boolean().default(false),
+  /** Only the articles that have no category at all. */
+  uncategorized: z.boolean().default(false),
   /** What the articles came from: documents brought in as files, or articles proper. */
   type: z.enum(ARTICLE_TYPES).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
@@ -468,7 +470,8 @@ export async function listArticles(
     isNull(kbArticles.archivedAt) as SQL,
     ...readable(reader),
   ];
-  if (data.category) filters.push(eq(kbArticles.category, data.category));
+  if (data.uncategorized) filters.push(isNull(kbArticles.category));
+  else if (data.category) filters.push(eq(kbArticles.category, data.category));
   if (data.subcategory) filters.push(eq(kbArticles.subcategory, data.subcategory));
   if (data.unextractedOnly) filters.push(eq(kbArticles.extraction, "unextracted"));
   if (data.type) filters.push(typeFilter(data.type));

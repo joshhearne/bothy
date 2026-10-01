@@ -106,7 +106,10 @@ export function KbArticle({
               href={originalHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex max-w-full items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]"
+              className={
+                "inline-flex max-w-full items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]" +
+                (original.mime === "application/pdf" ? " kb-attention" : "")
+              }
             >
               <FileText className="size-4 shrink-0" aria-hidden />
               <span className="shrink-0 font-medium">
@@ -120,6 +123,12 @@ export function KbArticle({
           {actions}
         </div>
       </header>
+
+      {original?.mime === "application/pdf" && (
+        <p role="note" className="rounded-md border px-3 py-2 text-sm text-[var(--muted-foreground)]">
+          {t.kb.pdfHint}
+        </p>
+      )}
 
       {unread.length > 0 && (
         <p role="note" className="rounded-md border px-3 py-2 text-sm">

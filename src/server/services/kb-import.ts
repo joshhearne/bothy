@@ -328,6 +328,39 @@ export class ImportRun {
     await this.progress();
   }
 
+  /**
+   * Moves an article that has not otherwise changed. A category given with
+   * an import is a reason to bring the same files again, and the files being
+   * the same must not stand in its way.
+   */
+  async place(
+    path: string,
+    externalId: string | null,
+    category: string | null,
+    subcategory: string | null,
+  ): Promise<boolean> {
+    const known = this.byKey.get(sourceKey(externalId, path));
+    if (!known || known.archived) return false;
+    const [row] = await db
+      .update(kbArticles)
+      .set({ category, subcategory, updatedAt: new Date() })
+      .where(
+        and(
+          eq(kbArticles.id, known.id),
+          or(
+            sql`${kbArticles.category} is distinct from ${category}`,
+            sql`${kbArticles.subcategory} is distinct from ${subcategory}`,
+          ),
+        ),
+      )
+      .returning({ id: kbArticles.id });
+    if (!row) return false;
+    this.summary.total += 1;
+    this.summary.updated += 1;
+    await this.progress();
+    return true;
+  }
+
   async ignore(): Promise<void> {
     this.summary.ignored += 1;
   }
@@ -371,6 +404,19 @@ export class ImportRun {
       this.summary.failures.push({ path, reason: reason.slice(0, 300) });
     }
     await this.progress();
+  }
+
+  /** Whether these bytes are what the collection already holds under this key, file kept and all. */
+  unchanged(path: string, externalId: string | null, bytes: Buffer): boolean {
+    const known = this.byKey.get(sourceKey(externalId, path));
+    if (!known || known.archived) return false;
+    const hash = createHash("sha256").update(bytes).digest("hex");
+    return known.contentHash === hash && (known.hasOriginal || !(this.wantsOriginalFor(path)));
+  }
+
+  private wantsOriginalFor(path: string): boolean {
+    const extension = path.split(".").pop()?.toLowerCase() ?? "";
+    return extension in ORIGINAL_MIME;
   }
 
   /** One file from an archive or a folder. */
@@ -626,6 +672,14 @@ export async function importArchive(options: {
           // path said becomes the section, if the article had none.
           article.subcategory = article.subcategory ?? article.category;
           article.category = given;
+          // An article the files leave unchanged still moves to the name given.
+          const unchanged = importing.unchanged(path, article.externalId, entry.bytes);
+          if (unchanged) {
+            if (!(await importing.place(path, article.externalId, article.category, article.subcategory))) {
+              await importing.skip();
+            }
+            return;
+          }
         } else if (!article.category && folder) {
           article.category = folder;
         }

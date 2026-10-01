@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { KbCollection } from "@/components/kb-collection";
+import { KbCollection, UNCATEGORIZED } from "@/components/kb-collection";
 import { requirePublicReader } from "@/server/kb/public";
 import {
   ARTICLE_SORTS,
@@ -46,7 +46,8 @@ export default async function PublicCollectionPage({
     listArticles(
       {
         collectionId,
-        category: filter.category || undefined,
+        category: filter.category && filter.category !== UNCATEGORIZED ? filter.category : undefined,
+        uncategorized: filter.category === UNCATEGORIZED,
         subcategory: filter.subcategory || undefined,
         cursor: filter.cursor,
         ...order,
@@ -65,7 +66,7 @@ export default async function PublicCollectionPage({
       articles={page.articles}
       nextCursor={page.nextCursor}
       filter={{
-        ...(filter.category ? { category: filter.category } : {}),
+        ...(filter.category ? { category: filter.category === UNCATEGORIZED ? "" : filter.category } : {}),
         ...(filter.subcategory ? { subcategory: filter.subcategory } : {}),
         ...(type ? { type } : {}),
       }}

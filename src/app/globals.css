@@ -287,3 +287,12 @@
   overflow-wrap: anywhere;
 }
 .kb-article img { max-width: 100%; height: auto; }
+
+/* A button worth noticing once: the PDF behind an article. Three pulses, then still. */
+@keyframes kb-attention {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 55%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--primary) 0%, transparent); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .kb-attention { animation: kb-attention 1.6s ease-out 3; }
+}

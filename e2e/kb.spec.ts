@@ -328,8 +328,38 @@ test("a folder names the category of what is in it, unless a better name is give
   });
   await page.getByRole("button", { name: "Start import" }).click();
   await expect(page.getByText("Import finished.")).toBeVisible({ timeout: 60_000 });
-  // The files are unchanged, so they are skipped; the name is for what is new.
+  // The files are unchanged, and still move to the name given.
+  expect(await summary(page)).toEqual({ Added: 0, Updated: 2, Skipped: 0, Failed: 0 });
+  expect(
+    psql(
+      `select coalesce(category,'') || '|' || coalesce(subcategory,'') from kb_articles ` +
+        `where collection_id='${collectionId}' and source_path in ('install.md','Setup/first-run.md') order by lower(source_path);`,
+    ).split("\n"),
+  ).toEqual(["Manuals|", "Manuals|Setup"]);
+
+  // Once more, the same again: nothing to move this time.
+  await importArchive(
+    page,
+    "2026-09_PDF_MANUALS.zip",
+    folder("2026-09_PDF_MANUALS", {
+      "install.md": `# Installing ${MARKER}\n\nRun the installer.\n`,
+      "Setup/first-run.md": `# First run ${MARKER}\n\nSign in.\n`,
+    }),
+    "Manuals",
+  );
   expect(await summary(page)).toEqual({ Added: 0, Updated: 0, Skipped: 2, Failed: 0 });
+
+  // The loose files from before have no category; "Uncategorized" is them alone.
+  await page.goto(`/kb/${collectionId}`);
+  const uncategorized = page.getByRole("link", { name: /^Uncategorized/ });
+  const shown = Number((await uncategorized.textContent())?.replace(/\D/g, ""));
+  expect(shown).toBeGreaterThan(0);
+  await uncategorized.click();
+  await expect(page).toHaveURL(/category=(~|%7E)/);
+  // The articles list is the one beside the categories, not the categories themselves.
+  const listed = page.locator("div.min-w-0.flex-1 > ul > li");
+  await expect(listed).toHaveCount(shown);
+  await expect(listed.filter({ hasText: "Loose note" })).toHaveCount(1);
 
   await importArchive(
     page,
@@ -376,7 +406,7 @@ test("knowledge base articles stay out of the documentation search", async ({ pa
 test("a scan is listed and says it could not be read", async ({ page }) => {
   await page.goto(`/kb/${collectionId}?category=Licensing`);
   await page.getByRole("link", { name: "scanned form" }).click();
-  await expect(page.getByRole("note")).toContainText("no text layer");
+  await expect(page.getByRole("note").filter({ hasText: "no text layer" })).toBeVisible();
 });
 
 test("the file a document came from is kept, and offered from the article", async ({ page }) => {
@@ -388,6 +418,8 @@ test("the file a document came from is kept, and offered from the article", asyn
   await page.goto(`/kb/articles/${scan}`);
   const link = page.getByRole("link", { name: /Open the PDF/ });
   await expect(link).toContainText("scanned-form.pdf");
+  await expect(link).toHaveClass(/kb-attention/);
+  await expect(page.getByRole("note").filter({ hasText: "Text doesn't read right?" })).toBeVisible();
   await expect(link).toHaveAttribute("href", `/api/kb/articles/${scan}/original`);
 
   const served = await page.request.get(`/api/kb/articles/${scan}/original`);

@@ -497,6 +497,7 @@ export const enUS = {
     publish: "Put back",
 
     openPdf: "Open the PDF",
+    pdfHint: "Text doesn't read right? Open the PDF to see it as written, or download it.",
     downloadOriginal: "Download the original",
     collapse: "Collapse",
     expand: "Expand",
