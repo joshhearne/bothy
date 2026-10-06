@@ -27,8 +27,11 @@ describe("deriveRunbook", () => {
     expect(parts.steps[1]?.id).toMatch(/^[0-9a-f]{8}$/);
     expect(parts.steps[2]?.canned).toBe("Voicemail PIN Reset");
     expect(parts.steps[2]?.text).toContain("@canned:[Voicemail PIN Reset]");
-    expect(parts.preamble).toBe("# VM PIN Reset\n\nBefore you start, have the user's extension.");
-    expect(parts.tail).toBe("Done. Close the ticket.");
+    expect(parts.segments).toEqual([
+      { kind: "markdown", text: "# VM PIN Reset\n\nBefore you start, have the user's extension." },
+      { kind: "steps", from: 0, to: 3 },
+      { kind: "markdown", text: "Done. Close the ticket." },
+    ]);
     // Minted ids are written back, so the next save sees them.
     expect(parts.body).toContain(`2. Open **Voicemail Passcode** and set it. {#${parts.steps[1]?.id}}`);
     expect(parts.body).toContain(`3. Send @canned:[Voicemail PIN Reset] to the user. {#${parts.steps[2]?.id}}`);
@@ -46,7 +49,34 @@ describe("deriveRunbook", () => {
     const parts = deriveRunbook("Checks:\n\n- [ ] Power on {#power}\n- [x] Lights\n\nThen go.");
     expect(parts.steps.map((s) => s.text)).toEqual(["Power on", "Lights"]);
     expect(parts.steps[0]?.id).toBe("power");
-    expect(parts.tail).toBe("Then go.");
+    expect(parts.segments[2]).toEqual({ kind: "markdown", text: "Then go." });
+  });
+
+  it("reads a procedure written in sections, and bullets only when they carry ids", () => {
+    const body = [
+      "### Collect",
+      "",
+      "- Login to the portal {#a1}",
+      "- Shared by me {#a2}",
+      "  - [ ] Primary export",
+      "",
+      "Open both reports.",
+      "",
+      "- just a bullet",
+      "- another bullet",
+      "",
+      "### Import",
+      "",
+      "- [ ] Upload the file. {#b1}",
+      "- [ ] Respond with @canned:[Import Complete] {#b2}",
+    ].join("\n");
+    const parts = deriveRunbook(body);
+    expect(parts.steps.map((s) => s.id)).toEqual(["a1", "a2", "b1", "b2"]);
+    expect(parts.steps[1]?.note).toBe("- [ ] Primary export");
+    expect(parts.steps[3]?.canned).toBe("Import Complete");
+    expect(parts.segments.map((s) => s.kind)).toEqual(["markdown", "steps", "markdown", "steps"]);
+    expect((parts.segments[2] as { text: string }).text).toContain("- just a bullet");
+    expect(parts.body).toBe(body);
   });
 
   it("ignores lists inside fenced code and a list that is nested", () => {

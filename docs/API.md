@@ -129,8 +129,9 @@ access to one of them, and no key sees a collection with MCP turned off.
 
 ### Runbooks
 An article with `kind: "runbook"` is a procedure. Its `steps` are read from the
-body on every save: the items of the first top-level numbered list, each as
-`{ id, text, note?, canned? }`. The `id` is stable: write it yourself at the end
+body on every save: the items of every top-level list that is a procedure, in
+order across headings (a numbered list, a task list, or a bullet list whose
+items carry ids), each as `{ id, text, note?, canned? }`. The `id` is stable: write it yourself at the end
 of the item as `{#my-id}` (`[a-z0-9-]{1,40}`), or let Bothy mint one on first
 save, after which it is in the stored body and kept across edits. A system that
 tracks progress through a runbook keys its state by `id` and keeps that state on

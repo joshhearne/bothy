@@ -370,10 +370,13 @@ appears in the documentation search.
 - **Runbooks**: an article whose body is a procedure, `kb_articles.kind =
   'runbook'`. It stays an article, so collections, categories, the public site,
   search, import and upsert all work unchanged. Its `steps` (jsonb) are derived
-  from the body on every save by `src/server/kb/runbook.ts`: the items of the
-  first top-level ordered list (or task list), each with a stable id written at
-  the end of the item as `{#id}`, minted on first save (8 hex) when the author
-  gave none and kept by matching the item's words on later saves. What is
+  from the body on every save by `src/server/kb/runbook.ts`: the items of every
+  top-level list that is a procedure, in order across headings: an ordered
+  list, a task list, or a bullet list whose items carry ids (a bullet list
+  without them is prose). Each step has a stable id written at the end of the
+  item as `{#id}`, minted on first save (8 hex) when the author gave none and
+  kept by matching the item's words on later saves. The page draws the body by
+  turns, prose and checklist, with one count across them. What is
   nested under an item is its `note`; an `@canned:[Name]` token is surfaced as
   `canned`. A duplicate id is refused: the editor says so, the API answers 400,
   an import records the file as failed. Progress through a runbook is never

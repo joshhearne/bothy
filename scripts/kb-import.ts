@@ -2,12 +2,14 @@
  * Imports a knowledge base archive that is already on this machine, without
  * going through the browser:
  *
- *   npx tsx --conditions react-server scripts/kb-import.ts "Calder Ridge KB" ./export.zip ["Manuals"] [--ignore-manifest]
+ *   npx tsx --conditions react-server scripts/kb-import.ts "Calder Ridge KB" ./export.zip ["Manuals"] [--ignore-manifest] [--force]
  *
  * A third argument is the category for every article in the archive; without
  * it, the archive's top folder names the category of articles that have none.
  * --ignore-manifest opens every file and judges it by its content, for an
- * export whose files changed without their dates changing.
+ * export whose files changed without their dates changing. --force writes
+ * every article again whether or not it changed, for when what Bothy
+ * derives from a body (a runbook's steps, say) has changed.
  *
  * The collection is created if it does not exist. Running it again with a
  * newer export updates what changed and skips the rest.
@@ -57,6 +59,7 @@ const summary = await importArchive({
   actorId: null,
   category: category ?? null,
   ignoreManifest: flags.has("--ignore-manifest"),
+  force: flags.has("--force"),
 });
 const { failures, ...counts } = summary;
 

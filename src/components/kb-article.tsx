@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Route } from "next";
 import { ChevronLeft, ExternalLink, FileText, ListChecks } from "lucide-react";
 import { Chip } from "@/components/ui/chip";
-import { RunbookSteps, type RenderedStep } from "@/components/kb-runbook-steps";
-import { deriveRunbook } from "@/server/kb/runbook";
+import { RunbookRun, RunbookSteps, type RenderedStep } from "@/components/kb-runbook-steps";
+import { deriveRunbook, type RunbookStep } from "@/server/kb/runbook";
 import { renderMarkdown } from "@/server/fields/render";
 import { outlineHtml } from "@/server/kb/outline";
 import { embedVideos } from "@/server/kb/video";
@@ -68,32 +68,39 @@ export function KbArticle({
   const markdown = article.extraction !== "unextracted" && article.format === "markdown";
   const runbook = markdown && article.kind === "runbook" ? deriveRunbook(article.body, article.steps) : null;
 
-  // A runbook is drawn in three parts: what comes before the steps, the steps
-  // as a checklist, and what comes after. The outline is read across the
-  // first and the last, so its ids are on the headings that are drawn.
+  // A runbook is drawn by turns: prose, a checklist, prose again. The outline
+  // is read across every piece of prose at once, so its ids are on the
+  // headings that are drawn; a marker keeps the pieces apart until then.
   const MARK = "<!--runbook-steps-->";
   const source = runbook
-    ? `${embedVideos(renderMarkdown(withoutLeadingTitle(runbook.preamble, article.title)))}${MARK}${
-        runbook.tail ? embedVideos(renderMarkdown(runbook.tail)) : ""
-      }`
+    ? runbook.segments
+        .map((segment, index) =>
+          segment.kind === "markdown"
+            ? embedVideos(renderMarkdown(index === 0 ? withoutLeadingTitle(segment.text, article.title) : segment.text))
+            : MARK,
+        )
+        .join("")
     : markdown
       ? embedVideos(renderMarkdown(withoutLeadingTitle(article.body, article.title)))
       : null;
   const drawn = source !== null ? outlineHtml(source) : null;
-  const parts =
+  const rendered = (step: RunbookStep): RenderedStep => ({
+    id: step.id,
+    html: renderMarkdown(step.text).replace(/^<p>([\s\S]*)<\/p>\s*$/, "$1"),
+    noteHtml: step.note ? embedVideos(renderMarkdown(step.note)) : null,
+    canned: step.canned ?? null,
+  });
+  const pieces =
     runbook && drawn
-      ? {
-          preamble: drawn.html.slice(0, drawn.html.indexOf(MARK)),
-          steps: runbook.steps.map(
-            (step): RenderedStep => ({
-              id: step.id,
-              html: renderMarkdown(step.text).replace(/^<p>([\s\S]*)<\/p>\s*$/, "$1"),
-              noteHtml: step.note ? embedVideos(renderMarkdown(step.note)) : null,
-              canned: step.canned ?? null,
-            }),
-          ),
-          tail: drawn.html.slice(drawn.html.indexOf(MARK) + MARK.length),
-        }
+      ? (() => {
+          const prose = drawn.html.split(MARK);
+          let at = 0;
+          return runbook.segments.map((segment) =>
+            segment.kind === "markdown"
+              ? { kind: "html" as const, html: prose[at++] ?? "" }
+              : { kind: "steps" as const, from: segment.from, steps: runbook.steps.slice(segment.from, segment.to).map(rendered) },
+          );
+        })()
       : null;
 
   return (
@@ -184,22 +191,22 @@ export function KbArticle({
           <p role="note" className="rounded-md border px-3 py-2 text-sm">
             {t.kb.unextractedBody}
           </p>
-        ) : parts ? (
-          <>
-            {parts.preamble && (
-              <div
-                className="prose-editor kb-article min-w-0 text-sm break-words"
-                dangerouslySetInnerHTML={{ __html: parts.preamble }}
-              />
+        ) : pieces ? (
+          <RunbookRun total={runbook?.steps.length ?? 0}>
+            {pieces.map((piece, index) =>
+              piece.kind === "html" ? (
+                piece.html.trim() === "" ? null : (
+                  <div
+                    key={index}
+                    className="prose-editor kb-article min-w-0 text-sm break-words"
+                    dangerouslySetInnerHTML={{ __html: piece.html }}
+                  />
+                )
+              ) : (
+                <RunbookSteps key={index} steps={piece.steps} first={piece.from} />
+              ),
             )}
-            <RunbookSteps steps={parts.steps} />
-            {parts.tail && (
-              <div
-                className="prose-editor kb-article min-w-0 text-sm break-words"
-                dangerouslySetInnerHTML={{ __html: parts.tail }}
-              />
-            )}
-          </>
+          </RunbookRun>
         ) : drawn ? (
           <div
             className="prose-editor kb-article min-w-0 text-sm break-words"

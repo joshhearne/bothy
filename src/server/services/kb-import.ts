@@ -260,6 +260,9 @@ export class ImportRun {
     this.summary.usedManifest = manifest !== null;
   }
 
+  /** Write every article again, changed or not: for when what is derived from a body has changed. */
+  rewriteAll = false;
+
   static async begin(
     collectionId: string,
     importId: string,
@@ -511,7 +514,7 @@ export class ImportRun {
       this.manifest?.byPath.get(path);
     const dateModified = listed?.dateModified ?? article.dateModified;
 
-    if (known && !known.archived && !force) {
+    if (known && !known.archived && !force && !this.rewriteAll) {
       const unchanged = listed
         ? sameInstant(listed.dateModified, known.dateModified)
         : known.contentHash === contentHash;
@@ -645,6 +648,8 @@ export async function importArchive(options: {
    * their dates changing, such as one that gained its pictures.
    */
   ignoreManifest?: boolean;
+  /** Write every article again, changed or not. */
+  force?: boolean;
 }): Promise<ImportSummary> {
   let run: ImportRun | null = null;
 
@@ -666,6 +671,7 @@ export async function importArchive(options: {
     const manifest = manifestText && !options.ignoreManifest ? parseManifest(manifestText) : null;
     const attachments = manifestText ? withManifestAttachments(manifestText) : new Map();
     const importing = await ImportRun.begin(options.collectionId, options.importId, manifest);
+    importing.rewriteAll = options.force === true;
     run = importing;
 
     const relative = (path: string) => (root && path.startsWith(root) ? path.slice(root.length) : path);

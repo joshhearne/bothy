@@ -1230,11 +1230,11 @@ test("keyword rules and category visibility hold articles back from the public s
   await patterns.fill("admin");
   await expect(counts).toContainText("Would hold back 1 article");
   await expect(counts).toContainText("1 by title");
-  await page.getByRole("checkbox", { name: "Categories" }).check();
+  await page.getByRole("checkbox", { name: /^Categories\b/ }).check();
   await patterns.fill("admin, internal\n*.pdf");
   await expect(counts).toContainText("3 patterns");
   await expect(counts).toContainText("Would hold back 2 articles");
-  await page.getByRole("checkbox", { name: "Files" }).check();
+  await page.getByRole("checkbox", { name: /^Files\b/ }).check();
   await expect(counts).toContainText("Would hold back 3 articles");
   await expect(counts).toContainText("1 by file");
 
@@ -1282,8 +1282,9 @@ test("keyword rules and category visibility hold articles back from the public s
   await page.goto(`/kb/articles/${idOf("Guides/user-setup.md")}`);
   await page.getByRole("button", { name: "Hold back" }).click();
   await page.goto(`/admin/kb/${rules}`);
-  await page.getByRole("listitem").filter({ hasText: "admin" }).getByRole("button", { name: "Remove" }).click();
-  await expect(page.getByRole("listitem").filter({ hasText: "admin" })).toHaveCount(0);
+  const adminRule = page.getByRole("listitem").filter({ has: page.locator("code", { hasText: /^admin$/ }) });
+  await adminRule.getByRole("button", { name: "Remove" }).click();
+  await expect(adminRule).toHaveCount(0);
   expect(await status("Guides/admin-setup.md")).toBe(200);
   expect(await status("Guides/user-setup.md")).toBe(404);
 
