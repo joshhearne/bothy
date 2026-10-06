@@ -30,7 +30,7 @@ export default async function CollectionPage({
     type?: string;
   }>;
 }) {
-  const { scope } = await requireScopedUser();
+  const { user, scope } = await requireScopedUser();
   const reader: KbReader = { scope, via: "app" };
   const { collectionId } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(collectionId)) notFound();
@@ -58,7 +58,7 @@ export default async function CollectionPage({
       },
       reader,
     ),
-    publicAddressFor({ id: collectionId, collectionPublic: collection.publicAccess, kind: "collection" }),
+    publicAddressFor({ id: collectionId, collectionPublic: collection.publicAccess, target: "collection" }),
     getI18n(),
   ]);
 
@@ -76,6 +76,7 @@ export default async function CollectionPage({
       }}
       order={{ ...order, sorts: ARTICLE_SORTS }}
       publicHref={publicHref}
+      canWrite={user.role === "admin"}
       base="/kb"
       locale={locale}
       t={t}

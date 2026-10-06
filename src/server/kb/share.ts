@@ -11,11 +11,12 @@ export async function publicAddressFor(item: {
   id: string;
   collectionPublic: boolean;
   publicHidden?: boolean;
-  kind?: "article" | "collection";
+  /** A collection's address differs from an article's; an article of any kind is an article. */
+  target?: "article" | "collection";
 }): Promise<string | null> {
   if (!item.collectionPublic || item.publicHidden) return null;
   const settings = await getKbPublicSettings();
   if (settings.mode === "off" || !settings.url) return null;
-  const path = item.kind === "collection" ? `/pub/kb/${item.id}` : `/pub/kb/articles/${item.id}`;
+  const path = item.target === "collection" ? `/pub/kb/${item.id}` : `/pub/kb/articles/${item.id}`;
   return `${settings.url.replace(/\/+$/, "")}${path}`;
 }

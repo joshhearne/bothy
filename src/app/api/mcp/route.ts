@@ -79,6 +79,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const response = await handleMessage(message, {
     scope: key.companies,
+    via: "mcp",
     keyId: key.id,
     keyName: key.name,
     grants: key.kbGrants,

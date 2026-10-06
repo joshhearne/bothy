@@ -367,6 +367,25 @@ appears in the documentation search.
   the wrong place for anything shared. The public home page ends with the
   reader's favorites, the five most helpful pages (share, then number of votes,
   so one thumbs-up does not outrank a hundred), and the ten changed last.
+- **Runbooks**: an article whose body is a procedure, `kb_articles.kind =
+  'runbook'`. It stays an article, so collections, categories, the public site,
+  search, import and upsert all work unchanged. Its `steps` (jsonb) are derived
+  from the body on every save by `src/server/kb/runbook.ts`: the items of the
+  first top-level ordered list (or task list), each with a stable id written at
+  the end of the item as `{#id}`, minted on first save (8 hex) when the author
+  gave none and kept by matching the item's words on later saves. What is
+  nested under an item is its `note`; an `@canned:[Name]` token is surfaced as
+  `canned`. A duplicate id is refused: the editor says so, the API answers 400,
+  an import records the file as failed. Progress through a runbook is never
+  stored here; a ticketing system that links one keeps its own, keyed by step
+  id. The page draws the steps as a checklist that forgets on reload. `kind`
+  comes from frontmatter, the MCP and REST upserts, or the in-app editor, and
+  filters `list_kb_articles` and `search_kb`.
+- **Writing in the app**: administrators get a Markdown editor at
+  `/kb/articles/new?collection=` and `/kb/articles/:id/edit`, the same
+  `writeArticle` service a key uses, with a `KbWriter` that names the person.
+  An article is editable only under an `external_id` of its own; one brought
+  in from a file or website is overwritten by its next import.
 - Imports and connectors need a filesystem and raw sockets, so on Workers they
   report that they are unavailable. Reading and search work anywhere.
 

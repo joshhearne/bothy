@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ListChecks, Plus } from "lucide-react";
+import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,7 @@ export function KbCollection({
   filter,
   order,
   publicHref,
+  canWrite = false,
   base,
   locale,
   t,
@@ -55,6 +57,8 @@ export function KbCollection({
   order?: CollectionOrder;
   /** Where a public reader would open this, when they could. */
   publicHref?: string | null;
+  /** The reader may write to this collection: a "New article" way in is shown. */
+  canWrite?: boolean;
   base: string;
   locale: Locale;
   t: Messages;
@@ -188,6 +192,15 @@ export function KbCollection({
             {publicHref && (
               <CopyLink href={publicHref} label={t.kb.publicLink} copiedLabel={t.kb.publicLinkCopied} />
             )}
+            {canWrite && (
+              <Link
+                href={`${base}/articles/new?collection=${collection.id}` as Route}
+                className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-[var(--muted)]"
+              >
+                <Plus className="size-4 shrink-0" aria-hidden />
+                {t.kb.newArticle}
+              </Link>
+            )}
           </div>
         </div>
 
@@ -240,6 +253,11 @@ export function KbCollection({
                   >
                     {article.title}
                   </Link>
+                  {article.kind === "runbook" && (
+                    <Chip tone="blue" icon={ListChecks} className="ml-2 align-middle">
+                      {t.kb.runbook}
+                    </Chip>
+                  )}
                   <p className="text-sm text-[var(--muted-foreground)]">
                     {[
                       article.category,

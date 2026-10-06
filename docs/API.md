@@ -79,9 +79,9 @@ API keys with the `read` scope:
 | `list_companies`, `get_company`, `list_doc_types` | The hierarchy and the templates |
 | `list_kb_collections` | Knowledge base collections; with `collection_id`, its categories |
 | `search_kb` | One result per article: the passage that matched, and `source_url` |
-| `get_kb_article` | An article in chunks; follow `next_chunk` for a long one |
-| `list_kb_articles` | A collection's articles with their `external_id` |
-| `upsert_kb_article` | Writes an article, replacing the one with the same `external_id` |
+| `get_kb_article` | An article in chunks; follow `next_chunk` for a long one. A runbook also carries `steps` |
+| `list_kb_articles` | A collection's articles with their `external_id` and `kind`; `kind` filters |
+| `upsert_kb_article` | Writes an article, replacing the one with the same `external_id`; `kind: "runbook"` makes a procedure |
 | `archive_kb_article` | Takes an article out of the collection; nothing is deleted |
 
 The last two are offered only to a key granted write on a collection, under
@@ -89,6 +89,17 @@ Admin → Knowledge base → the collection → API key access, and work only th
 
 A knowledge base collection kept to named companies is seen only by a key with
 access to one of them, and no key sees a collection with MCP turned off.
+
+### Runbooks
+An article with `kind: "runbook"` is a procedure. Its `steps` are read from the
+body on every save: the items of the first top-level numbered list, each as
+`{ id, text, note?, canned? }`. The `id` is stable: write it yourself at the end
+of the item as `{#my-id}` (`[a-z0-9-]{1,40}`), or let Bothy mint one on first
+save, after which it is in the stored body and kept across edits. A system that
+tracks progress through a runbook keys its state by `id` and keeps that state on
+its own side; Bothy stores none. `note` is whatever was nested under the item,
+Markdown; `canned` is the name in the first `@canned:[Name]` token of the step.
+Two steps with one id are refused.
 
 ## Knowledge base import (administrators, session-authenticated)
 Used by Admin → Knowledge base. Not part of `/api/v1` and not reachable with an

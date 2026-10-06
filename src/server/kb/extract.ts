@@ -23,6 +23,10 @@ export type ExtractedArticle = {
   dateCreated: Date | null;
   dateModified: Date | null;
   metadata: Record<string, unknown>;
+  /** A runbook keeps its steps apart; an article is the default. */
+  kind?: ArticleKind;
+  /** Frontmatter `internal_only`: true keeps the article off the public site. Absent leaves it as it was. */
+  publicHidden?: boolean;
 };
 
 /** A file that is not an article, which is not the same as one that failed. */
@@ -47,7 +51,23 @@ const CLAIMED = new Set([
   "date_modified",
   "created",
   "modified",
+  "kind",
+  "internal_only",
 ]);
+
+export const ARTICLE_KINDS = ["article", "runbook"] as const;
+export type ArticleKind = (typeof ARTICLE_KINDS)[number];
+
+function asKind(value: unknown): ArticleKind {
+  return typeof value === "string" && value.trim().toLowerCase() === "runbook" ? "runbook" : "article";
+}
+
+function asFlag(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string" && /^(true|yes|on)$/i.test(value.trim())) return true;
+  if (typeof value === "string" && /^(false|no|off)$/i.test(value.trim())) return false;
+  return undefined;
+}
 
 /** A page of real text has far more than this; a scan has a stray mark or none. */
 const MIN_CHARS_PER_PAGE = 16;
@@ -105,6 +125,8 @@ function fromMarkdown(path: string, source: string): ExtractedArticle {
     dateCreated: asDate(data.date_created ?? data.created),
     dateModified: asDate(data.date_modified ?? data.modified),
     metadata,
+    kind: asKind(data.kind),
+    publicHidden: asFlag(data.internal_only),
   };
 }
 

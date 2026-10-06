@@ -646,3 +646,12 @@ CREATE TABLE kb_hidden_categories (
   category text NOT NULL,
   PRIMARY KEY (collection_id, category)
 );
+
+-- ---------- Runbooks ----------
+-- A runbook is an article whose body is a procedure. Its steps are derived
+-- from the body on every save, each with an id a consumer can track progress
+-- by. Progress itself is never stored here.
+ALTER TABLE kb_articles ADD COLUMN kind text NOT NULL DEFAULT 'article'
+  CHECK (kind IN ('article','runbook'));
+ALTER TABLE kb_articles ADD COLUMN steps jsonb NOT NULL DEFAULT '[]';
+CREATE INDEX kb_articles_runbook_idx ON kb_articles (collection_id) WHERE kind = 'runbook';

@@ -24,6 +24,7 @@ import {
 } from "@/server/services/kb-write";
 import { ForbiddenError, NotFoundError } from "@/server/services/errors";
 import type { KbGrant } from "@/server/services/kb-grants";
+import { ARTICLE_KINDS } from "@/server/kb/extract";
 import { toolError, toolResult, type ToolResult } from "@/server/mcp/protocol";
 import type { CompanyScope } from "@/server/auth/company-scope";
 
@@ -42,6 +43,7 @@ import type { CompanyScope } from "@/server/auth/company-scope";
 /** Who is calling: the key, what it may see, and what it was granted. */
 export type McpCaller = {
   scope: CompanyScope;
+  via: "mcp";
   keyId: string;
   keyName: string;
   grants: readonly KbGrant[];
@@ -83,6 +85,7 @@ const kbSearchArgs = z.object({
   query: z.string().trim().min(1, "query is required").max(200),
   collection_id: z.uuid().optional(),
   category: z.string().trim().max(200).optional(),
+  kind: z.enum(ARTICLE_KINDS).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(10),
 });
 
@@ -92,6 +95,7 @@ const kbListArgs = z.object({
   collection_id: z.uuid(),
   category: z.string().trim().max(200).optional(),
   subcategory: z.string().trim().max(200).optional(),
+  kind: z.enum(ARTICLE_KINDS).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(100),
   cursor: z.string().max(20).optional(),
 });
@@ -105,6 +109,7 @@ const kbWriteArgs = z.object({
   subcategory: z.string().optional(),
   source_url: z.string().optional(),
   internal_only: z.boolean().optional(),
+  kind: z.enum(ARTICLE_KINDS).optional(),
 });
 
 const kbArchiveArgs = z.object({ article_id: z.uuid() });
@@ -393,6 +398,11 @@ export const TOOLS: ToolDefinition[] = [
         query: { type: "string", description: "Words or a quoted phrase. OR is supported." },
         collection_id: { type: "string", format: "uuid", description: "Restrict to one collection." },
         category: { type: "string", description: "Restrict to one category, by exact name." },
+        kind: {
+          type: "string",
+          enum: ["article", "runbook"],
+          description: "Only articles, or only runbooks: procedures whose steps are kept apart.",
+        },
         limit: { type: "integer", minimum: 1, maximum: 50, default: 10 },
       },
       required: ["query"],
@@ -406,6 +416,7 @@ export const TOOLS: ToolDefinition[] = [
           q: parsed.data.query,
           ...(parsed.data.collection_id ? { collectionId: parsed.data.collection_id } : {}),
           ...(parsed.data.category ? { category: parsed.data.category } : {}),
+          ...(parsed.data.kind ? { kind: parsed.data.kind } : {}),
           limit: parsed.data.limit,
         },
         kbReader(caller),
@@ -417,6 +428,7 @@ export const TOOLS: ToolDefinition[] = [
         articles: results.hits.map((hit) => ({
           article_id: hit.articleId,
           title: hit.title,
+          kind: hit.kind,
           collection: { id: hit.collectionId, name: hit.collectionName },
           category: hit.category,
           subcategory: hit.subcategory,
@@ -470,6 +482,8 @@ export const TOOLS: ToolDefinition[] = [
       return toolResult({
         article_id: article.id,
         title: article.title,
+        kind: article.kind,
+        ...(article.kind === "runbook" ? { steps: article.steps } : {}),
         collection: { id: article.collectionId, name: article.collectionName },
         category: article.category,
         subcategory: article.subcategory,
@@ -508,6 +522,11 @@ export const TOOLS: ToolDefinition[] = [
         collection_id: { type: "string", format: "uuid" },
         category: { type: "string", description: "Restrict to one category, by exact name." },
         subcategory: { type: "string" },
+        kind: {
+          type: "string",
+          enum: ["article", "runbook"],
+          description: "Only articles, or only runbooks: procedures whose steps are kept apart.",
+        },
         limit: { type: "integer", minimum: 1, maximum: 200, default: 100 },
         cursor: { type: "string", description: "next_cursor from the previous page." },
       },
@@ -527,6 +546,7 @@ export const TOOLS: ToolDefinition[] = [
           collectionId: collection.id,
           ...(parsed.data.category ? { category: parsed.data.category } : {}),
           ...(parsed.data.subcategory ? { subcategory: parsed.data.subcategory } : {}),
+          ...(parsed.data.kind ? { kind: parsed.data.kind } : {}),
           limit: parsed.data.limit,
           ...(parsed.data.cursor ? { cursor: parsed.data.cursor } : {}),
         },
@@ -546,6 +566,7 @@ export const TOOLS: ToolDefinition[] = [
           article_id: article.id,
           external_id: article.externalId,
           title: article.title,
+          kind: article.kind,
           category: article.category,
           subcategory: article.subcategory,
           source_url: article.sourceUrl,
@@ -589,6 +610,14 @@ export const TOOLS: ToolDefinition[] = [
             "signing in. Set it for anything about administration, security, or how " +
             "systems are built. Leave it out to keep the article's current setting.",
         },
+        kind: {
+          type: "string",
+          enum: ["article", "runbook"],
+          description:
+            "A runbook is a procedure: the items of the body's first numbered list are its " +
+            "steps, each given a stable id on save (or written as `{#id}` at the end of the " +
+            "item) that a system tracking progress keys on. Default article.",
+        },
       },
       required: ["collection_id", "external_id", "title", "body"],
     },
@@ -607,6 +636,7 @@ export const TOOLS: ToolDefinition[] = [
         ...(parsed.data.internal_only !== undefined
           ? { publicHidden: parsed.data.internal_only }
           : {}),
+        ...(parsed.data.kind ? { kind: parsed.data.kind } : {}),
       });
       if (!input.success) return invalid(input.error);
 

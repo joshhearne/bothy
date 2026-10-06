@@ -8,6 +8,7 @@ import { writeAudit } from "@/server/services/audit";
 import { applyVisibility } from "@/server/services/kb-visibility";
 import { ForbiddenError, NotFoundError } from "@/server/services/errors";
 import { getCollection, type KbReader } from "@/server/services/kb";
+import { ARTICLE_KINDS } from "@/server/kb/extract";
 import { sourceKey, storeArticle } from "@/server/services/kb-import";
 import { safeUrl } from "@/server/kb/extract";
 import type { KbGrant } from "@/server/services/kb-grants";
@@ -24,12 +25,17 @@ import type { CompanyScope } from "@/server/auth/company-scope";
  * that no longer applies is archived.
  */
 
+/**
+ * Who is writing: an API key with its grants, or a signed-in person. An
+ * administrator may write to any collection; anyone else needs a grant.
+ */
 export type KbWriter = {
   scope: CompanyScope;
-  keyId: string;
-  keyName: string;
   grants: readonly KbGrant[];
-};
+} & (
+  | { via: "mcp" | "api"; keyId: string; keyName: string }
+  | { via: "app"; userId: string; userName: string; admin: boolean }
+);
 
 /** Generous for prose, small next to what a request is allowed to carry. */
 const MAX_BODY_CHARS = 1_000_000;
@@ -60,22 +66,32 @@ export const articleWriteSchema = z.object({
     .optional(),
   /** True keeps the article off the public site. Left out, it stays as it was. */
   publicHidden: z.boolean().optional(),
+  /** A runbook's steps are derived from its body on save. Left out, an article. */
+  kind: z.enum(ARTICLE_KINDS).optional(),
 });
 
-export function readerFor(writer: Pick<KbWriter, "scope" | "grants">): KbReader {
+export function readerFor(writer: Pick<KbWriter, "scope" | "grants"> & { via?: KbWriter["via"] }): KbReader {
   return {
     scope: writer.scope,
-    via: "mcp",
+    // A key reads as MCP does, whichever door it came through; a person reads as the app.
+    via: writer.via === "app" ? "app" : "mcp",
     granted: writer.grants.map((grant) => grant.collectionId),
   };
 }
 
-export function mayWrite(writer: Pick<KbWriter, "grants">, collectionId: string): boolean {
+export function mayWrite(writer: Pick<KbWriter, "grants"> & { via?: KbWriter["via"]; admin?: boolean }, collectionId: string): boolean {
+  if (writer.via === "app" && writer.admin) return true;
   return writer.grants.some((grant) => grant.collectionId === collectionId && grant.canWrite);
 }
 
 function attribution(writer: KbWriter): Record<string, unknown> {
-  return { via: "mcp", apiKeyId: writer.keyId, apiKeyName: writer.keyName };
+  return writer.via === "app"
+    ? { via: "app", userId: writer.userId, userName: writer.userName }
+    : { via: writer.via, apiKeyId: writer.keyId, apiKeyName: writer.keyName };
+}
+
+function writerName(writer: KbWriter): string {
+  return writer.via === "app" ? writer.userName : writer.keyName;
 }
 
 /**
@@ -88,7 +104,9 @@ async function writable(collectionId: string, writer: KbWriter) {
   if (!collection) throw new NotFoundError("Collection");
   if (!mayWrite(writer, collectionId)) {
     throw new ForbiddenError(
-      `This key may read "${collection.name}" but not change it. An administrator can allow that under Admin → Knowledge base.`,
+      writer.via === "app"
+        ? `You may read "${collection.name}" but not change it.`
+        : `This key may read "${collection.name}" but not change it. An administrator can allow that under Admin → Knowledge base.`,
     );
   }
   return collection;
@@ -148,13 +166,14 @@ export async function writeArticle(
       format: "markdown",
       sourceType: "md",
       extraction: "ok",
+      kind: data.kind ?? "article",
       externalId: data.externalId,
       sourceUrl,
       category: data.category ?? null,
       subcategory: data.subcategory ?? null,
       dateCreated: existing?.dateCreated ?? now,
       dateModified: now,
-      metadata: { written_by: writer.keyName },
+      metadata: { written_by: writerName(writer) },
     },
     contentHash,
   );

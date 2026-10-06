@@ -1,10 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { checkbox, text } from "@/lib/form";
+import { redirect } from "next/navigation";
+import { ZodError } from "zod";
+import { checkbox, text, toFieldErrors, type FormState } from "@/lib/form";
 import { getCompanyScope, requireAdmin, requireUser } from "@/server/auth/session";
 import { readerKey } from "@/server/kb/identity";
-import { NotFoundError } from "@/server/services/errors";
+import { RunbookStepError } from "@/server/kb/runbook";
+import { ForbiddenError, NotFoundError } from "@/server/services/errors";
+import { writeArticle } from "@/server/services/kb-write";
 import { setArticlePublicHidden } from "@/server/services/kb";
 import { setFavorite, setVote } from "@/server/services/kb-reactions";
 
@@ -54,4 +58,64 @@ export async function setArticlePublicHiddenAction(formData: FormData): Promise<
   const user = await requireAdmin();
   await setArticlePublicHidden(id, checkbox(formData, "hidden"), user.id);
   revalidatePath(`/kb/articles/${id}`);
+}
+
+/* ---------- Writing an article in the app ---------- */
+
+/** The signed-in person as a writer: an administrator may write anywhere, until grants say more. */
+async function writerFor() {
+  const user = await requireUser();
+  return {
+    via: "app" as const,
+    scope: await getCompanyScope(user),
+    grants: [],
+    userId: user.id,
+    userName: user.name,
+    admin: user.role === "admin",
+  };
+}
+
+/** `kind-of-thing-3f9a`: a name for an article written here, stable for its life. */
+function mintExternalId(title: string): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  const bytes = new Uint8Array(2);
+  crypto.getRandomValues(bytes);
+  const tail = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `${slug || "article"}-${tail}`;
+}
+
+export async function saveArticleAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const collectionId = text(formData, "collectionId") ?? "";
+  const existingId = text(formData, "externalId");
+  const title = text(formData, "title") ?? "";
+  let articleId: string;
+  try {
+    const writer = await writerFor();
+    const result = await writeArticle(
+      {
+        collectionId,
+        externalId: existingId ?? mintExternalId(title),
+        title,
+        body: (formData.get("body") as string | null) ?? "",
+        category: text(formData, "category"),
+        subcategory: text(formData, "subcategory"),
+        kind: checkbox(formData, "runbook") ? "runbook" : "article",
+        publicHidden: checkbox(formData, "internalOnly"),
+      },
+      writer,
+    );
+    articleId = result.articleId;
+  } catch (err) {
+    if (err instanceof ZodError) return { fieldErrors: toFieldErrors(err) };
+    if (err instanceof RunbookStepError) return { fieldErrors: { body: err.message } };
+    if (err instanceof NotFoundError || err instanceof ForbiddenError) return { error: err.message };
+    throw err;
+  }
+  revalidatePath(`/kb/${collectionId}`);
+  revalidatePath(`/kb/articles/${articleId}`);
+  redirect(`/kb/articles/${articleId}`);
 }

@@ -5,6 +5,7 @@
  * Local passwords live in `accounts.password` (Argon2id), not on `users`.
  */
 import { sql } from "drizzle-orm";
+import type { RunbookStep } from "@/server/kb/runbook";
 import {
   bigint,
   bigserial,
@@ -811,6 +812,10 @@ export const kbArticles = pgTable(
     publicHidden: boolean("public_hidden").notNull().default(false),
     /** Why: held back by hand, by a hide rule, or with its category. Null when shown. */
     hiddenBy: text("hidden_by"),
+    /** An article, or a runbook: a procedure whose steps are kept apart for a consumer to track. */
+    kind: text("kind").notNull().default("article"),
+    /** A runbook's steps, derived from its body on every save; `[]` for an article. */
+    steps: jsonb("steps").$type<RunbookStep[]>().notNull().default([]),
     /** SHA-256 of the source bytes, so an unchanged file is not rewritten. */
     contentHash: text("content_hash").notNull(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
@@ -822,6 +827,8 @@ export const kbArticles = pgTable(
     check("kb_articles_format_check", sql`${t.format} IN ('markdown','text')`),
     check("kb_articles_extraction_check", sql`${t.extraction} IN ('ok','unextracted')`),
     check("kb_articles_hidden_by_check", sql`${t.hiddenBy} IN ('manual','rule','category')`),
+    check("kb_articles_kind_check", sql`${t.kind} IN ('article','runbook')`),
+    index("kb_articles_runbook_idx").on(t.collectionId).where(sql`${t.kind} = 'runbook'`),
     index("kb_articles_category_idx").on(t.collectionId, t.category, t.subcategory),
   ],
 );

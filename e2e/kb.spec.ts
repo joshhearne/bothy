@@ -1308,6 +1308,103 @@ test("keyword rules and category visibility hold articles back from the public s
   await onSite.context.close();
 });
 
+test("a runbook keeps its step ids across edits, renders as a checklist, and reads the same through MCP and import", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/admin/kb");
+  await page.getByLabel("Collection name").fill(unique("Calder Ridge Runbooks"));
+  await page.getByRole("button", { name: "Create collection" }).click();
+  await expect(page).toHaveURL(/\/admin\/kb\/[0-9a-f-]{36}$/);
+  const runbooks = page.url().split("/").pop() as string;
+  // Open to the main key, so MCP can read it.
+  psql(`update kb_collections set all_companies=true, mcp_enabled=true where id='${runbooks}';`);
+
+  // Written in the app.
+  await page.goto(`/kb/${runbooks}`);
+  await page.getByRole("link", { name: "New article" }).click();
+  await page.getByLabel("Title").fill("Reset a voicemail PIN");
+  await page.getByLabel("Category").fill("Phones");
+  await page.getByRole("checkbox", { name: "This is a runbook" }).check();
+  await page.getByRole("textbox", { name: "Body" }).fill(
+    "Have the extension ready.\n\n1. Find the user. {#find}\n2. Open **Voicemail Passcode** and set it.\n\n    Default is `753159`.\n\n3. Send @canned:[PIN Reset] to the user.\n\nClose the ticket.",
+  );
+  const preview = page.getByRole("region", { name: "Steps as they will be saved" });
+  await expect(preview).toContainText("{#find}");
+  await expect(preview.getByRole("listitem")).toHaveCount(3);
+  await page.getByRole("button", { name: "Save article" }).click();
+  await expect(page).toHaveURL(/\/kb\/articles\/[0-9a-f-]{36}$/);
+  const articleId = page.url().split("/").pop() as string;
+
+  // Drawn as a checklist that keeps nothing.
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Runbook");
+  const steps = page.getByRole("region", { name: "Steps" });
+  await expect(steps.getByRole("checkbox")).toHaveCount(3);
+  await expect(steps).toContainText("0 of 3 done");
+  await expect(steps).toContainText("Reply template: PIN Reset");
+  await expect(steps).toContainText("Default is 753159");
+  await steps.getByRole("checkbox").first().check();
+  await expect(steps).toContainText("1 of 3 done");
+  await expect(page.getByText("Close the ticket.")).toBeVisible();
+  await expect(page.getByText("{#find}")).toHaveCount(0);
+
+  const ids = () =>
+    JSON.parse(psql(`select steps::text from kb_articles where id='${articleId}';`)) as { id: string; text: string }[];
+  const before = ids();
+  expect(before.map((s) => s.id)[0]).toBe("find");
+  expect(before.every((s) => /^[a-z0-9-]{1,40}$/.test(s.id))).toBe(true);
+
+  // Edited: the ids are in the body, and a reworded step keeps its id by its words.
+  await page.getByRole("link", { name: "Edit" }).click();
+  const body = page.getByRole("textbox", { name: "Body" });
+  await expect(body).toHaveValue(new RegExp(`\\{#${before[1]?.id}\\}`));
+  await body.fill((await body.inputValue()).replace("\n\nClose the ticket.", "\n4. Note the change on the ticket.\n\nClose the ticket."));
+  await page.getByRole("button", { name: "Save article" }).click();
+  await expect(page).toHaveURL(`/kb/articles/${articleId}`);
+  const after = ids();
+  expect(after).toHaveLength(4);
+  expect(after.slice(0, 3).map((s) => s.id)).toEqual(before.map((s) => s.id));
+
+  // The same through MCP, with the steps.
+  const read = await callTool(request, "get_kb_article", { article_id: articleId });
+  expect(read.structuredContent.kind).toBe("runbook");
+  expect(read.structuredContent.steps.map((s: { id: string }) => s.id)).toEqual(after.map((s) => s.id));
+  expect(read.structuredContent.steps[2].canned).toBe("PIN Reset");
+  const listed = await callTool(request, "list_kb_articles", { collection_id: runbooks, kind: "runbook" });
+  expect(listed.structuredContent.articles.map((a: { article_id: string }) => a.article_id)).toEqual([articleId]);
+  const none = await callTool(request, "list_kb_articles", { collection_id: runbooks, kind: "article" });
+  expect(none.structuredContent.articles).toEqual([]);
+
+  // Imported with frontmatter: kind, ids kept, a repeated id refused.
+  await page.goto(`/admin/kb/${runbooks}`);
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: "runbooks.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from(
+      zipSync({
+        "export/phones/handset-swap.md": text(
+          "---\ntitle: Handset swap\nexternal_id: proc/handset-swap\nkind: runbook\ninternal_only: true\n---\n\n1. Unplug the old handset. {#unplug}\n2. Plug in the new one.\n",
+        ),
+        "export/phones/broken.md": text(
+          "---\ntitle: Broken\nkind: runbook\n---\n\n1. One {#same}\n2. Two {#same}\n",
+        ),
+      }),
+    ),
+  });
+  await page.getByRole("button", { name: "Start import" }).click();
+  await expect(page.getByText("Import finished.")).toBeVisible({ timeout: 60_000 });
+  expect(await summary(page)).toEqual({ Added: 1, Updated: 0, Skipped: 0, Failed: 1 });
+  await page.getByText("What failed").first().click();
+  await expect(page.getByText('Step id "same" is used more than once').first()).toBeVisible();
+  const swap = JSON.parse(
+    psql(`select json_build_object('kind', kind, 'hidden', public_hidden, 'steps', steps)::text from kb_articles where collection_id='${runbooks}' and external_id='proc/handset-swap';`),
+  );
+  expect(swap.kind).toBe("runbook");
+  expect(swap.hidden).toBe(true);
+  expect(swap.steps[0].id).toBe("unplug");
+  expect(swap.steps[1].id).toMatch(/^[0-9a-f]{8}$/);
+});
+
 /** One pixel, which is enough for a browser to draw. */
 const ONE_PIXEL = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",

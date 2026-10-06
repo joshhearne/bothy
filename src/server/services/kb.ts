@@ -16,7 +16,8 @@ import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/errors";
 import { applyVisibility } from "@/server/services/kb-visibility";
 import type { CompanyScope } from "@/server/auth/company-scope";
-import { safeUrl } from "@/server/kb/extract";
+import { ARTICLE_KINDS, safeUrl, type ArticleKind } from "@/server/kb/extract";
+import type { RunbookStep } from "@/server/kb/runbook";
 
 /**
  * The knowledge base: collections of articles brought in from outside, kept
@@ -415,6 +416,7 @@ export type ArticleSummary = {
   id: string;
   externalId: string | null;
   title: string;
+  kind: ArticleKind;
   category: string | null;
   subcategory: string | null;
   sourceUrl: string | null;
@@ -431,6 +433,7 @@ export const articleSummaryColumns = {
   id: kbArticles.id,
   externalId: kbArticles.externalId,
   title: kbArticles.title,
+  kind: sql<ArticleKind>`${kbArticles.kind}`,
   category: kbArticles.category,
   subcategory: kbArticles.subcategory,
   sourceUrl: kbArticles.sourceUrl,
@@ -442,6 +445,7 @@ export const articleSummaryColumns = {
 };
 
 export type ArticleDetail = ArticleSummary & {
+  steps: RunbookStep[];
   publicHidden: boolean;
   hiddenBy: string | null;
   collectionPublic: boolean;
@@ -466,6 +470,8 @@ export const articleListSchema = z.object({
   uncategorized: z.boolean().default(false),
   /** What the articles came from: documents brought in as files, or articles proper. */
   type: z.enum(ARTICLE_TYPES).optional(),
+  /** Only articles, or only runbooks. */
+  kind: z.enum(ARTICLE_KINDS).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   cursor: z.string().optional(),
   sort: z.enum(ARTICLE_SORTS).default("name"),
@@ -509,6 +515,7 @@ export async function listArticles(
   if (data.subcategory) filters.push(eq(kbArticles.subcategory, data.subcategory));
   if (data.unextractedOnly) filters.push(eq(kbArticles.extraction, "unextracted"));
   if (data.type) filters.push(typeFilter(data.type));
+  if (data.kind) filters.push(eq(kbArticles.kind, data.kind));
 
   const rows = await db
     .select(articleSummaryColumns)
@@ -560,6 +567,7 @@ export async function listTypes(collectionId: string, reader: KbReader): Promise
 export async function listCategories(
   collectionId: string,
   reader: KbReader,
+  kind?: ArticleKind,
 ): Promise<CategoryCount[]> {
   return db
     .select({
@@ -573,6 +581,7 @@ export async function listCategories(
       and(
         eq(kbArticles.collectionId, collectionId),
         isNull(kbArticles.archivedAt),
+        ...(kind ? [eq(kbArticles.kind, kind)] : []),
         ...readable(reader),
       ),
     )
@@ -585,6 +594,7 @@ export async function getArticle(id: string, reader: KbReader): Promise<ArticleD
     .select({
       id: kbArticles.id,
       title: kbArticles.title,
+      kind: sql<ArticleKind>`${kbArticles.kind}`,
       category: kbArticles.category,
       subcategory: kbArticles.subcategory,
       sourceUrl: kbArticles.sourceUrl,
@@ -597,6 +607,7 @@ export async function getArticle(id: string, reader: KbReader): Promise<ArticleD
       collectionName: kbCollections.name,
       publicHidden: kbArticles.publicHidden,
       hiddenBy: kbArticles.hiddenBy,
+      steps: kbArticles.steps,
       collectionPublic: kbCollections.publicAccess,
       externalId: kbArticles.externalId,
       sourcePath: kbArticles.sourcePath,
@@ -675,6 +686,7 @@ export const kbSearchSchema = z.object({
   q: z.string().trim().max(200).default(""),
   collectionId: z.uuid().optional(),
   category: z.string().trim().max(200).optional(),
+  kind: z.enum(ARTICLE_KINDS).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   cursor: z.string().optional(),
 });
@@ -684,6 +696,7 @@ export type KbSearchInput = z.input<typeof kbSearchSchema>;
 export type KbHit = {
   articleId: string;
   title: string;
+  kind: ArticleKind;
   collectionId: string;
   collectionName: string;
   category: string | null;
@@ -706,7 +719,7 @@ export async function searchKb(
   input: KbSearchInput,
   reader: KbReader,
 ): Promise<{ hits: KbHit[]; nextCursor: string | null }> {
-  const { q, collectionId, category, limit, cursor } = kbSearchSchema.parse(input);
+  const { q, collectionId, category, kind, limit, cursor } = kbSearchSchema.parse(input);
   if (q === "") return { hits: [], nextCursor: null };
 
   const offset = decodeCursor(cursor);
@@ -719,6 +732,7 @@ export async function searchKb(
   ];
   if (collectionId) filters.push(eq(kbChunks.collectionId, collectionId));
   if (category) filters.push(eq(kbArticles.category, category));
+  if (kind) filters.push(eq(kbArticles.kind, kind));
 
   const rank = sql<number>`ts_rank_cd(${kbChunks.searchVec}, ${query}, 1)`;
 
@@ -741,6 +755,7 @@ export async function searchKb(
     .select({
       articleId: kbArticles.id,
       title: kbArticles.title,
+      kind: sql<ArticleKind>`${kbArticles.kind}`,
       collectionId: kbCollections.id,
       collectionName: kbCollections.name,
       category: kbArticles.category,

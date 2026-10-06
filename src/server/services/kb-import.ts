@@ -6,6 +6,7 @@ import { kbArticles, kbChunks, kbCollections, kbImports } from "@/server/db/sche
 import { writeAudit } from "@/server/services/audit";
 import { chunkText } from "@/server/kb/chunk";
 import { tidyImportedMarkdown } from "@/server/kb/tidy";
+import { deriveRunbook, RunbookStepError, type RunbookStep } from "@/server/kb/runbook";
 import { applyVisibility } from "@/server/services/kb-visibility";
 import {
   extractArticle,
@@ -158,7 +159,21 @@ export async function storeArticle(
   contentHash: string,
 ): Promise<string> {
   const title = clean(article.title).slice(0, 500) || "Untitled";
-  const body = clean(article.body);
+  let body = clean(article.body);
+  const kind = article.kind ?? "article";
+
+  // A runbook's steps come from its body, keeping the ids of the steps it had.
+  let steps: RunbookStep[] = [];
+  if (kind === "runbook" && article.format === "markdown") {
+    const [known] = await db
+      .select({ steps: kbArticles.steps })
+      .from(kbArticles)
+      .where(and(eq(kbArticles.collectionId, collectionId), eq(kbArticles.sourceKey, key)))
+      .limit(1);
+    const derived = deriveRunbook(body, known?.steps ?? []);
+    body = derived.body;
+    steps = derived.steps;
+  }
 
   const values = {
     externalId: article.externalId,
@@ -175,6 +190,12 @@ export async function storeArticle(
     dateModified: article.dateModified,
     extraction: article.extraction,
     contentHash,
+    kind,
+    steps,
+    // Said in the file, the public-site setting is taken; unsaid, it is left as it was.
+    ...(article.publicHidden === undefined
+      ? {}
+      : { publicHidden: article.publicHidden, hiddenBy: article.publicHidden ? "manual" : null }),
   };
 
   const chunks = article.extraction === "ok" ? chunkText(body) : [];
@@ -521,6 +542,10 @@ export class ImportRun {
       this.byPath.set(path, now);
       await this.progress();
     } catch (error) {
+      if (error instanceof RunbookStepError) {
+        await this.fail(path, error.message);
+        return;
+      }
       console.error(`bothy: knowledge base import could not store ${path}`, error);
       await this.fail(path, "The article could not be stored");
     }

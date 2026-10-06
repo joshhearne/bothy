@@ -1,6 +1,9 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { ChevronLeft, ExternalLink, FileText } from "lucide-react";
+import { ChevronLeft, ExternalLink, FileText, ListChecks } from "lucide-react";
+import { Chip } from "@/components/ui/chip";
+import { RunbookSteps, type RenderedStep } from "@/components/kb-runbook-steps";
+import { deriveRunbook } from "@/server/kb/runbook";
 import { renderMarkdown } from "@/server/fields/render";
 import { outlineHtml } from "@/server/kb/outline";
 import { embedVideos } from "@/server/kb/video";
@@ -62,9 +65,35 @@ export function KbArticle({
 }) {
   const unread = attachments(article.metadata.doc_attachments).filter((item) => !item.extracted);
   const original = originalHref ? originalOf(article.metadata) : null;
-  const drawn =
-    article.extraction !== "unextracted" && article.format === "markdown"
-      ? outlineHtml(embedVideos(renderMarkdown(withoutLeadingTitle(article.body, article.title))))
+  const markdown = article.extraction !== "unextracted" && article.format === "markdown";
+  const runbook = markdown && article.kind === "runbook" ? deriveRunbook(article.body, article.steps) : null;
+
+  // A runbook is drawn in three parts: what comes before the steps, the steps
+  // as a checklist, and what comes after. The outline is read across the
+  // first and the last, so its ids are on the headings that are drawn.
+  const MARK = "<!--runbook-steps-->";
+  const source = runbook
+    ? `${embedVideos(renderMarkdown(withoutLeadingTitle(runbook.preamble, article.title)))}${MARK}${
+        runbook.tail ? embedVideos(renderMarkdown(runbook.tail)) : ""
+      }`
+    : markdown
+      ? embedVideos(renderMarkdown(withoutLeadingTitle(article.body, article.title)))
+      : null;
+  const drawn = source !== null ? outlineHtml(source) : null;
+  const parts =
+    runbook && drawn
+      ? {
+          preamble: drawn.html.slice(0, drawn.html.indexOf(MARK)),
+          steps: runbook.steps.map(
+            (step): RenderedStep => ({
+              id: step.id,
+              html: renderMarkdown(step.text).replace(/^<p>([\s\S]*)<\/p>\s*$/, "$1"),
+              noteHtml: step.note ? embedVideos(renderMarkdown(step.note)) : null,
+              canned: step.canned ?? null,
+            }),
+          ),
+          tail: drawn.html.slice(drawn.html.indexOf(MARK) + MARK.length),
+        }
       : null;
 
   return (
@@ -79,7 +108,14 @@ export function KbArticle({
             {t.kb.backTo(article.collectionName)}
           </Link>
 
-          <h1 className="text-2xl font-semibold tracking-tight break-words">{article.title}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight break-words">
+            {article.title}
+            {article.kind === "runbook" && (
+              <Chip tone="blue" icon={ListChecks} className="ml-3 align-middle text-xs">
+                {t.kb.runbook}
+              </Chip>
+            )}
+          </h1>
 
           <p className="text-sm text-[var(--muted-foreground)]">
             {[
@@ -148,6 +184,22 @@ export function KbArticle({
           <p role="note" className="rounded-md border px-3 py-2 text-sm">
             {t.kb.unextractedBody}
           </p>
+        ) : parts ? (
+          <>
+            {parts.preamble && (
+              <div
+                className="prose-editor kb-article min-w-0 text-sm break-words"
+                dangerouslySetInnerHTML={{ __html: parts.preamble }}
+              />
+            )}
+            <RunbookSteps steps={parts.steps} />
+            {parts.tail && (
+              <div
+                className="prose-editor kb-article min-w-0 text-sm break-words"
+                dangerouslySetInnerHTML={{ __html: parts.tail }}
+              />
+            )}
+          </>
         ) : drawn ? (
           <div
             className="prose-editor kb-article min-w-0 text-sm break-words"

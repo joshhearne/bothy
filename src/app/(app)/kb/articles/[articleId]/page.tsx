@@ -1,4 +1,7 @@
+import Link from "next/link";
+import type { Route } from "next";
 import { notFound } from "next/navigation";
+import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CopyLink } from "@/components/ui/copy-link";
 import { KbArticle } from "@/components/kb-article";
@@ -44,6 +47,15 @@ export default async function ArticlePage({
         <>
           {publicHref && (
             <CopyLink href={publicHref} label={t.kb.publicLink} copiedLabel={t.kb.publicLinkCopied} />
+          )}
+          {user.role === "admin" && article.externalId && article.format === "markdown" && (
+            <Link
+              href={`/kb/articles/${article.id}/edit` as Route}
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-[var(--muted)]"
+            >
+              <Pencil className="size-4" aria-hidden />
+              {t.kb.editArticle}
+            </Link>
           )}
           {
             // Only worth saying where the collection is on the public site at all.

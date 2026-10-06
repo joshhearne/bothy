@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Route } from "next";
-import { BookOpen, ExternalLink } from "lucide-react";
+import { BookOpen, ExternalLink, ListChecks } from "lucide-react";
+import { Chip } from "@/components/ui/chip";
 import { snippetToSegments } from "@/server/services/search";
 import type { KbHit } from "@/server/services/kb";
 import { formatDateTime } from "@/i18n/format";
@@ -34,6 +35,11 @@ export function KbResults({
             >
               {hit.title}
             </Link>
+            {hit.kind === "runbook" && (
+              <Chip tone="blue" icon={ListChecks} className="ml-2 align-middle">
+                {t.kb.runbook}
+              </Chip>
+            )}
             <p className="text-sm text-[var(--muted-foreground)]">
               {[
                 showCollection ? hit.collectionName : null,
