@@ -4,22 +4,11 @@
  * own anchors and menus are dropped on import and never reach here.
  */
 
+import { textOf } from "./entities";
+
 export type OutlineItem = { id: string; level: number; text: string };
 
 const HEADING = /<h([1-4])\b([^>]*)>([\s\S]*?)<\/h\1>/gi;
-
-function textOf(inner: string): string {
-  return inner
-    .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /**
  * The HTML with an id on every heading, and the outline those headings make.

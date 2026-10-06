@@ -1,6 +1,7 @@
 import "server-only";
 import sanitizeHtml from "sanitize-html";
 import TurndownService from "turndown";
+import { textOf } from "./entities";
 
 /**
  * HTML to Markdown, for Word documents and crawled pages. The HTML is cut
@@ -106,16 +107,7 @@ export function mainContent(html: string): string {
   return body?.[1] ?? html;
 }
 
-function decode(text: string): string {
-  return sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} })
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+const decode = textOf;
 
 export function pageTitle(html: string): string | null {
   const heading = /<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(html);

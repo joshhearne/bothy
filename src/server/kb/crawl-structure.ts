@@ -7,6 +7,7 @@
  *
  * Nothing here fetches.
  */
+import { textOf } from "./entities";
 
 export type CrawledPage = {
   url: string;
@@ -21,19 +22,7 @@ export type CrawledPage = {
 
 export type Placement = { category: string | null; subcategory: string | null };
 
-function decodeEntities(text: string): string {
-  return text
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&raquo;|&rsaquo;|&gt;/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+const decodeEntities = textOf;
 
 /** What a page calls its own address, when it says: the one without the tracking and the slug. */
 export function canonicalAddress(html: string, base: string): string | null {
