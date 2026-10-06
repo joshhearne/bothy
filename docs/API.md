@@ -58,9 +58,31 @@ POST   /vault/items/:item_id/totp     { document_id, field_id }  -> { code, peri
 ```
 Secrets never appear in document, revision, search, export, or webhook payloads.
 
+## Knowledge base
+The same reads MCP offers and the same writes a grant allows, as routes. A key
+reads the collections its companies or its grants give it; `mcp_enabled` does
+not apply here.
+```
+GET    /kb/collections?writable=true                       collections this key may read; writable keeps those it may write
+GET    /kb/collections/:id?kind=                           one collection with its categories and counts
+GET    /kb/search?q=&collection_id=&category=&kind=&limit=&cursor=
+GET    /kb/articles?collection_id=&category=&subcategory=&kind=&updated_since=&sort=&dir=&limit=&cursor=
+GET    /kb/articles/:id                                    full body, kind, steps (runbooks), external_id, source_url, public_url
+PUT    /kb/collections/:id/articles/:external_id           upsert { title, body, category?, subcategory?, kind?, source_url?, internal_only? }  (write scope + write grant)
+DELETE /kb/collections/:id/articles/:external_id           archive                                                                    (write scope + write grant)
+```
+`public_url` is the article's address on the public site when the site is on,
+the collection is on it, and the article is not held back; otherwise null.
+`internal_only` on a PUT holds the article back by hand (true) or puts it back
+(false); left out, the article stays as it was. A PUT answers 201 when it
+created the article and 200 when it replaced it; a runbook body with a repeated
+step id answers 400.
+
 ## Webhooks
 Events: `company.created|updated`, `location.created|updated`,
-`document.created|updated|archived`, `field.promoted`.
+`document.created|updated|archived`, `field.promoted`, `document.due`,
+`kb.article.upserted|archived` (`{ collection_id, article_id, external_id, kind }`,
+sent for writes through the API, MCP, or the in-app editor).
 
 Payload:
 ```json

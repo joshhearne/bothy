@@ -4,6 +4,7 @@ import { companyInputSchema } from "@/server/services/companies";
 import { locationInputSchema } from "@/server/services/locations";
 import { externalRefInputSchema } from "@/server/services/external-refs";
 import { API_SCOPES } from "@/server/services/api-keys";
+import { kbUpsertBodySchema } from "@/server/api/kb";
 import { FIELD_TYPES } from "@/server/db/schema";
 
 /**
@@ -111,6 +112,7 @@ export function buildOpenApiDocument(baseUrl: string) {
       { name: "Documents" },
       { name: "Option lists" },
       { name: "Search" },
+      { name: "Knowledge base" },
       { name: "Integrations" },
     ],
     paths: {
@@ -262,6 +264,92 @@ export function buildOpenApiDocument(baseUrl: string) {
           responses: { "200": ok("Matching documents"), ...ERRORS },
         },
       },
+      "/kb/collections": {
+        get: {
+          tags: ["Knowledge base"],
+          summary: "List the knowledge base collections this key may read",
+          parameters: [{ name: "writable", in: "query", schema: { type: "boolean" } }],
+          responses: { "200": ok("Collections, each with whether this key may write to it"), ...ERRORS },
+        },
+      },
+      "/kb/collections/{id}": {
+        parameters: [idParam],
+        get: {
+          tags: ["Knowledge base"],
+          summary: "Fetch a collection with its categories and counts",
+          parameters: [{ name: "kind", in: "query", schema: { type: "string", enum: ["article", "runbook"] } }],
+          responses: { "200": ok("The collection and its categories"), ...ERRORS },
+        },
+      },
+      "/kb/collections/{id}/articles/{external_id}": {
+        parameters: [
+          idParam,
+          { name: "external_id", in: "path", required: true, schema: { type: "string" } },
+        ],
+        put: {
+          tags: ["Knowledge base"],
+          summary: "Write an article under its external id, creating or replacing it",
+          description:
+            "Needs the write scope and a write grant on the collection. `kind: \"runbook\"` keeps the body's " +
+            "first numbered list apart as steps with stable ids; a repeated step id is refused with 400.",
+          requestBody: body(kbUpsertBodySchema),
+          responses: {
+            "200": ok("The article, replaced"),
+            "201": ok("The article, created"),
+            "400": { $ref: "#/components/responses/InvalidRequest" },
+            ...ERRORS,
+          },
+        },
+        delete: {
+          tags: ["Knowledge base"],
+          summary: "Archive the article under this external id",
+          responses: { "204": { description: "Archived" }, ...ERRORS },
+        },
+      },
+      "/kb/search": {
+        get: {
+          tags: ["Knowledge base"],
+          summary: "Search the knowledge base",
+          description: "One hit per article: the passage that matched best, with where it is.",
+          parameters: [
+            { name: "q", in: "query", required: true, schema: { type: "string" } },
+            { name: "collection_id", in: "query", schema: { type: "string", format: "uuid" } },
+            { name: "category", in: "query", schema: { type: "string" } },
+            { name: "kind", in: "query", schema: { type: "string", enum: ["article", "runbook"] } },
+            { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 25 } },
+            { name: "cursor", in: "query", schema: { type: "string" } },
+          ],
+          responses: { "200": ok("Matching articles"), ...ERRORS },
+        },
+      },
+      "/kb/articles": {
+        get: {
+          tags: ["Knowledge base"],
+          summary: "List a collection's articles",
+          parameters: [
+            { name: "collection_id", in: "query", required: true, schema: { type: "string", format: "uuid" } },
+            { name: "category", in: "query", schema: { type: "string" } },
+            { name: "subcategory", in: "query", schema: { type: "string" } },
+            { name: "kind", in: "query", schema: { type: "string", enum: ["article", "runbook"] } },
+            { name: "updated_since", in: "query", schema: { type: "string", format: "date-time" } },
+            { name: "sort", in: "query", schema: { type: "string", enum: ["name", "modified"] } },
+            { name: "dir", in: "query", schema: { type: "string", enum: ["asc", "desc"] } },
+            ...PAGE_PARAMS,
+          ],
+          responses: { "200": ok("A page of articles"), ...ERRORS },
+        },
+      },
+      "/kb/articles/{id}": {
+        parameters: [idParam],
+        get: {
+          tags: ["Knowledge base"],
+          summary: "Fetch an article in full",
+          description:
+            "The Markdown body, `external_id`, `source_url`, and `public_url` (the address on the public " +
+            "site, or null). A runbook also carries `steps`.",
+          responses: { "200": ok("The article"), ...ERRORS },
+        },
+      },
       "/external-refs": {
         put: {
           tags: ["Integrations"],
@@ -303,6 +391,7 @@ export function buildOpenApiDocument(baseUrl: string) {
         CompanyInput: jsonSchema(companyInputSchema),
         LocationInput: jsonSchema(locationInputSchema),
         FieldType: { type: "string", enum: [...FIELD_TYPES] },
+        KbArticleInput: jsonSchema(kbUpsertBodySchema),
       },
       responses: {
         Unauthorized: ok("No or invalid API key", "Error"),

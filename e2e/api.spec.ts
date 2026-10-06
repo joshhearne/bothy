@@ -12,6 +12,8 @@ import { createCompany, createDocType, signInAsAdmin, unique } from "./support";
 const DOC_TYPE = unique("API Vendor");
 const COMPANY = unique("API Co");
 
+const READ_KEY_NAME = unique("read key");
+const WRITE_KEY_NAME = unique("write key");
 let readKey = "";
 let writeKey = "";
 let docTypeId = "";
@@ -44,8 +46,8 @@ test.beforeAll(async ({ browser }) => {
   docTypeId = psql(`select id from doc_types where name = '${DOC_TYPE}';`);
   companyId = await createCompany(page, COMPANY);
 
-  readKey = await createKey(page, unique("read key"), ["read"]);
-  writeKey = await createKey(page, unique("write key"), ["write"]);
+  readKey = await createKey(page, READ_KEY_NAME, ["read"]);
+  writeKey = await createKey(page, WRITE_KEY_NAME, ["write", "read"]);
 
   await page.close();
 });
@@ -230,6 +232,12 @@ test("the OpenAPI document describes the API", async ({ request }) => {
     "/doc-types/{id}",
     "/documents",
     "/documents/{id}",
+    "/kb/collections",
+    "/kb/collections/{id}",
+    "/kb/collections/{id}/articles/{external_id}",
+    "/kb/search",
+    "/kb/articles",
+    "/kb/articles/{id}",
     "/documents/{id}/revisions",
     "/option-lists/{id}/items",
     "/search",
@@ -329,4 +337,96 @@ test("a revoked key stops working", async ({ request, browser }) => {
 
   const after = await request.get("/api/v1/doc-types", { headers: auth(doomed) });
   expect(after.status()).toBe(401);
+});
+
+test("the knowledge base is read and written over REST by grant", async ({ browser, request }) => {
+  const page = await browser.newPage();
+  await signInAsAdmin(page);
+  await page.goto("/admin/kb");
+  const name = unique("REST KB");
+  await page.getByLabel("Collection name").fill(name);
+  await page.getByRole("button", { name: "Create collection" }).click();
+  await expect(page).toHaveURL(/\/admin\/kb\/[0-9a-f-]{36}$/);
+  const collectionId = page.url().split("/").pop() as string;
+  await page.goto("/admin/webhooks");
+  await page.getByLabel("Endpoint URL").fill("https://hooks.example.com/kb");
+  await page.getByRole("checkbox", { name: "kb.article.upserted" }).check();
+  await page.getByRole("checkbox", { name: "kb.article.archived" }).check();
+  await page.getByRole("button", { name: "Add webhook" }).click();
+  await expect(page.getByRole("status", { name: "Webhook signing secret" })).toBeVisible();
+  await page.close();
+
+  // Read: the collection is open to every company, so every key sees it; none may write yet.
+  const listed = await request.get("/api/v1/kb/collections", { headers: auth(readKey) });
+  expect(listed.status()).toBe(200);
+  const mine = (await listed.json()).data.find((row: { id: string }) => row.id === collectionId);
+  expect(mine).toMatchObject({ name, writable: false, articles: 0 });
+  expect((await (await request.get("/api/v1/kb/collections?writable=true", { headers: auth(readKey) })).json()).data).toEqual([]);
+
+  const put = (key: string, externalId: string, data: Record<string, unknown>) =>
+    request.put(`/api/v1/kb/collections/${collectionId}/articles/${encodeURIComponent(externalId)}`, {
+      headers: auth(key),
+      data,
+    });
+  const runbook = {
+    title: "Replace a toner cartridge",
+    body: "Have the new cartridge ready.\n\n1. Open the front door. {#open}\n2. Pull the old cartridge out.\n\n    Keep it level.\n\n3. Push the new one in until it clicks.",
+    category: "Printers",
+    kind: "runbook",
+    internal_only: true,
+  };
+
+  // Write: the read key lacks the scope; the write key lacks a grant.
+  expect((await put(readKey, "printers/toner", runbook)).status()).toBe(403);
+  const ungranted = await put(writeKey, "printers/toner", runbook);
+  expect(ungranted.status()).toBe(403);
+  expect((await ungranted.json()).error.message).toContain("not change it");
+
+  psql(
+    `insert into api_key_kb_collections (api_key_id, collection_id, can_write) ` +
+      `select id, '${collectionId}', true from api_keys where name='${WRITE_KEY_NAME}';`,
+  );
+  const created = await put(writeKey, "printers/toner", runbook);
+  expect(created.status()).toBe(201);
+  const article = await created.json();
+  expect(article).toMatchObject({ external_id: "printers/toner", kind: "runbook", internal_only: true, public_url: null, outcome: "created" });
+  expect(article.steps).toHaveLength(3);
+  expect(article.steps[0].id).toBe("open");
+  expect(article.steps[1]).toMatchObject({ note: "Keep it level." });
+  const minted = article.steps.map((step: { id: string }) => step.id);
+  expect(article.body).toContain(`{#${minted[2]}}`);
+
+  // Written again with a step reworded: the ids hold.
+  const changed = await put(writeKey, "printers/toner", { ...runbook, body: article.body.replace("until it clicks", "firmly") });
+  expect(changed.status()).toBe(200);
+  expect((await changed.json()).steps.map((step: { id: string }) => step.id)).toEqual(minted);
+  // A repeated id is refused.
+  const bad = await put(writeKey, "printers/bad", { ...runbook, body: "1. One {#x}\n2. Two {#x}" });
+  expect(bad.status()).toBe(400);
+  expect((await bad.json()).error.message).toContain('"x"');
+
+  // Read it back every way.
+  const fetched = await request.get(`/api/v1/kb/articles/${article.id}`, { headers: auth(readKey) });
+  expect(fetched.status()).toBe(200);
+  expect((await fetched.json()).steps.map((step: { id: string }) => step.id)).toEqual(minted);
+
+  const search = await request.get(`/api/v1/kb/search?q=cartridge&collection_id=${collectionId}`, { headers: auth(readKey) });
+  expect((await search.json()).data.map((hit: { id: string; kind: string }) => [hit.id, hit.kind])).toEqual([[article.id, "runbook"]]);
+  const noArticles = await request.get(`/api/v1/kb/search?q=cartridge&collection_id=${collectionId}&kind=article`, { headers: auth(readKey) });
+  expect((await noArticles.json()).data).toEqual([]);
+
+  const list = await request.get(`/api/v1/kb/articles?collection_id=${collectionId}&kind=runbook`, { headers: auth(readKey) });
+  expect((await list.json()).data.map((row: { id: string }) => row.id)).toEqual([article.id]);
+  const since = await request.get(`/api/v1/kb/articles?collection_id=${collectionId}&updated_since=2999-01-01T00:00:00Z`, { headers: auth(readKey) });
+  expect((await since.json()).data).toEqual([]);
+
+  const detail = await request.get(`/api/v1/kb/collections/${collectionId}`, { headers: auth(writeKey) });
+  expect(await detail.json()).toMatchObject({ writable: true, articles: 1, categories: [{ category: "Printers", subcategory: null, articles: 1 }] });
+
+  // Archived under its external id: gone from readers, and a webhook was queued for each change.
+  expect((await request.delete(`/api/v1/kb/collections/${collectionId}/articles/printers%2Ftoner`, { headers: auth(writeKey) })).status()).toBe(204);
+  expect((await request.get(`/api/v1/kb/articles/${article.id}`, { headers: auth(readKey) })).status()).toBe(404);
+  expect(
+    psql(`select string_agg(event, ',' order by id) from webhook_deliveries where payload->'data'->>'article_id'='${article.id}';`),
+  ).toBe("kb.article.upserted,kb.article.upserted,kb.article.archived");
 });

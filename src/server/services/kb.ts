@@ -35,7 +35,7 @@ export type KbReader = {
    * reader who has not signed in: it sees only collections put on the public
    * site, less the articles held back from it, and its scope is ignored.
    */
-  via: "app" | "mcp" | "public";
+  via: "app" | "mcp" | "api" | "public";
   /**
    * Collections an API key was granted by name. A grant reads its collection
    * whatever companies the collection is kept to.
@@ -472,6 +472,8 @@ export const articleListSchema = z.object({
   type: z.enum(ARTICLE_TYPES).optional(),
   /** Only articles, or only runbooks. */
   kind: z.enum(ARTICLE_KINDS).optional(),
+  /** Only articles stored or changed at or after this instant. */
+  updatedSince: z.coerce.date().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   cursor: z.string().optional(),
   sort: z.enum(ARTICLE_SORTS).default("name"),
@@ -516,6 +518,7 @@ export async function listArticles(
   if (data.unextractedOnly) filters.push(eq(kbArticles.extraction, "unextracted"));
   if (data.type) filters.push(typeFilter(data.type));
   if (data.kind) filters.push(eq(kbArticles.kind, data.kind));
+  if (data.updatedSince) filters.push(sql`${kbArticles.updatedAt} >= ${data.updatedSince}`);
 
   const rows = await db
     .select(articleSummaryColumns)

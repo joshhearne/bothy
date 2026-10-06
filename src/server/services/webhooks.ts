@@ -19,6 +19,9 @@ export const WEBHOOK_EVENTS = [
   "field.promoted",
   /** A schedule has reached its lead time, or gone past its date. */
   "document.due",
+  /** A knowledge base article written or archived through the API or MCP. */
+  "kb.article.upserted",
+  "kb.article.archived",
 ] as const;
 
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];

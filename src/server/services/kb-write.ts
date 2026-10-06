@@ -6,6 +6,7 @@ import { db } from "@/server/db";
 import { kbArticles } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { applyVisibility } from "@/server/services/kb-visibility";
+import { queueEvent } from "@/server/services/webhooks";
 import { ForbiddenError, NotFoundError } from "@/server/services/errors";
 import { getCollection, type KbReader } from "@/server/services/kb";
 import { ARTICLE_KINDS } from "@/server/kb/extract";
@@ -73,8 +74,8 @@ export const articleWriteSchema = z.object({
 export function readerFor(writer: Pick<KbWriter, "scope" | "grants"> & { via?: KbWriter["via"] }): KbReader {
   return {
     scope: writer.scope,
-    // A key reads as MCP does, whichever door it came through; a person reads as the app.
-    via: writer.via === "app" ? "app" : "mcp",
+    // A key reads by its grants; only the MCP door is one a collection can close.
+    via: writer.via ?? "mcp",
     granted: writer.grants.map((grant) => grant.collectionId),
   };
 }
@@ -199,8 +200,36 @@ export async function writeArticle(
       ...attribution(writer),
     },
   });
+  await queueEvent("kb.article.upserted", {
+    collection_id: data.collectionId,
+    article_id: articleId,
+    external_id: data.externalId,
+    kind: data.kind ?? "article",
+  });
 
   return { articleId, outcome: existing ? "updated" : "created" };
+}
+
+/** The live article a collection holds under an external id, as the writer may see it. */
+export async function findArticleByExternalId(
+  collectionId: string,
+  externalId: string,
+  writer: KbWriter,
+): Promise<string | null> {
+  const collection = await getCollection(collectionId, readerFor(writer));
+  if (!collection) return null;
+  const [row] = await db
+    .select({ id: kbArticles.id })
+    .from(kbArticles)
+    .where(
+      and(
+        eq(kbArticles.collectionId, collectionId),
+        eq(kbArticles.sourceKey, sourceKey(externalId, externalId)),
+        isNull(kbArticles.archivedAt),
+      ),
+    )
+    .limit(1);
+  return row?.id ?? null;
 }
 
 /** Hides an article from readers and from search. It can be written again. */
@@ -211,6 +240,7 @@ export async function archiveArticle(articleId: string, writer: KbWriter): Promi
       collectionId: kbArticles.collectionId,
       externalId: kbArticles.externalId,
       title: kbArticles.title,
+      kind: kbArticles.kind,
     })
     .from(kbArticles)
     .where(and(eq(kbArticles.id, articleId), isNull(kbArticles.archivedAt)))
@@ -242,6 +272,16 @@ export async function archiveArticle(articleId: string, writer: KbWriter): Promi
           title: article.title,
           ...attribution(writer),
         },
+      },
+      tx,
+    );
+    await queueEvent(
+      "kb.article.archived",
+      {
+        collection_id: article.collectionId,
+        article_id: article.id,
+        external_id: article.externalId,
+        kind: article.kind,
       },
       tx,
     );
