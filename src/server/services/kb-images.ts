@@ -34,9 +34,32 @@ export const MAX_IMAGE_BYTES = env.MAX_UPLOAD_MB * 1024 * 1024;
  * because that is a picture that failed and not a file to pass over.
  */
 export async function acceptImage(path: string, bytes: Buffer): Promise<AcceptedUpload | null> {
+  return acceptAttached(path, bytes, false);
+}
+
+/**
+ * A folder named `images` or `files` beside an article holds what belongs to
+ * it: pictures, and documents it links to. What is in such a folder is kept
+ * and served through the article, not made into an article of its own.
+ */
+export function isAttachedPath(path: string): boolean {
+  return path
+    .split("/")
+    .slice(0, -1)
+    .some((folder) => folder.toLowerCase() === "images" || folder.toLowerCase() === "files");
+}
+
+/** A picture, or in an attached folder also a PDF or an Office document. Null for anything else. */
+export async function acceptAttached(
+  path: string,
+  bytes: Buffer,
+  documentsToo: boolean,
+): Promise<AcceptedUpload | null> {
   try {
     const accepted = await acceptUpload(basename(path), bytes);
-    return accepted.category === "image" ? accepted : null;
+    if (accepted.category === "image") return accepted;
+    if (documentsToo && accepted.category === "document" && !/^text\//.test(accepted.mime)) return accepted;
+    return null;
   } catch (error) {
     if (error instanceof ConversionFailedError || error instanceof ConversionUnavailableError) {
       throw error;
@@ -150,7 +173,7 @@ export async function withImages<T extends Referenced>(article: T, base: string)
   };
 }
 
-export type StoredImage = { body: Buffer; mimeType: string; contentHash: string };
+export type StoredImage = { body: Buffer; mimeType: string; contentHash: string; name: string };
 
 /**
  * One picture of one article. Not found unless the reader may read the
@@ -174,6 +197,7 @@ export async function readArticleImage(
       storageKey: kbImages.storageKey,
       mimeType: kbImages.mimeType,
       contentHash: kbImages.contentHash,
+      sourcePath: kbImages.sourcePath,
     })
     .from(kbImages)
     .where(and(eq(kbImages.id, imageId), eq(kbImages.collectionId, article.collectionId)))
@@ -186,6 +210,7 @@ export async function readArticleImage(
     body: await storage.get(row.storageKey),
     mimeType: row.mimeType,
     contentHash: row.contentHash,
+    name: row.sourcePath.split("/").pop() || "file",
   };
 }
 
@@ -193,20 +218,27 @@ export async function readArticleImage(
 export function imageResponse(image: StoredImage | "held", etag: string | null): Response {
   const headers = {
     "X-Content-Type-Options": "nosniff",
-    "Content-Security-Policy": "default-src 'none'; sandbox",
     // private: what one reader may see is not for a shared cache to hand on.
     "Cache-Control": "private, max-age=3600",
     ...(etag ? { ETag: etag } : {}),
   };
-  if (image === "held") return new Response(null, { status: 304, headers });
+  if (image === "held") {
+    return new Response(null, { status: 304, headers: { ...headers, "Content-Security-Policy": "default-src 'none'; sandbox" } });
+  }
 
+  const pdf = image.mimeType === "application/pdf";
+  const picture = image.mimeType.startsWith("image/");
   return new Response(new Uint8Array(image.body), {
     headers: {
       ...headers,
       ETag: `"${image.contentHash}"`,
       "Content-Type": image.mimeType,
       "Content-Length": String(image.body.byteLength),
-      "Content-Disposition": "inline",
+      // A picture and a PDF are shown; anything else is handed over as a file.
+      "Content-Disposition": picture ? "inline" : contentDisposition(image.name, pdf),
+      // A PDF viewer will not draw inside a sandboxed response; the policy
+      // still lets the document load nothing from anywhere.
+      "Content-Security-Policy": pdf ? "default-src 'none'" : "default-src 'none'; sandbox",
     },
   });
 }

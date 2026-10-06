@@ -470,6 +470,7 @@ export const enUS = {
     sourceShort: "Source",
     categories: "Categories",
     types: "Kinds",
+    openSite: "Open the original site",
     typeNames: {
       pdf: (count: number) => (count === 1 ? "1 PDF" : `${count} PDFs`),
       docx: (count: number) => (count === 1 ? "1 Word doc" : `${count} Word docs`),
@@ -816,6 +817,9 @@ export const enUS = {
       nameHint: "Name it after the source, such as “Calder Ridge Support KB”.",
       description: "Description",
       descriptionHint: "Optional. Shown to readers, and to an AI client choosing where to search.",
+      siteUrl: "Website",
+      siteUrlHint:
+        "Optional. Where the source lives, offered to readers who would rather go there, such as for what sits behind the vendor's sign-in. A connector's address is used when this is empty.",
       create: "Create collection",
       save: "Save collection",
       manage: "Manage",
@@ -830,6 +834,25 @@ export const enUS = {
       companiesClear: "Clear the selection",
       forEveryone: "every company",
       forSome: "selected companies only",
+      columns: {
+        collection: "Collection",
+        articles: "Articles",
+        companies: "Companies",
+        visibility: "Public site visibility",
+        management: "Management",
+      },
+      chips: {
+        allCompanies: "All companies",
+        someCompanies: (count: number) => (count === 1 ? "1 company" : `${count} companies`),
+        enabled: "Enabled",
+        disabled: "Disabled",
+        partial: "Partial",
+        partialHint: (hidden: number) =>
+          hidden === 1 ? "1 article held back" : `${hidden} articles held back`,
+        siteOff: "The public site is turned off under Admin → Settings.",
+        notMarked: "Not marked for the public site.",
+        archived: "Archived",
+      },
       publicAccess: "Show on the public site",
       publicAccessHint:
         "Readable without signing in, by whoever the public site admits. Single articles can be held back from the article's own page. Nothing sensitive belongs here.",

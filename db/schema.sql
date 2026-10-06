@@ -614,3 +614,6 @@ CREATE INDEX mfa_recovery_codes_user_idx ON mfa_recovery_codes (user_id);
 
 -- A category given for a whole import, in place of the uploaded folder's name.
 ALTER TABLE kb_imports ADD COLUMN category text;
+
+-- Where a collection's source lives, for readers who would rather go there.
+ALTER TABLE kb_collections ADD COLUMN site_url text;

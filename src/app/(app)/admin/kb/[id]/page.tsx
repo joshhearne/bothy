@@ -314,6 +314,7 @@ export default async function KbCollectionAdminPage({
             id: collection.id,
             name: collection.name,
             description: collection.description,
+            siteUrl: collection.siteUrlSet,
             mcpEnabled: collection.mcpEnabled,
             publicAccess: collection.publicAccess,
             companyIds,

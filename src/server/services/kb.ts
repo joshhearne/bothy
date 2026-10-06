@@ -3,16 +3,19 @@ import { z } from "zod";
 import { and, asc, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import { db } from "@/server/db";
 import {
+  companies,
   kbArticles,
   kbChunks,
   kbCollectionCompanies,
   kbCollections,
+  kbConnectors,
   kbFavorites,
   kbVotes,
 } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/errors";
 import type { CompanyScope } from "@/server/auth/company-scope";
+import { safeUrl } from "@/server/kb/extract";
 
 /**
  * The knowledge base: collections of articles brought in from outside, kept
@@ -138,6 +141,12 @@ function directed(expression: SQL, dir: SortDirection): SQL {
 export const collectionInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   description: z.string().trim().max(500).optional(),
+  siteUrl: z
+    .string()
+    .trim()
+    .max(2000)
+    .refine((value) => value === "" || safeUrl(value) !== null, "Enter an http or https address")
+    .optional(),
   mcpEnabled: z.boolean().default(true),
   publicAccess: z.boolean().default(false),
   /** The companies it is kept to. None means every company. */
@@ -153,6 +162,10 @@ export type CollectionRow = {
   id: string;
   name: string;
   description: string | null;
+  /** The source's own site: set by hand, or the first connector's address. */
+  siteUrl: string | null;
+  /** What was set by hand, for the form; null when a connector stands in. */
+  siteUrlSet: string | null;
   allCompanies: boolean;
   mcpEnabled: boolean;
   publicAccess: boolean;
@@ -160,6 +173,8 @@ export type CollectionRow = {
   createdAt: Date;
   articleCount: number;
   unextractedCount: number;
+  /** Articles held back from the public site. */
+  hiddenCount: number;
   lastModified: Date | null;
   favorites: number;
   /** 0 to 100 across every vote in the collection, or null before any. */
@@ -177,6 +192,8 @@ const collectionColumns = {
   id: kbCollections.id,
   name: kbCollections.name,
   description: kbCollections.description,
+  siteUrlSet: kbCollections.siteUrl,
+  siteUrl: sql<string | null>`coalesce(${kbCollections.siteUrl}, (select c.url from ${kbConnectors} c where c.collection_id = ${kbCollections.id} and c.archived_at is null order by c.created_at limit 1))`,
   allCompanies: kbCollections.allCompanies,
   mcpEnabled: kbCollections.mcpEnabled,
   publicAccess: kbCollections.publicAccess,
@@ -184,6 +201,7 @@ const collectionColumns = {
   createdAt: kbCollections.createdAt,
   articleCount: sql<number>`count(${kbArticles.id})::int`,
   unextractedCount: sql<number>`(count(${kbArticles.id}) FILTER (WHERE ${kbArticles.extraction} = 'unextracted'))::int`,
+  hiddenCount: sql<number>`(count(${kbArticles.id}) FILTER (WHERE ${kbArticles.publicHidden}))::int`,
   lastModified: sql<Date | null>`max(${articleChanged})`,
   favorites: collectionFavorites,
   helpful: collectionHelpful,
@@ -229,6 +247,18 @@ export async function listAllCollections(): Promise<CollectionRow[]> {
     .orderBy(asc(kbCollections.name));
 }
 
+/** The names of the companies each collection is kept to, for the administration list. */
+export async function collectionCompanyNames(): Promise<Map<string, string[]>> {
+  const rows = await db
+    .select({ collectionId: kbCollectionCompanies.collectionId, name: companies.name })
+    .from(kbCollectionCompanies)
+    .innerJoin(companies, eq(companies.id, kbCollectionCompanies.companyId))
+    .orderBy(asc(companies.name));
+  const names = new Map<string, string[]>();
+  for (const row of rows) names.set(row.collectionId, [...(names.get(row.collectionId) ?? []), row.name]);
+  return names;
+}
+
 /** The companies a collection is kept to. Empty means every company. */
 export async function listCollectionCompanyIds(collectionId: string): Promise<string[]> {
   const rows = await db
@@ -267,6 +297,7 @@ export async function createCollection(input: CollectionInput, actorId: string |
         .values({
           name: data.name,
           description: data.description ?? null,
+          siteUrl: data.siteUrl || null,
           allCompanies: data.companyIds.length === 0,
           mcpEnabled: data.mcpEnabled,
           publicAccess: data.publicAccess,
@@ -313,6 +344,7 @@ export async function updateCollection(
         .set({
           name: data.name,
           description: data.description ?? null,
+          siteUrl: data.siteUrl || null,
           allCompanies: data.companyIds.length === 0,
           mcpEnabled: data.mcpEnabled,
           publicAccess: data.publicAccess,

@@ -32,6 +32,7 @@ function collectionInput(formData: FormData) {
   return {
     name: text(formData, "name") ?? "",
     description: text(formData, "description"),
+    siteUrl: text(formData, "siteUrl") ?? "",
     mcpEnabled: checkbox(formData, "mcpEnabled"),
     publicAccess: checkbox(formData, "publicAccess"),
     companyIds: formData.getAll("companyIds").filter((v): v is string => typeof v === "string"),

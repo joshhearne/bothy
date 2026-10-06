@@ -716,6 +716,12 @@ export const kbCollections = pgTable("kb_collections", {
   name: text("name").notNull().unique(),
   description: text("description"),
   /**
+   * Where the source lives, for a reader who would rather go there: the
+   * vendor's own site, which may hold what an export could not reach. Left
+   * empty, a connector's address stands in.
+   */
+  siteUrl: text("site_url"),
+  /**
    * True means anyone who can sign in may read it. False means only those
    * with access to one of the companies in kb_collection_companies.
    */

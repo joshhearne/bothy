@@ -41,6 +41,10 @@
   --light-destructive: oklch(0.58 0.21 27);
   --light-success: oklch(0.47 0.13 150);
   --light-success-muted: oklch(0.95 0.05 150);
+  --light-warning: oklch(0.55 0.14 80);
+  --light-warning-muted: oklch(0.96 0.06 90);
+  --light-info: oklch(0.48 0.13 250);
+  --light-info-muted: oklch(0.95 0.04 250);
   /* A second neutral layer, so navigation reads as chrome, not content. */
   --light-sidebar: oklch(0.979 0.004 258);
   --light-sidebar-border: oklch(0.915 0.006 258);
@@ -59,6 +63,10 @@
   --dark-destructive: oklch(0.65 0.19 27);
   --dark-success: oklch(0.78 0.16 150);
   --dark-success-muted: oklch(0.3 0.06 150);
+  --dark-warning: oklch(0.82 0.14 85);
+  --dark-warning-muted: oklch(0.32 0.06 85);
+  --dark-info: oklch(0.76 0.12 245);
+  --dark-info-muted: oklch(0.3 0.05 245);
   --dark-sidebar: oklch(0.215 0.016 258);
   --dark-sidebar-border: oklch(0.3 0.017 258);
   --dark-selection: oklch(0.72 0.12 245 / 0.28);
@@ -86,6 +94,10 @@
   --ring: light-dark(var(--light-ring), var(--dark-ring));
   --destructive: light-dark(var(--light-destructive), var(--dark-destructive));
   --success: light-dark(var(--light-success), var(--dark-success));
+  --warning: light-dark(var(--light-warning), var(--dark-warning));
+  --warning-muted: light-dark(var(--light-warning-muted), var(--dark-warning-muted));
+  --info: light-dark(var(--light-info), var(--dark-info));
+  --info-muted: light-dark(var(--light-info-muted), var(--dark-info-muted));
   --success-muted: light-dark(var(--light-success-muted), var(--dark-success-muted));
   --sidebar: light-dark(var(--light-sidebar), var(--dark-sidebar));
   --sidebar-border: light-dark(var(--light-sidebar-border), var(--dark-sidebar-border));

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import Link from "next/link";
 import type { Route } from "next";
-import { BookOpen } from "lucide-react";
+import { BookOpen, ExternalLink } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { KbSort } from "@/components/kb-sort";
@@ -145,13 +145,13 @@ export async function KbHome({
                     .join(" · ");
 
                   return (
-                    <li key={collection.id}>
+                    <li key={collection.id} className={view === "list" ? "flex" : "relative"}>
                       <Link
                         href={`${base}/${collection.id}` as Route}
                         className={
                           view === "list"
-                            ? "flex gap-3 px-4 py-3 transition-colors hover:bg-[var(--muted)]"
-                            : "flex h-full gap-3 rounded-md border px-4 py-3 transition-colors hover:bg-[var(--muted)]"
+                            ? "flex min-w-0 flex-1 gap-3 px-4 py-3 transition-colors hover:bg-[var(--muted)]"
+                            : "flex h-full gap-3 rounded-md border px-4 py-3 pr-10 transition-colors hover:bg-[var(--muted)]"
                         }
                       >
                         <BookOpen
@@ -168,6 +168,22 @@ export async function KbHome({
                           <span className="block text-sm text-[var(--muted-foreground)]">{meta}</span>
                         </span>
                       </Link>
+                      {collection.siteUrl && (
+                        <a
+                          href={collection.siteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                          title={t.kb.openSite}
+                          aria-label={`${t.kb.openSite}: ${collection.name}`}
+                          className={
+                            view === "list"
+                              ? "mr-3 inline-flex size-9 shrink-0 items-center justify-center self-center rounded-md text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+                              : "absolute top-2 right-2 inline-flex size-8 items-center justify-center rounded-md text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+                          }
+                        >
+                          <ExternalLink className="size-4" aria-hidden />
+                        </a>
+                      )}
                     </li>
                   );
                 })}

@@ -24,6 +24,14 @@ import {
   type HelpCenterSection,
 } from "@/server/kb/helpcenter";
 import { disallowedPaths, isDisallowed, parseSitemap, type SitemapEntry } from "@/server/kb/sitemap";
+import {
+  breadcrumbs,
+  canonicalAddress,
+  isListing,
+  isTrackingLink,
+  placePages,
+  type CrawledPage,
+} from "@/server/kb/crawl-structure";
 
 /**
  * Connectors: a public knowledge base read on a schedule, from its sitemap,
@@ -303,36 +311,65 @@ export async function runConnector(id: string, actorId: string | null): Promise<
     const disallowed = await robotsFor(connector.url);
     const allowed = (address: string) => !isDisallowed(new URL(address).pathname, disallowed);
 
+    const start = canonical(connector.url);
     const queue: SitemapEntry[] =
       connector.kind === "sitemap"
         ? await sitemapPages(connector.url, connector.maxPages)
-        : [{ url: canonical(connector.url), lastModified: null }];
+        : [{ url: start, lastModified: null }];
     const seen = new Set(queue.map((entry) => entry.url));
     let fetched = 0;
 
+    /*
+     * Two passes. The first fetches, and keeps each page with what it says
+     * about where it belongs. The second places every article from that:
+     * a page's breadcrumbs, or the listing pages that lead to it. Nothing is
+     * written until the whole site has been read, because a page's category
+     * is often on another page.
+     */
+    const pages: CrawledPage[] = [];
+    const drafts = new Map<string, { article: ExtractedArticle; hash: string }>();
+
     while (queue.length > 0 && fetched < connector.maxPages) {
       const entry = queue.shift() as SitemapEntry;
-      const key = canonical(entry.url);
-      if (!allowed(key)) {
+      const requested = canonical(entry.url);
+      if (!allowed(requested) || isTrackingLink(requested)) {
         await run.ignore();
         continue;
       }
 
       fetched += 1;
       try {
-        const page = await fetchPublic(key);
+        const page = await fetchPublic(requested);
         if (page.status !== 200) {
-          await run.fail(key, `The page answered ${page.status}`);
+          await run.fail(requested, `The page answered ${page.status}`);
           continue;
         }
 
-        if (connector.kind === "prefix" && page.contentType.includes("html")) {
-          for (const link of pageLinks(page.body.toString("utf8"), page.url)) {
-            const next = canonical(link);
-            if (seen.has(next) || !underPrefix(next, connector.url)) continue;
-            if (seen.size >= connector.maxPages * 4) break;
-            seen.add(next);
-            queue.push({ url: next, lastModified: null });
+        const isHtml = page.contentType.includes("html") || page.contentType === "";
+        const html = isHtml ? page.body.toString("utf8") : "";
+
+        // The page's own name for itself is the key, so one article reached
+        // by two addresses, with and without its slug, is one article.
+        const own = isHtml ? canonicalAddress(html, page.url) : null;
+        const key = own && underPrefix(own, connector.url) ? canonical(own) : requested;
+        if (key !== requested && drafts.has(key)) {
+          await run.ignore();
+          continue;
+        }
+        seen.add(key);
+
+        let links: string[] = [];
+        if (isHtml) {
+          links = pageLinks(html, page.url)
+            .map((link) => canonical(link))
+            .filter((link) => underPrefix(link, connector.url) && !isTrackingLink(link));
+          if (connector.kind === "prefix") {
+            for (const next of links) {
+              if (seen.has(next)) continue;
+              if (seen.size >= connector.maxPages * 4) break;
+              seen.add(next);
+              queue.push({ url: next, lastModified: null });
+            }
           }
         }
 
@@ -340,17 +377,48 @@ export async function runConnector(id: string, actorId: string | null): Promise<
         article.externalId = key;
         article.dateModified = entry.lastModified ?? page.lastModified;
 
+        pages.push({
+          url: key,
+          title: article.title,
+          crumbs: isHtml ? breadcrumbs(html, article.title) : [],
+          listing: isHtml && isListing(mainContent(html)),
+          links,
+        });
         // Hashed as converted: a page's markup changes on every request —
         // tokens, timestamps — while what it says does not.
-        const hash = createHash("sha256").update(article.title).update(article.body).digest("hex");
-        await run.article(new URL(key).pathname, article, hash);
+        drafts.set(key, {
+          article,
+          hash: createHash("sha256").update(article.title).update(article.body).digest("hex"),
+        });
       } catch (error) {
-        if (error instanceof NotAnArticleError) await run.ignore();
-        else if (error instanceof FetchRefusedError) await run.fail(key, error.message);
-        else await run.fail(key, "The page could not be fetched");
+        if (error instanceof NotAnArticleError) {
+          await run.ignore();
+        } else if (error instanceof FetchRefusedError) {
+          await run.fail(requested, error.message);
+        } else {
+          await run.fail(requested, "The page could not be fetched");
+        }
       }
 
       await pause(PAUSE_MS);
+    }
+
+    const placements = placePages(pages, start);
+    for (const [key, draft] of drafts) {
+      const place = placements.get(key);
+      // A page that only leads to other pages is the site's structure, not an article.
+      if (!place) {
+        await run.ignore();
+        continue;
+      }
+      draft.article.category = place.category;
+      draft.article.subcategory = place.subcategory;
+      const hash = createHash("sha256")
+        .update(draft.hash)
+        .update(place.category ?? "")
+        .update(place.subcategory ?? "")
+        .digest("hex");
+      await run.article(new URL(key).pathname, draft.article, hash);
     }
 
     return await run.finish(actorId);

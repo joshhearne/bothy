@@ -1,0 +1,1 @@
+ALTER TABLE "kb_collections" ADD COLUMN "site_url" text;

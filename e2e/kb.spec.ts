@@ -377,7 +377,7 @@ test("a folder names the category of what is in it, unless a better name is give
 
 test("search finds a passage deep in an attachment and links to the source", async ({ page }) => {
   await page.goto("/kb");
-  await expect(page.getByRole("link", { name: new RegExp(COLLECTION) })).toBeVisible();
+  await expect(page.getByRole("link", { name: new RegExp(`^${COLLECTION}`) })).toBeVisible();
 
   await page.getByLabel("Search query").fill(`${MARKER}deep`);
   await page.getByRole("button", { name: "Search" }).click();
@@ -580,7 +580,7 @@ test("kept to a company, its own people read it and others do not", async ({ pag
     await expect(reader).not.toHaveURL(/sign-in/);
 
     await reader.goto("/kb");
-    await expect(reader.getByRole("link", { name: new RegExp(COLLECTION) })).toHaveCount(sees ? 1 : 0);
+    await expect(reader.getByRole("link", { name: new RegExp(`^${COLLECTION}`) })).toHaveCount(sees ? 1 : 0);
 
     const response = await reader.goto(`/kb/${collectionId}`);
     expect(response?.status()).toBe(sees ? 200 : 404);
@@ -920,8 +920,25 @@ test("the import routes are an administrator's alone", async ({ browser, playwri
 
   // They can read the knowledge base; they cannot administer it.
   await page.goto("/kb");
-  await expect(page.getByRole("link", { name: new RegExp(COLLECTION) })).toBeVisible();
+  await expect(page.getByRole("link", { name: new RegExp(`^${COLLECTION}`) })).toBeVisible();
   await context.close();
+});
+
+test("a collection names the site it came from, and readers are offered it", async ({ page }) => {
+  await page.goto(`/admin/kb/${collectionId}`);
+  await page.getByLabel("Website").fill("https://kb.example.com/hc/en-us");
+  await page.getByRole("button", { name: "Save collection" }).click();
+  await expect(page.getByText("Saved.")).toBeVisible();
+
+  await page.goto(`/kb/${collectionId}`);
+  const link = page.getByRole("link", { name: /Open the original site/ });
+  await expect(link).toHaveAttribute("href", "https://kb.example.com/hc/en-us");
+  await expect(link).toHaveAttribute("rel", /noopener/);
+
+  await page.goto("/kb");
+  await expect(
+    page.getByRole("link", { name: `Open the original site: ${COLLECTION}` }),
+  ).toHaveAttribute("href", "https://kb.example.com/hc/en-us");
 });
 
 /* ---------- The public site ---------- */
@@ -977,7 +994,7 @@ test("on, it shows only the collections marked for it", async ({ page, browser }
   await expect(page.getByText("Saved.")).toBeVisible();
 
   await onSite.page.goto("/pub/kb");
-  await expect(onSite.page.getByRole("link", { name: new RegExp(COLLECTION) })).toBeVisible();
+  await expect(onSite.page.getByRole("link", { name: new RegExp(`^${COLLECTION}`) })).toBeVisible();
   // The other collection was never marked.
   await expect(onSite.page.getByRole("link", { name: /Calder Ridge Other KB/ })).toHaveCount(0);
   expect((await onSite.page.goto(`/pub/kb/${otherCollectionId}`))?.status()).toBe(404);
@@ -1059,7 +1076,7 @@ test("readers' favorites and votes order the lists, and the visitor sees the cou
 
   // Knowledge bases sort too: by what their articles gathered.
   await onSite.page.goto("/pub/kb?sort=favorites&dir=desc");
-  await expect(onSite.page.getByRole("link", { name: new RegExp(COLLECTION) })).toContainText("2 favorites");
+  await expect(onSite.page.getByRole("link", { name: new RegExp(`^${COLLECTION}`) })).toContainText("2 favorites");
 
   // Cards or a list, as this browser prefers.
   const shelf = onSite.page.getByRole("region", { name: "Knowledge bases" }).getByRole("list");
@@ -1200,11 +1217,14 @@ test("pictures come in with their articles and are read only through them", asyn
       zipSync({
         "export/guides/panel.md": text(
           "# Rear panel\n\n![The rear panel (2 wire)](../images/Rear Panel/panel (2 wire).PNG)\n\n" +
-            "![A picture that was lost](../images/lost.png)\n",
+            "![A picture that was lost](../images/lost.png)\n\n" +
+            "[Wiring guide (PDF)](../files/9001/wiring-guide.pdf)\n",
         ),
         "export/guides/front.md": text("# Front panel\n\nNothing to show.\n"),
         "export/images/Rear Panel/panel (2 wire).png": ONE_PIXEL,
         "export/images/renamed.png": text("Not a picture, whatever it is called."),
+        // A document in a files/ folder belongs to the article that links it; it is not an article.
+        "export/files/9001/wiring-guide.pdf": scannedPdf(),
       }),
     ),
   });
@@ -1214,8 +1234,8 @@ test("pictures come in with their articles and are read only through them", asyn
   expect(await summary(page)).toEqual({ Added: 2, Updated: 0, Skipped: 0, Failed: 0 });
   await expect(page.getByText("Not articles or images: 1")).toBeVisible();
   expect(
-    psql(`select source_path || '|' || mime_type from kb_images where collection_id='${pictures}';`),
-  ).toBe("images/Rear Panel/panel (2 wire).png|image/png");
+    psql(`select source_path || '|' || mime_type from kb_images where collection_id='${pictures}' order by 1;`).split("\n"),
+  ).toEqual(["files/9001/wiring-guide.pdf|application/pdf", "images/Rear Panel/panel (2 wire).png|image/png"]);
 
   const shown = psql(
     `select id from kb_articles where collection_id='${pictures}' and source_path='guides/panel.md';`,
@@ -1223,7 +1243,8 @@ test("pictures come in with their articles and are read only through them", asyn
   const bare = psql(
     `select id from kb_articles where collection_id='${pictures}' and source_path='guides/front.md';`,
   );
-  const imageId = psql(`select id from kb_images where collection_id='${pictures}';`);
+  const imageId = psql(`select id from kb_images where collection_id='${pictures}' and mime_type='image/png';`);
+  const fileId = psql(`select id from kb_images where collection_id='${pictures}' and mime_type='application/pdf';`);
 
   await page.goto(`/kb/articles/${shown}`);
   const picture = page.getByRole("img", { name: "The rear panel (2 wire)" });
@@ -1231,6 +1252,14 @@ test("pictures come in with their articles and are read only through them", asyn
   await expect
     .poll(() => picture.evaluate((node) => (node as HTMLImageElement).naturalWidth))
     .toBe(1);
+  // The linked document is served through the article, shown in the browser.
+  const guide = page.getByRole("link", { name: "Wiring guide (PDF)" });
+  await expect(guide).toHaveAttribute("href", `/api/kb/articles/${shown}/images/${fileId}`);
+  const served = await page.request.get(`/api/kb/articles/${shown}/images/${fileId}`);
+  expect(served.status()).toBe(200);
+  expect(served.headers()["content-type"]).toBe("application/pdf");
+  expect(served.headers()["content-disposition"]).toContain("inline");
+
   // What did not come with the import leaves its caption, not a broken frame.
   await expect(page.getByText("A picture that was lost")).toBeVisible();
   await expect(page.getByRole("img", { name: "A picture that was lost" })).toHaveCount(0);

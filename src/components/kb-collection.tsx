@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { KbSort } from "@/components/kb-sort";
 import { CopyLink } from "@/components/ui/copy-link";
+import { ExternalLink } from "lucide-react";
 import { reactionSummary } from "@/components/kb-reactions";
 import type {
   ArticleSummary,
@@ -169,9 +170,25 @@ export function KbCollection({
                 .join(" · ")}
             </p>
           </div>
-          {publicHref && (
-            <CopyLink href={publicHref} label={t.kb.publicLink} copiedLabel={t.kb.publicLinkCopied} />
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            {collection.siteUrl && (
+              <a
+                href={collection.siteUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="inline-flex max-w-full items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]"
+              >
+                <ExternalLink className="size-4 shrink-0" aria-hidden />
+                <span className="shrink-0 font-medium">{t.kb.openSite}</span>
+                <span className="truncate text-[var(--muted-foreground)]">
+                  {collection.siteUrl.replace(/^https?:\/\//, "")}
+                </span>
+              </a>
+            )}
+            {publicHref && (
+              <CopyLink href={publicHref} label={t.kb.publicLink} copiedLabel={t.kb.publicLinkCopied} />
+            )}
+          </div>
         </div>
 
         <form action={base} className="flex flex-col gap-3 sm:flex-row sm:items-center">

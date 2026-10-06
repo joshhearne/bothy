@@ -288,7 +288,18 @@ appears in the documentation search.
   `/api/v2/help_center/<locale>/` lists, so an article arrives under its
   category and section with its own id and dates; an article a crawl brought
   in earlier is adopted by the id in its address rather than added beside
-  itself), and feed the same upsert.
+  itself), and feed the same upsert. A sitemap or prefix crawl reads the
+  whole site before it writes anything (`src/server/kb/crawl-structure.ts`):
+  a page is keyed by the address it names as its own, so one article reached
+  with and without its slug is one article; click-through and tracking
+  addresses are not followed; a page that is mostly links to other pages is
+  the site's structure and not an article; and every article is placed by
+  its breadcrumbs, or failing those by the listing pages that lead to it,
+  the nearer listing naming the section and the one above it the category.
+  The page the crawl started from names nothing.
+- **Where a collection came from** (`kb_collections.site_url`, or its first
+  connector's address when unset) is offered to readers on the collection
+  and on its card, for what sits behind the source's own sign-in.
 - **The file behind a document** (a PDF, a Word file) is kept in storage beside
   the article made from it, noted on the article as `metadata.original`, and
   served through the article at `/api/kb/articles/:id/original` and on the

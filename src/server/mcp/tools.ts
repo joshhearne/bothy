@@ -371,6 +371,7 @@ export const TOOLS: ToolDefinition[] = [
           collection_id: row.id,
           name: row.name,
           description: row.description,
+          site_url: row.siteUrl,
           writable: mayWrite(caller, row.id),
           articles: row.articleCount,
           last_modified: row.lastModified ? new Date(row.lastModified).toISOString() : null,

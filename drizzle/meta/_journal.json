@@ -162,6 +162,13 @@
       "when": 1790865601681,
       "tag": "0022_import_category",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790888538299,
+      "tag": "0023_collection_site_url",
+      "breakpoints": true
     }
   ]
 }

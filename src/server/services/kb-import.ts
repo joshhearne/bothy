@@ -16,10 +16,11 @@ import {
   sameInstant,
   type Manifest,
 } from "@/server/kb/manifest";
-import { ArchiveError, commonRoot, readArchive } from "@/server/kb/zip";
+import { ArchiveError, commonRoot, MAX_ENTRY_BYTES, readArchive } from "@/server/kb/zip";
 import { getStorage } from "@/server/storage";
 import {
-  acceptImage,
+  acceptAttached,
+  isAttachedPath,
   knownImages,
   MAX_IMAGE_BYTES,
   storeImage,
@@ -378,13 +379,15 @@ export class ImportRun {
 
     let accepted;
     try {
-      accepted = await acceptImage(path, bytes);
+      accepted = await acceptAttached(path, bytes, isAttachedPath(path));
     } catch (error) {
       return this.fail(path, error instanceof Error ? error.message : "The image could not be read");
     }
     if (!accepted) return this.ignore();
-    if (accepted.bytes.byteLength > MAX_IMAGE_BYTES) {
-      return this.fail(path, "The image is too large to import");
+    // A picture is held to what an attachment is; a document may be a manual.
+    const most = accepted.category === "image" ? MAX_IMAGE_BYTES : MAX_ENTRY_BYTES;
+    if (accepted.bytes.byteLength > most) {
+      return this.fail(path, "The file is too large to import");
     }
 
     try {
@@ -655,6 +658,9 @@ export async function importArchive(options: {
         const path = relative(entry.path);
         if (entry.tooLarge) return importing.fail(path, "The file is too large to import");
         if (!entry.bytes) return importing.fail(path, "The file could not be unpacked");
+
+        // What sits in an images/ or files/ folder belongs to an article nearby.
+        if (isAttachedPath(path)) return importing.other(path, entry.bytes);
 
         let article: ExtractedArticle;
         try {

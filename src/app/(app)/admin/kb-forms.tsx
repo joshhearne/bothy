@@ -48,6 +48,7 @@ export type CollectionValues = {
   id: string;
   name: string;
   description: string | null;
+  siteUrl: string | null;
   mcpEnabled: boolean;
   publicAccess: boolean;
   companyIds: string[];
@@ -107,6 +108,22 @@ export function CollectionForm({
           name="description"
           maxLength={500}
           defaultValue={collection?.description ?? ""}
+        />
+      </Field>
+
+      <Field
+        id="kb-site-url"
+        label={t.admin.kb.siteUrl}
+        hint={t.admin.kb.siteUrlHint}
+        error={state.fieldErrors?.siteUrl}
+      >
+        <Input
+          id="kb-site-url"
+          name="siteUrl"
+          type="url"
+          maxLength={2000}
+          placeholder="https://"
+          defaultValue={collection?.siteUrl ?? ""}
         />
       </Field>
 
