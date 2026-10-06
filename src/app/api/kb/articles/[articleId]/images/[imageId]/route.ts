@@ -19,5 +19,6 @@ export async function GET(
   return serveArticleImage(request, articleId, imageId, {
     scope: await getCompanyScope(user),
     via: "app",
+    userId: user.id,
   });
 }

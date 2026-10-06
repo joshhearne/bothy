@@ -779,6 +779,28 @@ export const apiKeyKbCollections = pgTable(
   ],
 );
 
+/**
+ * A collection granted to a person by name, read or write, whatever
+ * companies the collection is kept to. The same shape as a key's grant.
+ */
+export const userKbCollections = pgTable(
+  "user_kb_collections",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => kbCollections.id, { onDelete: "cascade" }),
+    canWrite: boolean("can_write").notNull().default(false),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.collectionId] }),
+    index("user_kb_collections_collection_idx").on(t.collectionId),
+  ],
+);
+
 export const kbArticles = pgTable(
   "kb_articles",
   {

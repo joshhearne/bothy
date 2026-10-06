@@ -12,7 +12,7 @@ import {
   setCollectionArchived,
   updateCollection,
 } from "@/server/services/kb";
-import { setGrant } from "@/server/services/kb-grants";
+import { setGrant, setUserGrant } from "@/server/services/kb-grants";
 import {
   addHideRules,
   HideRuleError,
@@ -91,6 +91,19 @@ export async function setCollectionArchivedAction(formData: FormData): Promise<v
   await setCollectionArchived(id, checkbox(formData, "archived"), user.id);
   revalidatePath("/admin/kb");
   revalidatePath(`/admin/kb/${id}`);
+}
+
+export async function setUserGrantAction(formData: FormData): Promise<void> {
+  const collectionId = text(formData, "collectionId");
+  const userId = text(formData, "userId");
+  if (!collectionId || !userId) return;
+
+  const user = await requireAdmin();
+  await setUserGrant(
+    { collectionId, userId, level: (text(formData, "level") ?? "none") as "none" | "read" | "write" },
+    { userId: user.id },
+  );
+  revalidatePath(`/admin/kb/${collectionId}`);
 }
 
 export async function setGrantAction(formData: FormData): Promise<void> {

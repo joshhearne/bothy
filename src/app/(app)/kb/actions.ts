@@ -8,6 +8,7 @@ import { getCompanyScope, requireAdmin, requireUser } from "@/server/auth/sessio
 import { readerKey } from "@/server/kb/identity";
 import { RunbookStepError } from "@/server/kb/runbook";
 import { ForbiddenError, NotFoundError } from "@/server/services/errors";
+import { grantsForUser } from "@/server/services/kb-grants";
 import { writeArticle } from "@/server/services/kb-write";
 import { setArticlePublicHidden } from "@/server/services/kb";
 import { setFavorite, setVote } from "@/server/services/kb-reactions";
@@ -18,7 +19,7 @@ const UUID = /^[0-9a-f-]{36}$/i;
 async function reacting(articleId: string | undefined) {
   if (!articleId || !UUID.test(articleId)) return null;
   const user = await requireUser();
-  return { key: readerKey(user.email), reader: { scope: await getCompanyScope(user), via: "app" as const } };
+  return { key: readerKey(user.email), reader: { scope: await getCompanyScope(user), via: "app" as const, userId: user.id } };
 }
 
 function refresh(articleId: string): void {
@@ -62,13 +63,13 @@ export async function setArticlePublicHiddenAction(formData: FormData): Promise<
 
 /* ---------- Writing an article in the app ---------- */
 
-/** The signed-in person as a writer: an administrator may write anywhere, until grants say more. */
+/** The signed-in person as a writer: an administrator may write anywhere; anyone else where granted. */
 async function writerFor() {
   const user = await requireUser();
   return {
     via: "app" as const,
     scope: await getCompanyScope(user),
-    grants: [],
+    grants: await grantsForUser(user.id),
     userId: user.id,
     userName: user.name,
     admin: user.role === "admin",

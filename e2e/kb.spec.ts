@@ -1405,6 +1405,67 @@ test("a runbook keeps its step ids across edits, renders as a checklist, and rea
   expect(swap.steps[1].id).toMatch(/^[0-9a-f]{8}$/);
 });
 
+test("a person granted a collection by name reads it, and writes to it when the grant says so", async ({
+  page,
+  browser,
+}) => {
+  // A collection kept to no company at all: only a grant reaches it.
+  await page.goto("/admin/kb");
+  const name = unique("Calder Ridge Granted");
+  await page.getByLabel("Collection name").fill(name);
+  await page.getByRole("button", { name: "Create collection" }).click();
+  await expect(page).toHaveURL(/\/admin\/kb\/[0-9a-f-]{36}$/);
+  const granted = page.url().split("/").pop() as string;
+  psql(`update kb_collections set all_companies=false where id='${granted}';`);
+
+  const email = `kb-granted-${Date.now().toString(36)}@example.com`;
+  createUser(email, "tech", "a-tech-password-for-kb");
+  // A person with no company of their own: only a grant lets them in.
+  setUserCompanies(email, []);
+  const context = await browser.newContext();
+  const person = await context.newPage();
+  await signInAs(person, email, "a-tech-password-for-kb");
+
+  // Nothing yet.
+  expect((await person.goto(`/kb/${granted}`))?.status()).toBe(404);
+
+  // Read: the collection appears; nothing to write with.
+  await page.goto(`/admin/kb/${granted}`);
+  const row = page.getByRole("listitem").filter({ hasText: email });
+  await row.getByLabel(/^Access for/).selectOption("read");
+  await row.getByRole("button", { name: "Save" }).click();
+  await expect(row.getByLabel(/^Access for/)).toHaveValue("read");
+  await expect.poll(() => psql(`select can_write from user_kb_collections u join users x on x.id=u.user_id where x.email='${email}' and u.collection_id='${granted}';`)).toBe("f");
+  expect((await person.goto(`/kb/${granted}`))?.status()).toBe(200);
+  await expect(person.getByRole("link", { name: "New article" })).toHaveCount(0);
+  expect((await person.goto(`/kb/articles/new?collection=${granted}`))?.status()).toBe(404);
+
+  // Write: the editor opens, and what they write is theirs in the audit trail.
+  await page.goto(`/admin/kb/${granted}`);
+  const again = page.getByRole("listitem").filter({ hasText: email });
+  await again.getByLabel(/^Access for/).selectOption("write");
+  await again.getByRole("button", { name: "Save" }).click();
+  await expect.poll(() => psql(`select can_write from user_kb_collections u join users x on x.id=u.user_id where x.email='${email}' and u.collection_id='${granted}';`)).toBe("t");
+  await person.goto(`/kb/${granted}`);
+  await person.getByRole("link", { name: "New article" }).click();
+  await person.getByLabel("Title").fill("Written by a granted person");
+  await person.getByRole("textbox", { name: "Body" }).fill("Some words.");
+  await person.getByRole("button", { name: "Save article" }).click();
+  await expect(person).toHaveURL(/\/kb\/articles\/[0-9a-f-]{36}$/);
+  const written = person.url().split("/").pop() as string;
+  expect(psql(`select detail->>'userName' from audit_log where entity='kb_article' and entity_id='${written}' and action='kb_article.created';`)).not.toBe("");
+  expect(psql(`select metadata->>'written_by' from kb_articles where id='${written}';`)).not.toBe("");
+
+  // Withdrawn: gone again, article and all.
+  await page.goto(`/admin/kb/${granted}`);
+  const last = page.getByRole("listitem").filter({ hasText: email });
+  await last.getByLabel(/^Access for/).selectOption("none");
+  await last.getByRole("button", { name: "Save" }).click();
+  await expect.poll(() => psql(`select count(*) from user_kb_collections u join users x on x.id=u.user_id where x.email='${email}' and u.collection_id='${granted}';`)).toBe("0");
+  expect((await person.goto(`/kb/articles/${written}`))?.status()).toBe(404);
+  await context.close();
+});
+
 /** One pixel, which is enough for a browser to draw. */
 const ONE_PIXEL = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",

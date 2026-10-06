@@ -183,6 +183,13 @@
       "when": 1791318191748,
       "tag": "0025_kb_runbooks",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791319359534,
+      "tag": "0026_user_kb_collections",
+      "breakpoints": true
     }
   ]
 }

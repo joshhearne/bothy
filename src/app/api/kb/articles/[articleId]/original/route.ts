@@ -11,5 +11,5 @@ export async function GET(
   const user = await getCurrentUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
   const { articleId } = await params;
-  return serveArticleOriginal(request, articleId, { scope: await getCompanyScope(user), via: "app" });
+  return serveArticleOriginal(request, articleId, { scope: await getCompanyScope(user), via: "app", userId: user.id });
 }

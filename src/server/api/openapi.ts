@@ -113,6 +113,7 @@ export function buildOpenApiDocument(baseUrl: string) {
       { name: "Option lists" },
       { name: "Search" },
       { name: "Knowledge base" },
+      { name: "People" },
       { name: "Integrations" },
     ],
     paths: {
@@ -348,6 +349,57 @@ export function buildOpenApiDocument(baseUrl: string) {
             "The Markdown body, `external_id`, `source_url`, and `public_url` (the address on the public " +
             "site, or null). A runbook also carries `steps`.",
           responses: { "200": ok("The article"), ...ERRORS },
+        },
+      },
+      "/users": {
+        get: {
+          tags: ["People"],
+          summary: "List accounts",
+          responses: { "200": ok("Every account"), ...ERRORS },
+        },
+        post: {
+          tags: ["People"],
+          summary: "Create an account by email, or return the one that exists",
+          description:
+            "No password is set: the person signs in through single sign-on, or an administrator sets a " +
+            "temporary password. Answers 201 when created and 200 when the email was already an account.",
+          requestBody: body(
+            z.object({
+              email: z.email(),
+              name: z.string().min(1).max(200),
+              role: z.enum(["admin", "tech", "readonly"]).optional(),
+              all_companies: z.boolean().optional(),
+            }),
+          ),
+          responses: { "200": ok("The existing account"), "201": ok("The created account"), ...ERRORS },
+        },
+      },
+      "/kb/collections/{id}/grants/users/{userId}": {
+        parameters: [idParam, { name: "userId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        put: {
+          tags: ["Knowledge base"],
+          summary: "Grant the collection to a person",
+          requestBody: body(z.object({ can_write: z.boolean().optional() })),
+          responses: { "200": ok("The grant"), ...ERRORS },
+        },
+        delete: {
+          tags: ["Knowledge base"],
+          summary: "Withdraw a person's grant",
+          responses: { "204": { description: "Withdrawn" }, ...ERRORS },
+        },
+      },
+      "/kb/collections/{id}/grants/api-keys/{keyId}": {
+        parameters: [idParam, { name: "keyId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        put: {
+          tags: ["Knowledge base"],
+          summary: "Grant the collection to an API key",
+          requestBody: body(z.object({ can_write: z.boolean().optional() })),
+          responses: { "200": ok("The grant"), ...ERRORS },
+        },
+        delete: {
+          tags: ["Knowledge base"],
+          summary: "Withdraw a key's grant",
+          responses: { "204": { description: "Withdrawn" }, ...ERRORS },
         },
       },
       "/external-refs": {

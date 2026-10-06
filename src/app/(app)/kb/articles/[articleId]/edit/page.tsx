@@ -1,19 +1,20 @@
 import { notFound } from "next/navigation";
-import { requireAdmin, requireScopedUser } from "@/server/auth/session";
+import { requireScopedUser } from "@/server/auth/session";
 import { getArticle } from "@/server/services/kb";
+import { userMayWrite } from "@/server/services/kb-write";
 import { getI18n } from "@/i18n/server";
 import { KbEditor } from "../../../kb-editor";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditArticlePage({ params }: { params: Promise<{ articleId: string }> }) {
-  await requireAdmin();
-  const { scope } = await requireScopedUser();
+  const { user, scope } = await requireScopedUser();
   const { articleId } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(articleId)) notFound();
-  const article = await getArticle(articleId, { scope, via: "app" });
+  const article = await getArticle(articleId, { scope, via: "app", userId: user.id });
   // Only an article with a name of its own can be written again under it.
   if (!article || !article.externalId || article.format !== "markdown") notFound();
+  if (!(await userMayWrite(user, article.collectionId))) notFound();
   const { messages: t } = await getI18n();
 
   return (

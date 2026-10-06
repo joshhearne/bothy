@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { KbCollection, UNCATEGORIZED } from "@/components/kb-collection";
 import { requireScopedUser } from "@/server/auth/session";
+import { userMayWrite } from "@/server/services/kb-write";
 import { publicAddressFor } from "@/server/kb/share";
 import {
   ARTICLE_SORTS,
@@ -31,7 +32,7 @@ export default async function CollectionPage({
   }>;
 }) {
   const { user, scope } = await requireScopedUser();
-  const reader: KbReader = { scope, via: "app" };
+  const reader: KbReader = { scope, via: "app", userId: user.id };
   const { collectionId } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(collectionId)) notFound();
 
@@ -76,7 +77,7 @@ export default async function CollectionPage({
       }}
       order={{ ...order, sorts: ARTICLE_SORTS }}
       publicHref={publicHref}
-      canWrite={user.role === "admin"}
+      canWrite={await userMayWrite(user, collectionId)}
       base="/kb"
       locale={locale}
       t={t}

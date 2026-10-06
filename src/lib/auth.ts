@@ -44,6 +44,14 @@ export const auth = betterAuth({
     schema: { users, sessions, accounts, verifications },
   }),
 
+  /**
+   * An account made ahead of a person's first visit has no password; when
+   * they arrive through single sign-on with the same email, that is them.
+   */
+  account: {
+    accountLinking: { enabled: true, trustedProviders: oidcConfigured ? [OIDC_PROVIDER_ID] : [] },
+  },
+
   emailAndPassword: {
     enabled: true,
     // Accounts are created by the first-run setup screen and (later) by admins,

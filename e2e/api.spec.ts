@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
-import { psql } from "./db";
+import { psql, setKeyCompanies } from "./db";
 import { readReceived, startHookReceiver, stopHookReceiver } from "./hook-receiver";
 import { createCompany, createDocType, signInAsAdmin, unique } from "./support";
 
@@ -238,6 +238,9 @@ test("the OpenAPI document describes the API", async ({ request }) => {
     "/kb/search",
     "/kb/articles",
     "/kb/articles/{id}",
+    "/users",
+    "/kb/collections/{id}/grants/users/{userId}",
+    "/kb/collections/{id}/grants/api-keys/{keyId}",
     "/documents/{id}/revisions",
     "/option-lists/{id}/items",
     "/search",
@@ -429,4 +432,57 @@ test("the knowledge base is read and written over REST by grant", async ({ brows
   expect(
     psql(`select string_agg(event, ',' order by id) from webhook_deliveries where payload->'data'->>'article_id'='${article.id}';`),
   ).toBe("kb.article.upserted,kb.article.upserted,kb.article.archived");
+});
+
+test("an admin key provisions a person and grants collections by API", async ({ browser, request }) => {
+  const page = await browser.newPage();
+  await signInAsAdmin(page);
+  const adminKey = await createKey(page, unique("admin key"), ["admin", "read"]);
+  await page.goto("/admin/kb");
+  const name = unique("Granted KB");
+  await page.getByLabel("Collection name").fill(name);
+  await page.getByRole("button", { name: "Create collection" }).click();
+  await expect(page).toHaveURL(/\/admin\/kb\/[0-9a-f-]{36}$/);
+  const collectionId = page.url().split("/").pop() as string;
+  await page.close();
+  psql(`update kb_collections set all_companies=false where id='${collectionId}';`);
+
+  // The read key has no business here.
+  expect((await request.get("/api/v1/users", { headers: auth(readKey) })).status()).toBe(403);
+
+  // An account ahead of the person's first sign-in, once.
+  const email = `api-person-${Date.now().toString(36)}@example.com`;
+  const made = await request.post("/api/v1/users", { headers: auth(adminKey), data: { email, name: "Api Person" } });
+  expect(made.status()).toBe(201);
+  const person = await made.json();
+  expect(person).toMatchObject({ email, name: "Api Person", role: "tech", all_companies: false });
+  const again = await request.post("/api/v1/users", { headers: auth(adminKey), data: { email: email.toUpperCase(), name: "Other Name" } });
+  expect(again.status()).toBe(200);
+  expect((await again.json()).id).toBe(person.id);
+  expect(psql(`select count(*) from accounts where user_id='${person.id}';`)).toBe("0");
+  expect((await request.post("/api/v1/users", { headers: auth(adminKey), data: { email: "not-an-email", name: "x" } })).status()).toBe(422);
+
+  // Granted by API, read then write, then withdrawn; each change audited to the key.
+  const grantUrl = `/api/v1/kb/collections/${collectionId}/grants/users/${person.id}`;
+  expect((await request.put(grantUrl, { headers: auth(adminKey), data: {} })).status()).toBe(200);
+  expect(psql(`select can_write from user_kb_collections where user_id='${person.id}' and collection_id='${collectionId}';`)).toBe("f");
+  const widened = await request.put(grantUrl, { headers: auth(adminKey), data: { can_write: true } });
+  expect(await widened.json()).toMatchObject({ level: "write" });
+  expect(psql(`select can_write from user_kb_collections where user_id='${person.id}' and collection_id='${collectionId}';`)).toBe("t");
+  expect((await request.delete(grantUrl, { headers: auth(adminKey) })).status()).toBe(204);
+  expect(psql(`select count(*) from user_kb_collections where user_id='${person.id}';`)).toBe("0");
+  expect(
+    psql(`select count(*) from audit_log where action='kb_grant.changed' and entity_id='${collectionId}' and detail->'by'->>'apiKeyId' is not null;`),
+  ).toBe("3");
+
+  // A key's grant by API: a key kept to no company reads only what it is granted.
+  const keyId = psql(`select id from api_keys where name='${WRITE_KEY_NAME}';`);
+  setKeyCompanies(WRITE_KEY_NAME, []);
+  expect((await request.get(`/api/v1/kb/collections/${collectionId}`, { headers: auth(writeKey) })).status()).toBe(404);
+  expect((await request.put(`/api/v1/kb/collections/${collectionId}/grants/api-keys/${keyId}`, { headers: auth(adminKey), data: { can_write: true } })).status()).toBe(200);
+  const seen = await request.get(`/api/v1/kb/collections/${collectionId}`, { headers: auth(writeKey) });
+  expect(seen.status()).toBe(200);
+  expect((await seen.json()).writable).toBe(true);
+  expect((await request.delete(`/api/v1/kb/collections/${collectionId}/grants/api-keys/${keyId}`, { headers: auth(adminKey) })).status()).toBe(204);
+  expect((await request.get(`/api/v1/kb/collections/${collectionId}`, { headers: auth(writeKey) })).status()).toBe(404);
 });

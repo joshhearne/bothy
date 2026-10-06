@@ -1,4 +1,5 @@
 import "server-only";
+import { z } from "zod";
 import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/server/db";
 import { userCompanies, users } from "@/server/db/schema";
@@ -166,5 +167,56 @@ export async function setCanRevealSecrets(
       },
       tx,
     );
+  });
+}
+
+export const provisionUserSchema = z.object({
+  email: z.email().trim().toLowerCase().max(320),
+  name: z.string().trim().min(1).max(200),
+  role: z.enum(ROLES).default("tech"),
+  allCompanies: z.boolean().optional(),
+});
+
+/**
+ * An account for a person who has not signed in yet, so a collection can be
+ * granted to them before their first visit. No password is set: they sign in
+ * through single sign-on, or an administrator sets a temporary password. An
+ * account that already exists under the email is returned as it is.
+ */
+export async function provisionUser(
+  input: z.input<typeof provisionUserSchema>,
+  actor: { userId?: string; apiKeyId?: string; apiKeyName?: string },
+): Promise<{ id: string; created: boolean }> {
+  const data = provisionUserSchema.parse(input);
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, data.email)).limit(1);
+  if (existing) return { id: existing.id, created: false };
+
+  return db.transaction(async (tx) => {
+    const [user] = await tx
+      .insert(users)
+      .values({
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        emailVerified: false,
+        allCompanies: data.allCompanies ?? data.role === "admin",
+      })
+      .returning({ id: users.id });
+    if (!user) throw new Error("Failed to create the user");
+    await writeAudit(
+      {
+        ...(actor.userId ? { userId: actor.userId } : {}),
+        action: "user.created",
+        entity: "user",
+        entityId: user.id,
+        detail: {
+          email: data.email,
+          role: data.role,
+          ...(actor.apiKeyId ? { apiKeyId: actor.apiKeyId, apiKeyName: actor.apiKeyName } : {}),
+        },
+      },
+      tx,
+    );
+    return { id: user.id, created: true };
   });
 }

@@ -11,6 +11,7 @@ import {
   kbConnectors,
   kbFavorites,
   kbVotes,
+  userKbCollections,
 } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/errors";
@@ -41,6 +42,8 @@ export type KbReader = {
    * whatever companies the collection is kept to.
    */
   granted?: readonly string[];
+  /** The signed-in person, whose own grants by name count the same way. */
+  userId?: string;
 };
 
 export function readable(reader: KbReader): SQL[] {
@@ -50,9 +53,15 @@ export function readable(reader: KbReader): SQL[] {
     return filters;
   }
   if (!reader.scope.all) {
-    const granted = reader.granted?.length
-      ? inArray(kbCollections.id, [...reader.granted])
+    const byKey = reader.granted?.length ? inArray(kbCollections.id, [...reader.granted]) : sql`false`;
+    const byPerson = reader.userId
+      ? sql`EXISTS (
+          SELECT 1 FROM ${userKbCollections}
+          WHERE ${userKbCollections.collectionId} = ${kbCollections.id}
+            AND ${userKbCollections.userId} = ${reader.userId}
+        )`
       : sql`false`;
+    const granted = sql`(${byKey} OR ${byPerson})`;
 
     // Somebody with access to no company belongs to none of them, so "every
     // company" does not include them either.

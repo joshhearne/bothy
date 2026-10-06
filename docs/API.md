@@ -71,6 +71,21 @@ GET    /kb/articles/:id                                    full body, kind, step
 PUT    /kb/collections/:id/articles/:external_id           upsert { title, body, category?, subcategory?, kind?, source_url?, internal_only? }  (write scope + write grant)
 DELETE /kb/collections/:id/articles/:external_id           archive                                                                    (write scope + write grant)
 ```
+Grants, with the `admin` scope. A person granted a collection reads it, and
+with `can_write` writes to it in the app, whatever companies it is kept to;
+administrators need no grant. An account can be made ahead of a person's
+first sign-in so the grant is waiting for them; they sign in through single
+sign-on with the same email, or an administrator sets a temporary password.
+```
+GET    /users                                              every account
+POST   /users                 { email, name, role?, all_companies? }   create, or return the existing account (200)
+PUT    /kb/collections/:id/grants/users/:userId  { can_write? }        grant to a person
+DELETE /kb/collections/:id/grants/users/:userId                        withdraw
+PUT    /kb/collections/:id/grants/api-keys/:keyId { can_write? }       grant to a key
+DELETE /kb/collections/:id/grants/api-keys/:keyId                      withdraw
+```
+Every grant change is an audit entry naming the key that made it.
+
 `public_url` is the article's address on the public site when the site is on,
 the collection is on it, and the article is not held back; otherwise null.
 `internal_only` on a PUT holds the article back by hand (true) or puts it back

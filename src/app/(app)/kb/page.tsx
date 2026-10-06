@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function KnowledgeBasePage({ searchParams }: { searchParams: Promise<KbHomeParams> }) {
   const { user, scope } = await requireScopedUser();
-  const reader: KbReader = { scope, via: "app" };
+  const reader: KbReader = { scope, via: "app", userId: user.id };
   const [params, t] = await Promise.all([searchParams, getMessages()]);
   return (
     <KbHome

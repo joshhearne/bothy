@@ -381,7 +381,14 @@ appears in the documentation search.
   id. The page draws the steps as a checklist that forgets on reload. `kind`
   comes from frontmatter, the MCP and REST upserts, or the in-app editor, and
   filters `list_kb_articles` and `search_kb`.
-- **Writing in the app**: administrators get a Markdown editor at
+- **Grants to people**: `user_kb_collections` has the shape of a key's grant,
+  and `readable()` counts it the same way: a person reads a collection their
+  companies give them, or one granted to them by name, and writes where the
+  grant says so. Administrators need no grant. Grants are set under Admin →
+  Knowledge base → the collection → People, or by an `admin`-scope key over
+  REST, which can also make an account ahead of the person's first sign-in;
+  single sign-on links to it by email.
+- **Writing in the app**: administrators, and people granted write, get a Markdown editor at
   `/kb/articles/new?collection=` and `/kb/articles/:id/edit`, the same
   `writeArticle` service a key uses, with a `KbWriter` that names the person.
   An article is editable only under an `external_id` of its own; one brought

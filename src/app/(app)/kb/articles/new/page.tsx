@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
-import { requireAdmin, requireScopedUser } from "@/server/auth/session";
+import { requireScopedUser } from "@/server/auth/session";
 import { getCollection } from "@/server/services/kb";
+import { userMayWrite } from "@/server/services/kb-write";
 import { getI18n } from "@/i18n/server";
 import { KbEditor } from "../../kb-editor";
 
@@ -11,12 +12,11 @@ export default async function NewArticlePage({
 }: {
   searchParams: Promise<{ collection?: string }>;
 }) {
-  await requireAdmin();
-  const { scope } = await requireScopedUser();
+  const { user, scope } = await requireScopedUser();
   const { collection: collectionId } = await searchParams;
   if (!collectionId || !/^[0-9a-f-]{36}$/i.test(collectionId)) notFound();
-  const collection = await getCollection(collectionId, { scope, via: "app" });
-  if (!collection) notFound();
+  const collection = await getCollection(collectionId, { scope, via: "app", userId: user.id });
+  if (!collection || !(await userMayWrite(user, collection.id))) notFound();
   const { messages: t } = await getI18n();
 
   return (

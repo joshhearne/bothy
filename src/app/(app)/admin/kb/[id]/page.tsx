@@ -12,7 +12,7 @@ import { ALL_COMPANIES } from "@/server/auth/company-scope";
 import { getKbPublicSettings } from "@/server/services/settings";
 import { listImports } from "@/server/services/kb-import";
 import { listConnectors } from "@/server/services/kb-connectors";
-import { GRANT_LEVELS, listKeyGrants } from "@/server/services/kb-grants";
+import { GRANT_LEVELS, listKeyGrants, listUserGrants } from "@/server/services/kb-grants";
 import { listCategoryVisibility, listHideRules } from "@/server/services/kb-visibility";
 import { formatDateTime, plural } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
@@ -25,6 +25,7 @@ import {
   setCollectionArchivedAction,
   setConnectorEnabledAction,
   setGrantAction,
+  setUserGrantAction,
 } from "../../kb-actions";
 import { Select } from "@/components/ui/select";
 
@@ -51,6 +52,7 @@ export default async function KbCollectionAdminPage({
     publicSite,
     hideRules,
     categoryVisibility,
+    people,
     { locale, messages: t },
   ] = await Promise.all([
     listImports(id, 10),
@@ -61,6 +63,7 @@ export default async function KbCollectionAdminPage({
     getKbPublicSettings(),
     listHideRules(id),
     listCategoryVisibility(id),
+    listUserGrants(id),
     getI18n(),
   ]);
   const available = !isWorkers();
@@ -170,13 +173,61 @@ export default async function KbCollectionAdminPage({
 
       <section className="flex flex-col gap-3">
         <div>
+          <h3 className="text-sm font-medium">{t.admin.kb.people}</h3>
+          <p className="text-sm text-[var(--muted-foreground)]">{t.admin.kb.peopleHint}</p>
+        </div>
+        {people.filter((person) => person.role !== "admin").length === 0 ? (
+          <p className="text-sm text-[var(--muted-foreground)]">{t.admin.kb.noPeople}</p>
+        ) : (
+          <>
+            <ul className="flex flex-col divide-y rounded-md border">
+              {people
+                .filter((person) => person.role !== "admin")
+                .map((person) => (
+                  <li key={person.userId}>
+                    <form action={setUserGrantAction} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                      <input type="hidden" name="collectionId" value={collection.id} />
+                      <input type="hidden" name="userId" value={person.userId} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium break-words">{person.name}</p>
+                        <p className="text-xs text-[var(--muted-foreground)]">{person.email}</p>
+                      </div>
+                      <Select
+                        name="level"
+                        defaultValue={person.level}
+                        aria-label={t.admin.kb.peopleLevelFor(person.name)}
+                        className="h-9 rounded-md border bg-transparent px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+                      >
+                        {GRANT_LEVELS.map((level) => (
+                          <option key={level} value={level}>
+                            {t.admin.kb.levels[level]}
+                          </option>
+                        ))}
+                      </Select>
+                      <Button type="submit" variant="outline" size="sm">
+                        {t.admin.kb.saveLevel}
+                      </Button>
+                    </form>
+                  </li>
+                ))}
+            </ul>
+            <p className="text-xs text-[var(--muted-foreground)]">
+              {t.admin.kb.peopleWriters(people.filter((person) => person.level === "write").length)}
+            </p>
+          </>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div>
           <h3 className="text-sm font-medium">{t.admin.kb.keys}</h3>
           <p className="text-sm text-[var(--muted-foreground)]">{t.admin.kb.keysHint}</p>
         </div>
 
-        {!collection.mcpEnabled ? (
+        {!collection.mcpEnabled && (
           <p className="text-sm text-[var(--muted-foreground)]">{t.admin.kb.keysMcpOff}</p>
-        ) : keys.length === 0 ? (
+        )}
+        {keys.length === 0 ? (
           <p className="text-sm text-[var(--muted-foreground)]">{t.admin.kb.noKeys}</p>
         ) : (
           <>

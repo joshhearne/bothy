@@ -655,3 +655,15 @@ ALTER TABLE kb_articles ADD COLUMN kind text NOT NULL DEFAULT 'article'
   CHECK (kind IN ('article','runbook'));
 ALTER TABLE kb_articles ADD COLUMN steps jsonb NOT NULL DEFAULT '[]';
 CREATE INDEX kb_articles_runbook_idx ON kb_articles (collection_id) WHERE kind = 'runbook';
+
+-- ---------- Per-person knowledge base grants ----------
+-- A collection granted to a person by name, read or write, whatever
+-- companies the collection is kept to. The same shape as a key's grant.
+CREATE TABLE user_kb_collections (
+  user_id       uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  collection_id uuid NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
+  can_write     boolean NOT NULL DEFAULT false,
+  granted_at    timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, collection_id)
+);
+CREATE INDEX user_kb_collections_collection_idx ON user_kb_collections (collection_id);

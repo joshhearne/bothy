@@ -989,10 +989,18 @@ export const enUS = {
       counts: (added: number, updated: number, skipped: number, failed: number) =>
         `${added} added · ${updated} updated · ${skipped} skipped · ${failed} failed`,
 
+      people: "People",
+      peopleHint:
+        "Who may read or write this collection by name, whatever companies it is kept to. Administrators may do both without a grant.",
+      noPeople: "Nobody else has an account yet.",
+      peopleLevelFor: (name: string) => `Access for ${name}`,
+      peopleWriters: (count: number) =>
+        count === 1 ? "1 person may write articles here." : `${count} people may write articles here.`,
       keys: "API key access",
       keysHint:
-        "Set once per key. A key that may write keeps this collection current through MCP on its own, until you change this. Keys are made under Admin → API keys.",
-      keysMcpOff: "This collection is closed to MCP. Turn that on under Settings first.",
+        "Set once per key. A key that may write keeps this collection current through the API or MCP on its own, until you change this. Keys are made under Admin → API keys.",
+      keysMcpOff:
+        "This collection is closed to MCP, so a key reaches it only through the REST API. Turn MCP on under Settings to open that door too.",
       noKeys: "No API keys yet. Create one under Admin → API keys.",
       levelFor: (name: string) => `Access for ${name}`,
       levels: {

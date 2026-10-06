@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/server/db";
-import { apiKeyKbCollections, apiKeys, kbCollections } from "@/server/db/schema";
+import { apiKeyKbCollections, apiKeys, kbCollections, userKbCollections, users } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/errors";
 
@@ -76,11 +76,122 @@ export async function listKeyGrants(collectionId: string): Promise<KeyGrantRow[]
   }));
 }
 
+/** Every grant a person holds, read on request so a change takes effect at once. */
+export async function grantsForUser(userId: string): Promise<KbGrant[]> {
+  return db
+    .select({ collectionId: userKbCollections.collectionId, canWrite: userKbCollections.canWrite })
+    .from(userKbCollections)
+    .innerJoin(kbCollections, eq(kbCollections.id, userKbCollections.collectionId))
+    .where(and(eq(userKbCollections.userId, userId), isNull(kbCollections.archivedAt)));
+}
+
+export type UserGrantRow = {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  level: GrantLevel;
+};
+
+/** Every person, and what they may do with this collection by name. Administrators need no grant. */
+export async function listUserGrants(collectionId: string): Promise<UserGrantRow[]> {
+  const rows = await db
+    .select({
+      userId: users.id,
+      name: users.name,
+      email: users.email,
+      role: users.role,
+      granted: userKbCollections.collectionId,
+      canWrite: userKbCollections.canWrite,
+    })
+    .from(users)
+    .leftJoin(
+      userKbCollections,
+      and(eq(userKbCollections.userId, users.id), eq(userKbCollections.collectionId, collectionId)),
+    )
+    .orderBy(asc(users.name), asc(users.email));
+  return rows.map((row) => ({
+    userId: row.userId,
+    name: row.name,
+    email: row.email,
+    role: row.role,
+    level: !row.granted ? "none" : row.canWrite ? "write" : "read",
+  }));
+}
+
+export const userGrantInputSchema = z.object({
+  userId: z.uuid(),
+  collectionId: z.uuid(),
+  level: z.enum(GRANT_LEVELS),
+});
+
+/** Who made a grant change: a person at the keyboard, or a key with the admin scope. */
+export type GrantActor = { userId: string } | { apiKeyId: string; apiKeyName: string };
+
+function actorFields(actor: GrantActor) {
+  return "userId" in actor ? { userId: actor.userId } : { apiKeyId: actor.apiKeyId, apiKeyName: actor.apiKeyName };
+}
+
+export async function setUserGrant(
+  input: z.input<typeof userGrantInputSchema>,
+  actor: GrantActor,
+): Promise<void> {
+  const data = userGrantInputSchema.parse(input);
+
+  await db.transaction(async (tx) => {
+    const [person] = await tx
+      .select({ id: users.id, email: users.email })
+      .from(users)
+      .where(eq(users.id, data.userId))
+      .limit(1);
+    if (!person) throw new NotFoundError("User");
+
+    const [collection] = await tx
+      .select({ id: kbCollections.id, name: kbCollections.name })
+      .from(kbCollections)
+      .where(eq(kbCollections.id, data.collectionId))
+      .limit(1);
+    if (!collection) throw new NotFoundError("Collection");
+
+    if (data.level === "none") {
+      await tx
+        .delete(userKbCollections)
+        .where(and(eq(userKbCollections.userId, person.id), eq(userKbCollections.collectionId, collection.id)));
+    } else {
+      const canWrite = data.level === "write";
+      await tx
+        .insert(userKbCollections)
+        .values({ userId: person.id, collectionId: collection.id, canWrite })
+        .onConflictDoUpdate({
+          target: [userKbCollections.userId, userKbCollections.collectionId],
+          set: { canWrite, grantedAt: new Date() },
+        });
+    }
+
+    await writeAudit(
+      {
+        ...("userId" in actor ? { userId: actor.userId } : {}),
+        action: "kb_grant.changed",
+        entity: "kb_collection",
+        entityId: collection.id,
+        detail: {
+          collection: collection.name,
+          grantee: { userId: person.id, email: person.email },
+          level: data.level,
+          by: actorFields(actor),
+        },
+      },
+      tx,
+    );
+  });
+}
+
 export async function setGrant(
   input: z.input<typeof grantInputSchema>,
-  actorId: string,
+  actor: string | GrantActor,
 ): Promise<void> {
   const data = grantInputSchema.parse(input);
+  const by: GrantActor = typeof actor === "string" ? { userId: actor } : actor;
 
   await db.transaction(async (tx) => {
     const [key] = await tx
@@ -119,7 +230,7 @@ export async function setGrant(
 
     await writeAudit(
       {
-        userId: actorId,
+        ...("userId" in by ? { userId: by.userId } : {}),
         action: "kb_grant.changed",
         entity: "kb_collection",
         entityId: collection.id,
@@ -128,6 +239,7 @@ export async function setGrant(
           apiKeyId: key.id,
           apiKeyName: key.name,
           level: data.level,
+          by: actorFields(by),
         },
       },
       tx,

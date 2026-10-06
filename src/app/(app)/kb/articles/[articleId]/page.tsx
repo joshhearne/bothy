@@ -11,6 +11,7 @@ import { readerKey } from "@/server/kb/identity";
 import { publicAddressFor } from "@/server/kb/share";
 import { getArticle } from "@/server/services/kb";
 import { withImages } from "@/server/services/kb-images";
+import { userMayWrite } from "@/server/services/kb-write";
 import { readerReaction } from "@/server/services/kb-reactions";
 import { getI18n } from "@/i18n/server";
 import { setArticlePublicHiddenAction, toggleFavoriteAction, voteAction } from "../../actions";
@@ -26,13 +27,14 @@ export default async function ArticlePage({
   const { articleId } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(articleId)) notFound();
 
-  const found = await getArticle(articleId, { scope, via: "app" });
+  const found = await getArticle(articleId, { scope, via: "app", userId: user.id });
   if (!found) notFound();
   const key = readerKey(user.email);
-  const [article, reaction, publicHref, { locale, messages: t }] = await Promise.all([
+  const [article, reaction, publicHref, canWrite, { locale, messages: t }] = await Promise.all([
     withImages(found, `/api/kb/articles/${found.id}/images`),
     readerReaction(key, found.id),
     publicAddressFor(found),
+    userMayWrite(user, found.collectionId),
     getI18n(),
   ]);
 
@@ -48,7 +50,7 @@ export default async function ArticlePage({
           {publicHref && (
             <CopyLink href={publicHref} label={t.kb.publicLink} copiedLabel={t.kb.publicLinkCopied} />
           )}
-          {user.role === "admin" && article.externalId && article.format === "markdown" && (
+          {canWrite && article.externalId && article.format === "markdown" && (
             <Link
               href={`/kb/articles/${article.id}/edit` as Route}
               className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-[var(--muted)]"
