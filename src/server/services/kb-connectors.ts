@@ -29,6 +29,8 @@ import {
   canonicalAddress,
   isListing,
   isTrackingLink,
+  isArchiveAddress,
+  isArchivePage,
   placePages,
   repeatedNotices,
   type CrawledPage,
@@ -330,8 +332,9 @@ export async function runConnector(id: string, actorId: string | null): Promise<
     const pages: CrawledPage[] = [];
     const drafts = new Map<string, { article: ExtractedArticle; hash: string }>();
 
-    while (queue.length > 0 && fetched < connector.maxPages) {
-      const entry = queue.shift() as SitemapEntry;
+    const later: SitemapEntry[] = [];
+    while ((queue.length > 0 || later.length > 0) && fetched < connector.maxPages) {
+      const entry = (queue.shift() ?? later.shift()) as SitemapEntry;
       const requested = canonical(entry.url);
       if (!allowed(requested) || isTrackingLink(requested)) {
         await run.ignore();
@@ -369,9 +372,19 @@ export async function runConnector(id: string, actorId: string | null): Promise<
               if (seen.has(next)) continue;
               if (seen.size >= connector.maxPages * 4) break;
               seen.add(next);
-              queue.push({ url: next, lastModified: null });
+              // Archives and later pages of them go to the back of the line,
+              // so a capped crawl spends its pages on articles.
+              if (isArchiveAddress(next)) later.push({ url: next, lastModified: null });
+              else queue.push({ url: next, lastModified: null });
             }
           }
+        }
+
+        // An archive page is read for the links it carries, never kept as an
+        // article, and never taken for a category: a tag is not a section.
+        if (isHtml && (isArchivePage(html) || isArchiveAddress(key))) {
+          await run.ignore();
+          continue;
         }
 
         const article = await pageToArticle(key, page.contentType, page.body);

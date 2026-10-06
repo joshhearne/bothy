@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   breadcrumbs,
   canonicalAddress,
+  isArchiveAddress,
+  isArchivePage,
   isListing,
   isTrackingLink,
   placePages,
@@ -48,6 +50,14 @@ describe("isListing", () => {
     expect(isListing(`<h1>Email Security</h1><ul>${menu}</ul>`)).toBe(true);
     const prose = `<h1>Allowing a sender</h1>${"<p>Open the control panel and choose the sender you want to allow. Save and wait a minute.</p>".repeat(6)}<p>See <a href="/a/1">this</a> and <a href="/a/2">that</a>.</p>`;
     expect(isListing(prose)).toBe(false);
+  });
+
+  it("does not call a page that embeds a video a listing, however little it says in words", () => {
+    const crumbs = Array.from({ length: 6 }, (_, i) => `<a href="/c/${i}">Crumb number ${i} with words</a>`).join(" | ");
+    expect(isListing(`${crumbs}<p>Watch:</p><iframe src="https://player.vimeo.com/video/1"></iframe>`)).toBe(false);
+    expect(isListing(`${crumbs}<p>Watch:</p>`)).toBe(true);
+    // Thumbnails do not make an index page an article.
+    expect(isListing(`${crumbs}<img src="/thumb.png">`)).toBe(true);
   });
 
   it("does not call a short page with a few links a listing", () => {
@@ -123,5 +133,29 @@ describe("repeatedNotices", () => {
       { url: "https://s/a/3", text: "Twice is a reprint." },
     ];
     expect([...repeatedNotices(pages)].sort()).toEqual(["https://s/tag/basic", "https://s/tag/portal", "https://s/tag/video"]);
+  });
+});
+
+describe("isArchiveAddress", () => {
+  it("knows tag, category, author, date, and paged addresses from articles", () => {
+    expect(isArchiveAddress("https://s/tag/password/page/3")).toBe(true);
+    expect(isArchiveAddress("https://s/end_users/page/7")).toBe(true);
+    expect(isArchiveAddress("https://s/category/phones")).toBe(true);
+    expect(isArchiveAddress("https://s/author/jo")).toBe(true);
+    expect(isArchiveAddress("https://s/2021/10/")).toBe(true);
+    expect(isArchiveAddress("https://s/?s=voicemail")).toBe(true);
+    expect(isArchiveAddress("https://s/?paged=2")).toBe(true);
+    expect(isArchiveAddress("https://s/2021/10/05/webex-uploading-your-picture")).toBe(false);
+    expect(isArchiveAddress("https://s/portal_end_user/passwords-getting-started")).toBe(false);
+    expect(isArchiveAddress("https://s/?admin_get_start=holiday-schedule")).toBe(false);
+  });
+});
+
+describe("isArchivePage", () => {
+  it("reads the body's own word for it", () => {
+    expect(isArchivePage('<body class="archive tag tag-password paged-3">')).toBe(true);
+    expect(isArchivePage('<body class="search search-results">')).toBe(true);
+    expect(isArchivePage('<body class="post-template-default single single-post">')).toBe(false);
+    expect(isArchivePage("<body>")).toBe(false);
   });
 });

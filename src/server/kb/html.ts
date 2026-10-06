@@ -2,6 +2,7 @@ import "server-only";
 import sanitizeHtml from "sanitize-html";
 import TurndownService from "turndown";
 import { textOf } from "./entities";
+import { videoAt } from "./video";
 
 /**
  * HTML to Markdown, for Word documents and crawled pages. The HTML is cut
@@ -13,7 +14,7 @@ const ARTICLE_TAGS = [
   "p", "br", "hr",
   "h1", "h2", "h3", "h4", "h5", "h6",
   "strong", "b", "em", "i", "code", "pre", "blockquote",
-  "ul", "ol", "li", "a", "img",
+  "ul", "ol", "li", "a", "img", "iframe",
   "table", "thead", "tbody", "tr", "th", "td",
 ];
 
@@ -38,6 +39,17 @@ function turndown(): TurndownService {
       return children.length === 1 && /^(UL|OL)$/.test(children[0]?.nodeName ?? "");
     },
     replacement: (content) => content.replace(/^\n+/, "").replace(/\n+$/, "\n"),
+  });
+
+  // A video embedded from a host people watch them on becomes a link to
+  // where it is watched; the article page draws the player again from that.
+  converter.addRule("video", {
+    filter: (node) => node.nodeName === "IFRAME",
+    replacement: (_content, node) => {
+      const src = (node as unknown as Element).getAttribute?.("src") ?? "";
+      const video = videoAt(src.replace(/&amp;/g, "&"));
+      return video ? `\n\n[Watch the video](${video.watchUrl})\n\n` : "";
+    },
   });
 
   // A link with nothing to click: no words and no picture. And a picture
@@ -74,12 +86,17 @@ function dropPageLists(html: string): string {
   return current;
 }
 
+/** What a media player shows when it has nothing to play: not the article's words. */
+function dropPlayerFallbacks(html: string): string {
+  return html.replace(/<span\b[^>]*\bclass\s*=\s*["'][^"']*\bno-source\b[^"']*["'][^>]*>[\s\S]*?<\/span>/gi, "");
+}
+
 export function htmlToMarkdown(html: string): string {
-  const clean = sanitizeHtml(dropPageLists(html), {
+  const clean = sanitizeHtml(dropPlayerFallbacks(dropPageLists(html)), {
     allowedTags: ARTICLE_TAGS,
-    allowedAttributes: { a: ["href"], img: ["src", "alt"] },
+    allowedAttributes: { a: ["href"], img: ["src", "alt"], iframe: ["src"] },
     allowedSchemes: ["http", "https", "mailto"],
-    allowedSchemesByTag: { img: ["http", "https"] },
+    allowedSchemesByTag: { img: ["http", "https"], iframe: ["https"] },
     // Dropped with everything inside them, not unwrapped into the text.
     nonTextTags: ["script", "style", "textarea", "option", "noscript", "nav", "header", "footer", "aside", "form", "svg"],
     transformTags: {

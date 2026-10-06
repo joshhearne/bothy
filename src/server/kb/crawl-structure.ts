@@ -116,6 +116,8 @@ function same(a: string, b: string): boolean {
  * article: how much of its text sits inside links, and how little is left.
  */
 export function isListing(mainHtml: string): boolean {
+  // A page whose content is a video has little to say in words.
+  if (/<(?:iframe|video)\b/i.test(mainHtml)) return false;
   const text = decodeEntities(mainHtml);
   const linked = [...mainHtml.matchAll(/<a\b[^>]*>([\s\S]*?)<\/a>/gi)].map((m) => decodeEntities(m[1] ?? ""));
   const links = linked.filter((t) => t !== "").length;
@@ -192,6 +194,34 @@ function depthOf(listing: CrawledPage, parentOf: (listing: CrawledPage) => Crawl
     if (current) depth += 1;
   }
   return depth;
+}
+
+/**
+ * Addresses that lead to a site's furniture rather than to articles: tag,
+ * category, author, and date archives, and the later pages of any of them.
+ * Fetched after everything else, so a crawl with a cap reaches the articles
+ * first, and never kept as articles.
+ */
+export function isArchiveAddress(address: string): boolean {
+  try {
+    const url = new URL(address);
+    if (/\/(?:tag|tags|category|categories|author|topics?|label|archives?)\/|\/page\/\d+(?:\/|$)|\/\d{4}\/\d{2}\/?$/i.test(url.pathname)) {
+      return true;
+    }
+    return /(?:^|[?&])(?:paged|page|s|tag|cat|author|m)=/.test(url.search);
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Whether a page says it is an archive: a list of posts by tag, category,
+ * author, or date, or a page of search results. Sites built on the common
+ * publishing platforms mark the body of such a page with those words.
+ */
+export function isArchivePage(html: string): boolean {
+  const body = /<body\b[^>]*\bclass\s*=\s*["']([^"']*)["']/i.exec(html)?.[1] ?? "";
+  return /(?:^|\s)(?:archive|tag|category|search-results|search|paged|date|author)(?:\s|$)/i.test(body);
 }
 
 /** Addresses that are not pages: click-through redirects and tracking links. */

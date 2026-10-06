@@ -15,6 +15,7 @@ import {
   previewHideRulesAction,
   removeHideRuleAction,
   setHiddenCategoriesAction,
+  updateHideRuleAction,
 } from "./kb-actions";
 
 function Check({
@@ -47,52 +48,182 @@ function Check({
   );
 }
 
-/**
- * Rules that hold articles back from the public site by keyword, with a
- * count of what the patterns in the box would hold back, kept current as
- * the administrator types.
- */
-export function HideRules({ collectionId, rules }: { collectionId: string; rules: HideRuleRow[] }) {
-  const t = useMessages().admin.kb.visibility;
-  const patternId = useId();
-  const [pattern, setPattern] = useState("");
-  const [isRegex, setIsRegex] = useState(false);
-  const [matchArticles, setMatchArticles] = useState(true);
-  const [matchCategories, setMatchCategories] = useState(false);
-  const [matchFiles, setMatchFiles] = useState(false);
-  const [preview, setPreview] = useState<(HidePreview & { patterns: string[] }) | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+type Preview = HidePreview & { patterns: string[] };
+
+/** What the patterns in the box would hold back, a moment behind what is typed. */
+function usePreview(collectionId: string, input: HideRuleInput) {
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [checking, startChecking] = useTransition();
   const latest = useRef(0);
-
-  const [state, formAction, pending] = useActionState<FormState, FormData>(async (previous, formData) => {
-    const next = await addHideRulesAction(previous, formData);
-    if (next.ok) {
-      setPattern("");
-      setPreview(null);
-    }
-    return next;
-  }, {});
-
+  const { pattern, isRegex, matchArticles, matchCategories, matchFiles } = input;
   const empty = pattern.trim() === "";
 
-  // The count follows what is typed, a moment behind it.
   useEffect(() => {
     if (empty) return;
-    const input: HideRuleInput = { pattern, isRegex, matchArticles, matchCategories, matchFiles };
     const call = ++latest.current;
     const timer = setTimeout(() => {
       startChecking(async () => {
-        const result = await previewHideRulesAction(collectionId, input);
+        const result = await previewHideRulesAction(collectionId, {
+          pattern,
+          isRegex,
+          matchArticles,
+          matchCategories,
+          matchFiles,
+        });
         if (call !== latest.current) return;
         setPreview(result.preview ?? null);
-        setPreviewError(result.error ?? null);
+        setError(result.error ?? null);
       });
     }, 350);
     return () => clearTimeout(timer);
   }, [collectionId, empty, pattern, isRegex, matchArticles, matchCategories, matchFiles]);
 
+  return { preview: empty ? null : preview, error: empty ? null : error, checking, reset: () => setPreview(null) };
+}
+
+/**
+ * The pattern box with its scope, and the count of what it would hold back.
+ * Adds a batch of rules, or changes one, depending on what it is given.
+ */
+function RuleForm({
+  collectionId,
+  rule,
+  onDone,
+}: {
+  collectionId: string;
+  /** The rule being changed; absent when adding. */
+  rule?: HideRuleRow;
+  onDone?: () => void;
+}) {
+  const messages = useMessages();
+  const t = messages.admin.kb.visibility;
+  const patternId = useId();
+  const [pattern, setPattern] = useState(rule?.pattern ?? "");
+  const [isRegex, setIsRegex] = useState(rule?.isRegex ?? false);
+  const [matchArticles, setMatchArticles] = useState(rule?.matchArticles ?? true);
+  const [matchCategories, setMatchCategories] = useState(rule?.matchCategories ?? false);
+  const [matchFiles, setMatchFiles] = useState(rule?.matchFiles ?? false);
+  const input: HideRuleInput = { pattern, isRegex, matchArticles, matchCategories, matchFiles };
+  const { preview, error: previewError, checking, reset } = usePreview(collectionId, input);
+
+  const [state, formAction, pending] = useActionState<FormState, FormData>(async (previous, formData) => {
+    const next = rule
+      ? await updateHideRuleAction(previous, formData)
+      : await addHideRulesAction(previous, formData);
+    if (next.ok) {
+      if (!rule) {
+        setPattern("");
+        reset();
+      }
+      onDone?.();
+    }
+    return next;
+  }, {});
+
+  const empty = pattern.trim() === "";
   const anyScope = matchArticles || matchCategories || matchFiles;
+
+  return (
+    <form action={formAction} className="flex flex-col gap-4 rounded-md border p-4">
+      <input type="hidden" name="collectionId" value={collectionId} />
+      {rule && <input type="hidden" name="id" value={rule.id} />}
+      <Field
+        id={patternId}
+        label={rule ? t.editPattern : t.pattern}
+        hint={rule ? t.editHint : undefined}
+        error={state.fieldErrors?.pattern}
+      >
+        <Textarea
+          id={patternId}
+          name="pattern"
+          value={pattern}
+          onChange={(event) => setPattern(event.target.value)}
+          placeholder={rule ? undefined : t.patternPlaceholder}
+          spellCheck={false}
+          aria-invalid={!!state.fieldErrors?.pattern || !!previewError}
+          className={rule ? "min-h-12 font-mono" : "min-h-20 font-mono"}
+        />
+      </Field>
+      <Check name="isRegex" label={t.regex} hint={t.regexHint} checked={isRegex} onChange={setIsRegex} />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Check
+          name="matchArticles"
+          label={t.scopeArticles}
+          hint={t.scopeArticlesHint}
+          checked={matchArticles}
+          onChange={setMatchArticles}
+        />
+        <Check
+          name="matchCategories"
+          label={t.scopeCategories}
+          hint={t.scopeCategoriesHint}
+          checked={matchCategories}
+          onChange={setMatchCategories}
+        />
+        <Check
+          name="matchFiles"
+          label={t.scopeFiles}
+          hint={t.scopeFilesHint}
+          checked={matchFiles}
+          onChange={setMatchFiles}
+        />
+      </div>
+
+      <p role="status" aria-live="polite" className="text-sm tabular-nums">
+        {empty ? null : !anyScope ? (
+          <span className="text-[var(--muted-foreground)]">{t.previewScope}</span>
+        ) : previewError ? (
+          <span className="text-[var(--destructive)]">{previewError}</span>
+        ) : checking && !preview ? (
+          <span className="text-[var(--muted-foreground)]">{t.previewChecking}</span>
+        ) : preview ? (
+          preview.total === 0 ? (
+            <span className="text-[var(--muted-foreground)]">
+              {t.previewNone} · {t.previewPatterns(preview.patterns.length)}
+            </span>
+          ) : (
+            <>
+              <span className="font-medium">{t.preview(preview.total)}</span>
+              <span className="text-[var(--muted-foreground)]">
+                {" · "}
+                {[
+                  matchArticles ? t.previewTitle(preview.byTitle) : null,
+                  matchCategories ? t.previewCategory(preview.byCategory, preview.categories) : null,
+                  matchFiles ? t.previewFile(preview.byFile) : null,
+                  rule ? null : t.previewPatterns(preview.patterns.length),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+            </>
+          )
+        ) : null}
+      </p>
+
+      <FormError>{state.error}</FormError>
+      <div className="flex items-center gap-3">
+        <Button type="submit" size="sm" disabled={pending || empty || !anyScope || !!previewError}>
+          {rule ? t.saveRule : t.addRules}
+        </Button>
+        {rule && onDone && (
+          <Button type="button" variant="ghost" size="sm" onClick={onDone}>
+            {messages.common.cancel}
+          </Button>
+        )}
+        {!rule && state.ok && <span className="text-xs text-[var(--muted-foreground)]">{t.added}</span>}
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Rules that hold articles back from the public site by keyword, each
+ * changeable in place, and a box for adding more.
+ */
+export function HideRules({ collectionId, rules }: { collectionId: string; rules: HideRuleRow[] }) {
+  const t = useMessages().admin.kb.visibility;
+  const [editing, setEditing] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-4">
@@ -106,104 +237,41 @@ export function HideRules({ collectionId, rules }: { collectionId: string; rules
       ) : (
         <ul className="flex flex-col divide-y rounded-md border">
           {rules.map((rule) => (
-            <li key={rule.id} className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm">
-              <code className="min-w-0 flex-1 break-all">{rule.pattern}</code>
-              <Chip tone={rule.isRegex ? "blue" : "gray"}>{rule.isRegex ? t.regex : t.literal}</Chip>
-              {rule.matchArticles && <Chip tone="gray">{t.scopeArticles}</Chip>}
-              {rule.matchCategories && <Chip tone="gray">{t.scopeCategories}</Chip>}
-              {rule.matchFiles && <Chip tone="gray">{t.scopeFiles}</Chip>}
-              <span className="text-xs text-[var(--muted-foreground)] tabular-nums">
-                {t.ruleHides(rule.articles)}
-              </span>
-              <form action={removeHideRuleAction}>
-                <input type="hidden" name="id" value={rule.id} />
-                <Button type="submit" variant="ghost" size="sm">
-                  {t.remove}
+            <li key={rule.id} className="flex flex-col gap-2 px-4 py-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="min-w-0 flex-1 break-all">{rule.pattern}</code>
+                <Chip tone={rule.isRegex ? "blue" : "gray"}>{rule.isRegex ? t.regex : t.literal}</Chip>
+                {rule.matchArticles && <Chip tone="gray">{t.scopeArticles}</Chip>}
+                {rule.matchCategories && <Chip tone="gray">{t.scopeCategories}</Chip>}
+                {rule.matchFiles && <Chip tone="gray">{t.scopeFiles}</Chip>}
+                <span className="text-xs text-[var(--muted-foreground)] tabular-nums">
+                  {t.ruleHides(rule.articles)}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-expanded={editing === rule.id}
+                  onClick={() => setEditing(editing === rule.id ? null : rule.id)}
+                >
+                  {t.edit}
                 </Button>
-              </form>
+                <form action={removeHideRuleAction}>
+                  <input type="hidden" name="id" value={rule.id} />
+                  <Button type="submit" variant="ghost" size="sm">
+                    {t.remove}
+                  </Button>
+                </form>
+              </div>
+              {editing === rule.id && (
+                <RuleForm key={rule.id} collectionId={collectionId} rule={rule} onDone={() => setEditing(null)} />
+              )}
             </li>
           ))}
         </ul>
       )}
 
-      <form action={formAction} className="flex flex-col gap-4 rounded-md border p-4">
-        <input type="hidden" name="collectionId" value={collectionId} />
-        <Field id={patternId} label={t.pattern} error={state.fieldErrors?.pattern}>
-          <Textarea
-            id={patternId}
-            name="pattern"
-            value={pattern}
-            onChange={(event) => setPattern(event.target.value)}
-            placeholder={t.patternPlaceholder}
-            spellCheck={false}
-            aria-invalid={!!state.fieldErrors?.pattern || !!previewError}
-            className="min-h-20 font-mono"
-          />
-        </Field>
-        <Check name="isRegex" label={t.regex} hint={t.regexHint} checked={isRegex} onChange={setIsRegex} />
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Check
-            name="matchArticles"
-            label={t.scopeArticles}
-            hint={t.scopeArticlesHint}
-            checked={matchArticles}
-            onChange={setMatchArticles}
-          />
-          <Check
-            name="matchCategories"
-            label={t.scopeCategories}
-            hint={t.scopeCategoriesHint}
-            checked={matchCategories}
-            onChange={setMatchCategories}
-          />
-          <Check
-            name="matchFiles"
-            label={t.scopeFiles}
-            hint={t.scopeFilesHint}
-            checked={matchFiles}
-            onChange={setMatchFiles}
-          />
-        </div>
-
-        <p role="status" aria-live="polite" className="text-sm tabular-nums">
-          {empty ? null : !anyScope ? (
-            <span className="text-[var(--muted-foreground)]">{t.previewScope}</span>
-          ) : previewError ? (
-            <span className="text-[var(--destructive)]">{previewError}</span>
-          ) : checking && !preview ? (
-            <span className="text-[var(--muted-foreground)]">{t.previewChecking}</span>
-          ) : preview ? (
-            preview.total === 0 ? (
-              <span className="text-[var(--muted-foreground)]">
-                {t.previewNone} · {t.previewPatterns(preview.patterns.length)}
-              </span>
-            ) : (
-              <>
-                <span className="font-medium">{t.preview(preview.total)}</span>
-                <span className="text-[var(--muted-foreground)]">
-                  {" · "}
-                  {[
-                    matchArticles ? t.previewTitle(preview.byTitle) : null,
-                    matchCategories ? t.previewCategory(preview.byCategory, preview.categories) : null,
-                    matchFiles ? t.previewFile(preview.byFile) : null,
-                    t.previewPatterns(preview.patterns.length),
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-              </>
-            )
-          ) : null}
-        </p>
-
-        <FormError>{state.error}</FormError>
-        <div className="flex items-center gap-3">
-          <Button type="submit" size="sm" disabled={pending || empty || !anyScope || !!previewError}>
-            {t.addRules}
-          </Button>
-          {state.ok && <span className="text-xs text-[var(--muted-foreground)]">{t.added}</span>}
-        </div>
-      </form>
+      <RuleForm collectionId={collectionId} />
     </div>
   );
 }

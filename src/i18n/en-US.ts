@@ -900,6 +900,10 @@ export const enUS = {
         ruleHides: (n: number) => (n === 1 ? "holds back 1 article" : `holds back ${n} articles`),
         literal: "Phrase",
         remove: "Remove",
+        edit: "Edit",
+        editPattern: "Pattern",
+        editHint: "One pattern. Matching ignores case.",
+        saveRule: "Save rule",
         categories: "Category visibility",
         categoriesHint:
           "Every category is on the public site unless unchecked. An unchecked category holds back everything in it, including articles added later.",

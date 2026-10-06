@@ -287,6 +287,49 @@ export async function addHideRules(collectionId: string, input: HideRuleInput, a
   return patterns.length;
 }
 
+/** Changes one rule's pattern or scope, and applies the change. The pattern is one pattern, not a batch. */
+export async function updateHideRule(id: string, input: HideRuleInput, actorId: string): Promise<string> {
+  const scope = normalize(input);
+  if (scope.isRegex) await checkRegex(scope.pattern);
+  return db.transaction(async (tx) => {
+    const [before] = await tx
+      .select({ collectionId: kbHideRules.collectionId, pattern: kbHideRules.pattern })
+      .from(kbHideRules)
+      .where(eq(kbHideRules.id, id));
+    if (!before) throw new NotFoundError("Rule");
+    await tx
+      .update(kbHideRules)
+      .set({
+        pattern: scope.pattern,
+        isRegex: scope.isRegex,
+        matchArticles: scope.matchArticles,
+        matchCategories: scope.matchCategories,
+        matchFiles: scope.matchFiles,
+        ...compilePattern(scope.pattern, scope.isRegex),
+      })
+      .where(eq(kbHideRules.id, id));
+    await applyVisibility(before.collectionId, undefined, tx);
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "kb_collection.hide_rule_changed",
+        entity: "kb_collection",
+        entityId: before.collectionId,
+        detail: {
+          was: before.pattern,
+          pattern: scope.pattern,
+          isRegex: scope.isRegex,
+          matchArticles: scope.matchArticles,
+          matchCategories: scope.matchCategories,
+          matchFiles: scope.matchFiles,
+        },
+      },
+      tx,
+    );
+    return before.collectionId;
+  });
+}
+
 export async function removeHideRule(id: string, actorId: string): Promise<string> {
   return db.transaction(async (tx) => {
     const [row] = await tx

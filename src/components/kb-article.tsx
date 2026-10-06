@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { ChevronLeft, ExternalLink, FileText } from "lucide-react";
 import { renderMarkdown } from "@/server/fields/render";
 import { outlineHtml } from "@/server/kb/outline";
+import { embedVideos } from "@/server/kb/video";
 import { KbOutline } from "@/components/kb-outline";
 import type { ArticleDetail } from "@/server/services/kb";
 import { originalOf } from "@/server/services/kb-import";
@@ -63,7 +64,7 @@ export function KbArticle({
   const original = originalHref ? originalOf(article.metadata) : null;
   const drawn =
     article.extraction !== "unextracted" && article.format === "markdown"
-      ? outlineHtml(renderMarkdown(withoutLeadingTitle(article.body, article.title)))
+      ? outlineHtml(embedVideos(renderMarkdown(withoutLeadingTitle(article.body, article.title))))
       : null;
 
   return (

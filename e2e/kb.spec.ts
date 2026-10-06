@@ -1262,6 +1262,22 @@ test("keyword rules and category visibility hold articles back from the public s
   await expect(page.getByText("Held back from the public site by a keyword rule")).toBeVisible();
   await expect(page.getByRole("button", { name: "Put back" })).toHaveCount(0);
 
+  // A rule changed in place: "internal" widened to a regular expression that also takes the user guide.
+  await page.goto(`/admin/kb/${rules}`);
+  const internal = page.getByRole("listitem").filter({ hasText: "internal" });
+  await internal.getByRole("button", { name: "Edit" }).click();
+  await internal.getByRole("textbox", { name: "Pattern" }).fill("internal|user setup");
+  await internal.getByRole("checkbox", { name: "Regular expressions" }).check();
+  await expect(internal.getByRole("status")).toContainText("Would hold back 2 articles");
+  await internal.getByRole("button", { name: "Save rule" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "internal|user setup" })).toContainText("holds back 2 articles");
+  expect(await status("Guides/user-setup.md")).toBe(404);
+  await page.getByRole("listitem").filter({ hasText: "internal|user setup" }).getByRole("button", { name: "Edit" }).click();
+  await page.getByRole("listitem").filter({ hasText: "internal|user setup" }).getByRole("textbox", { name: "Pattern" }).fill("internal");
+  await page.getByRole("listitem").filter({ hasText: "internal|user setup" }).getByRole("button", { name: "Save rule" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "internal" }).first()).toContainText("holds back 1 article");
+  expect(await status("Guides/user-setup.md")).toBe(200);
+
   // A rule removed lets its articles go; one held by hand stays held.
   await page.goto(`/kb/articles/${idOf("Guides/user-setup.md")}`);
   await page.getByRole("button", { name: "Hold back" }).click();
@@ -1440,6 +1456,8 @@ test("an imported article's steps keep counting past a picture, and its headings
             "",
             "1.  A new list starts over.",
             "",
+            "[Watch the video](https://vimeo.com/657625091)",
+            "",
           ].join("\n"),
         ),
         "export/images/panel.png": ONE_PIXEL,
@@ -1465,6 +1483,13 @@ test("an imported article's steps keep counting past a picture, and its headings
   await expect(lists.first().locator("> li").first().getByRole("img", { name: "The panel" })).toBeVisible();
   await expect(lists.first().locator("> li").nth(2)).toHaveText("Save.");
   await expect(lists.nth(1).locator("> li")).toHaveCount(1);
+
+  // A link to a video on a host we embed is drawn as the player, the link kept under it.
+  await expect(page.locator(".kb-video iframe")).toHaveAttribute("src", "https://player.vimeo.com/video/657625091");
+  await expect(page.locator(".kb-video").getByRole("link", { name: "Watch the video" })).toHaveAttribute(
+    "href",
+    "https://vimeo.com/657625091",
+  );
 
   // Only on a narrow screen is the outline a button at the foot of the page.
   await expect(page.getByRole("button", { name: "On this page" })).toBeHidden();

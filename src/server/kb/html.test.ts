@@ -40,6 +40,14 @@ describe("htmlToMarkdown", () => {
     expect(htmlToMarkdown(html)).toBe("-   [A page](https://s/a)\n-   [Another](https://s/b)");
   });
 
+  it("keeps an embedded video as a link to where it is watched, and drops a player's empty fallback", () => {
+    const html =
+      '<div class="x-video"><span class="x-mejs-no-source">Video source missing</span></div>' +
+      '<p>Steps:</p><iframe src="https://player.vimeo.com/video/657625091?api=1&amp;player_id=x" width="640"></iframe>' +
+      '<iframe src="https://ads.example.com/frame"></iframe><p>After</p>';
+    expect(htmlToMarkdown(html)).toBe("Steps:\n\n[Watch the video](https://vimeo.com/657625091)\n\nAfter");
+  });
+
   it("keeps a picture with its link, and drops a link with nothing to click", () => {
     expect(htmlToMarkdown('<p><a href="https://s/big.png"><img src="https://s/small.png" alt="Setup"></a></p>')).toBe(
       "[![Setup](https://s/small.png)](https://s/big.png)",

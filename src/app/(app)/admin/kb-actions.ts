@@ -19,6 +19,7 @@ import {
   previewHideRules,
   removeHideRule,
   setHiddenCategories,
+  updateHideRule,
   type HidePreview,
 } from "@/server/services/kb-visibility";
 import type { HideRuleInput } from "@/server/kb/hide-patterns";
@@ -197,6 +198,20 @@ export async function addHideRulesAction(_prev: FormState, formData: FormData): 
   try {
     const user = await requireAdmin();
     await addHideRules(collectionId, hideRuleInput(formData), user.id);
+  } catch (err) {
+    if (err instanceof HideRuleError) return { fieldErrors: { pattern: err.message } };
+    return toFormState(err);
+  }
+  revalidatePath(`/admin/kb/${collectionId}`);
+  return { ok: true };
+}
+
+export async function updateHideRuleAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const id = text(formData, "id") ?? "";
+  let collectionId: string;
+  try {
+    const user = await requireAdmin();
+    collectionId = await updateHideRule(id, hideRuleInput(formData), user.id);
   } catch (err) {
     if (err instanceof HideRuleError) return { fieldErrors: { pattern: err.message } };
     return toFormState(err);
