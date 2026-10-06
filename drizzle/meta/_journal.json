@@ -169,6 +169,13 @@
       "when": 1790888538299,
       "tag": "0023_collection_site_url",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791303505312,
+      "tag": "0024_kb_visibility_rules",
+      "breakpoints": true
     }
   ]
 }

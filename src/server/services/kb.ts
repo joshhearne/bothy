@@ -14,6 +14,7 @@ import {
 } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/errors";
+import { applyVisibility } from "@/server/services/kb-visibility";
 import type { CompanyScope } from "@/server/auth/company-scope";
 import { safeUrl } from "@/server/kb/extract";
 
@@ -442,6 +443,7 @@ export const articleSummaryColumns = {
 
 export type ArticleDetail = ArticleSummary & {
   publicHidden: boolean;
+  hiddenBy: string | null;
   collectionPublic: boolean;
   collectionId: string;
   collectionName: string;
@@ -594,6 +596,7 @@ export async function getArticle(id: string, reader: KbReader): Promise<ArticleD
       collectionId: kbCollections.id,
       collectionName: kbCollections.name,
       publicHidden: kbArticles.publicHidden,
+      hiddenBy: kbArticles.hiddenBy,
       collectionPublic: kbCollections.publicAccess,
       externalId: kbArticles.externalId,
       sourcePath: kbArticles.sourcePath,
@@ -646,10 +649,12 @@ export async function setArticlePublicHidden(
   await db.transaction(async (tx) => {
     const [row] = await tx
       .update(kbArticles)
-      .set({ publicHidden: hidden })
+      .set({ publicHidden: hidden, hiddenBy: hidden ? "manual" : null })
       .where(eq(kbArticles.id, id))
-      .returning({ id: kbArticles.id, title: kbArticles.title });
+      .returning({ id: kbArticles.id, title: kbArticles.title, collectionId: kbArticles.collectionId });
     if (!row) throw new NotFoundError("Article");
+    // Put back by hand, it is still held if a rule or its category holds it.
+    if (!hidden) await applyVisibility(row.collectionId, row.id, tx);
 
     await writeAudit(
       {

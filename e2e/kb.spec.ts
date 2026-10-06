@@ -1192,6 +1192,106 @@ test("a key can write an article that stays off the public site", async ({ page,
   await grant(page, REPO_KEY_NAME, "none");
 });
 
+test("keyword rules and category visibility hold articles back from the public site, and apply to what arrives later", async ({
+  page,
+  browser,
+}) => {
+  await setPublicSite(page, "addresses", "203.0.113.0/24");
+  await page.goto("/admin/kb");
+  await page.getByLabel("Collection name").fill(unique("Calder Ridge Rules"));
+  await page.getByRole("button", { name: "Create collection" }).click();
+  await expect(page).toHaveURL(/\/admin\/kb\/[0-9a-f-]{36}$/);
+  const rules = page.url().split("/").pop() as string;
+  psql(`update kb_collections set public_access=true where id='${rules}';`);
+
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: "rules.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from(
+      zipSync({
+        "export/Guides/admin-setup.md": text("# Admin setup\n\nFor administrators."),
+        "export/Guides/user-setup.md": text("# User setup\n\nFor everyone."),
+        "export/Internal/runbook.md": text("# Runbook\n\nOn call."),
+        "export/Guides/pricing.pdf": scannedPdf(),
+      }),
+    ),
+  });
+  await page.getByRole("button", { name: "Start import" }).click();
+  await expect(page.getByText("Import finished.")).toBeVisible({ timeout: 60_000 });
+  const idOf = (path: string) =>
+    psql(`select id from kb_articles where collection_id='${rules}' and source_path='${path}';`);
+  const onSite = await visitor(browser, ON_SITE);
+  const status = async (path: string) => (await onSite.page.goto(`/pub/kb/articles/${idOf(path)}`))?.status();
+
+  // The preview counts as the patterns are typed, before anything is saved.
+  await page.reload();
+  const patterns = page.getByLabel("Patterns");
+  const counts = page.getByRole("status").filter({ hasText: /hold back|matches|pattern|expression/ });
+  await patterns.fill("admin");
+  await expect(counts).toContainText("Would hold back 1 article");
+  await expect(counts).toContainText("1 by title");
+  await page.getByRole("checkbox", { name: "Categories" }).check();
+  await patterns.fill("admin, internal\n*.pdf");
+  await expect(counts).toContainText("3 patterns");
+  await expect(counts).toContainText("Would hold back 2 articles");
+  await page.getByRole("checkbox", { name: "Files" }).check();
+  await expect(counts).toContainText("Would hold back 3 articles");
+  await expect(counts).toContainText("1 by file");
+
+  // A bad regular expression is said so, and cannot be saved.
+  await page.getByRole("checkbox", { name: "Regular expressions" }).check();
+  await patterns.fill("admin(");
+  await expect(counts).toContainText("not a valid regular expression");
+  await expect(page.getByRole("button", { name: "Add rules" })).toBeDisabled();
+  await page.getByRole("checkbox", { name: "Regular expressions" }).uncheck();
+
+  await patterns.fill("admin, internal\n*.pdf");
+  await expect(counts).toContainText("Would hold back 3 articles");
+  await page.getByRole("button", { name: "Add rules" }).click();
+  await expect(page.getByText("Rules added")).toBeVisible();
+  await expect(page.getByRole("listitem").filter({ hasText: "*.pdf" })).toContainText("holds back 1 article");
+  await expect(page.getByRole("listitem").filter({ hasText: "internal" })).toContainText("holds back 1 article");
+
+  expect(await status("Guides/admin-setup.md")).toBe(404);
+  expect(await status("Internal/runbook.md")).toBe(404);
+  expect(await status("Guides/pricing.pdf")).toBe(404);
+  expect(await status("Guides/user-setup.md")).toBe(200);
+
+  // The article page says why, and offers no "put back" for it.
+  await page.goto(`/kb/articles/${idOf("Guides/admin-setup.md")}`);
+  await expect(page.getByText("Held back from the public site by a keyword rule")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Put back" })).toHaveCount(0);
+
+  // A rule removed lets its articles go; one held by hand stays held.
+  await page.goto(`/kb/articles/${idOf("Guides/user-setup.md")}`);
+  await page.getByRole("button", { name: "Hold back" }).click();
+  await page.goto(`/admin/kb/${rules}`);
+  await page.getByRole("listitem").filter({ hasText: "admin" }).getByRole("button", { name: "Remove" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "admin" })).toHaveCount(0);
+  expect(await status("Guides/admin-setup.md")).toBe(200);
+  expect(await status("Guides/user-setup.md")).toBe(404);
+
+  // A category unchecked holds back everything in it, including what arrives later.
+  await page.getByRole("button", { name: "Edit category visibility" }).click();
+  await page.getByRole("checkbox", { name: /^Guides/ }).uncheck();
+  await page.getByRole("button", { name: "Save category visibility" }).click();
+  await expect(page.getByText("1 category held back")).toBeVisible();
+  expect(await status("Guides/admin-setup.md")).toBe(404);
+  await page.goto(`/kb/articles/${idOf("Guides/admin-setup.md")}`);
+  await expect(page.getByText("Held back from the public site with its category")).toBeVisible();
+
+  await page.goto(`/admin/kb/${rules}`);
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: "more.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from(zipSync({ "export/Guides/late.md": text("# Late guide\n\nArrived after.") })),
+  });
+  await page.getByRole("button", { name: "Start import" }).click();
+  await expect(page.getByText("Import finished.")).toBeVisible({ timeout: 60_000 });
+  expect(await status("Guides/late.md")).toBe(404);
+  await onSite.context.close();
+});
+
 /** One pixel, which is enough for a browser to draw. */
 const ONE_PIXEL = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",

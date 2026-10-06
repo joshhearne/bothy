@@ -809,6 +809,8 @@ export const kbArticles = pgTable(
     extraction: text("extraction").notNull().default("ok"),
     /** Kept off the public site even when its collection is on it. */
     publicHidden: boolean("public_hidden").notNull().default(false),
+    /** Why: held back by hand, by a hide rule, or with its category. Null when shown. */
+    hiddenBy: text("hidden_by"),
     /** SHA-256 of the source bytes, so an unchanged file is not rewritten. */
     contentHash: text("content_hash").notNull(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
@@ -819,8 +821,47 @@ export const kbArticles = pgTable(
     unique("kb_articles_collection_source_key").on(t.collectionId, t.sourceKey),
     check("kb_articles_format_check", sql`${t.format} IN ('markdown','text')`),
     check("kb_articles_extraction_check", sql`${t.extraction} IN ('ok','unextracted')`),
+    check("kb_articles_hidden_by_check", sql`${t.hiddenBy} IN ('manual','rule','category')`),
     index("kb_articles_category_idx").on(t.collectionId, t.category, t.subcategory),
   ],
+);
+
+/**
+ * A pattern that holds articles back from the public site: by title, by the
+ * name of their category or section, or by the file they came from. The
+ * pattern is kept as typed; `regex` and `file_regex` are what is matched,
+ * made on save: a literal escaped, a file pattern read as a glob.
+ */
+export const kbHideRules = pgTable(
+  "kb_hide_rules",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => kbCollections.id, { onDelete: "cascade" }),
+    pattern: text("pattern").notNull(),
+    isRegex: boolean("is_regex").notNull().default(false),
+    matchArticles: boolean("match_articles").notNull().default(false),
+    matchCategories: boolean("match_categories").notNull().default(false),
+    matchFiles: boolean("match_files").notNull().default(false),
+    regex: text("regex").notNull(),
+    fileRegex: text("file_regex").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  },
+  (t) => [index("kb_hide_rules_collection_idx").on(t.collectionId)],
+);
+
+/** A category held back from the public site with everything in it. Empty string is "uncategorized". */
+export const kbHiddenCategories = pgTable(
+  "kb_hidden_categories",
+  {
+    collectionId: uuid("collection_id")
+      .notNull()
+      .references(() => kbCollections.id, { onDelete: "cascade" }),
+    category: text("category").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.collectionId, t.category] })],
 );
 
 /**

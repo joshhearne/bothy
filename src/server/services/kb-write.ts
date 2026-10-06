@@ -5,6 +5,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/server/db";
 import { kbArticles } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
+import { applyVisibility } from "@/server/services/kb-visibility";
 import { ForbiddenError, NotFoundError } from "@/server/services/errors";
 import { getCollection, type KbReader } from "@/server/services/kb";
 import { sourceKey, storeArticle } from "@/server/services/kb-import";
@@ -161,8 +162,10 @@ export async function writeArticle(
   if (data.publicHidden !== undefined) {
     await db
       .update(kbArticles)
-      .set({ publicHidden: data.publicHidden })
+      .set({ publicHidden: data.publicHidden, hiddenBy: data.publicHidden ? "manual" : null })
       .where(eq(kbArticles.id, articleId));
+    // Meant for the public site, it is still held if a rule or its category holds it.
+    if (!data.publicHidden) await applyVisibility(data.collectionId, articleId);
   }
 
   await writeAudit({

@@ -52,11 +52,22 @@ export default async function ArticlePage({
                 <input type="hidden" name="id" value={article.id} />
                 {!article.publicHidden && <input type="hidden" name="hidden" value="on" />}
                 <span className="text-xs text-[var(--muted-foreground)]">
-                  {article.publicHidden ? t.kb.withheld : t.kb.onPublicSite}
+                  {!article.publicHidden
+                    ? t.kb.onPublicSite
+                    : article.hiddenBy === "rule"
+                      ? t.kb.withheldByRule
+                      : article.hiddenBy === "category"
+                        ? t.kb.withheldWithCategory
+                        : t.kb.withheld}
                 </span>
-                <Button type="submit" variant="outline" size="sm">
-                  {article.publicHidden ? t.kb.publish : t.kb.withhold}
-                </Button>
+                {
+                  // Held by a rule or with its category, it is put back there, not here.
+                  article.publicHidden && article.hiddenBy !== "manual" ? null : (
+                    <Button type="submit" variant="outline" size="sm">
+                      {article.publicHidden ? t.kb.publish : t.kb.withhold}
+                    </Button>
+                  )
+                }
               </form>
             ) : null
           }

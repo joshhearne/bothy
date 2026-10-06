@@ -13,10 +13,12 @@ import { getKbPublicSettings } from "@/server/services/settings";
 import { listImports } from "@/server/services/kb-import";
 import { listConnectors } from "@/server/services/kb-connectors";
 import { GRANT_LEVELS, listKeyGrants } from "@/server/services/kb-grants";
+import { listCategoryVisibility, listHideRules } from "@/server/services/kb-visibility";
 import { formatDateTime, plural } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
 import { CollectionForm, ConnectorForm } from "../../kb-forms";
 import { KbImport } from "../../kb-import";
+import { CategoryVisibilityEditor, HideRules } from "../../kb-visibility";
 import {
   archiveConnectorAction,
   runConnectorAction,
@@ -47,6 +49,8 @@ export default async function KbCollectionAdminPage({
     companies,
     companyIds,
     publicSite,
+    hideRules,
+    categoryVisibility,
     { locale, messages: t },
   ] = await Promise.all([
     listImports(id, 10),
@@ -55,6 +59,8 @@ export default async function KbCollectionAdminPage({
     listCompanies(ALL_COMPANIES),
     listCollectionCompanyIds(id),
     getKbPublicSettings(),
+    listHideRules(id),
+    listCategoryVisibility(id),
     getI18n(),
   ]);
   const available = !isWorkers();
@@ -303,6 +309,17 @@ export default async function KbCollectionAdminPage({
             <ConnectorForm collectionId={collection.id} />
           </>
         )}
+      </section>
+
+      <section className="flex flex-col gap-5">
+        <div>
+          <h3 className="text-sm font-medium">{t.admin.kb.visibility.heading}</h3>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            {collection.publicAccess ? t.admin.kb.visibility.hint : t.admin.kb.visibility.offHint}
+          </p>
+        </div>
+        <HideRules collectionId={collection.id} rules={hideRules} />
+        <CategoryVisibilityEditor collectionId={collection.id} categories={categoryVisibility} />
       </section>
 
       <section className="flex flex-col gap-3">

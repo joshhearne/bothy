@@ -6,6 +6,7 @@ import { kbArticles, kbChunks, kbCollections, kbImports } from "@/server/db/sche
 import { writeAudit } from "@/server/services/audit";
 import { chunkText } from "@/server/kb/chunk";
 import { tidyImportedMarkdown } from "@/server/kb/tidy";
+import { applyVisibility } from "@/server/services/kb-visibility";
 import {
   extractArticle,
   NotAnArticleError,
@@ -202,6 +203,9 @@ export async function storeArticle(
         })),
       );
     }
+
+    // A rule or a hidden category applies to an article the moment it arrives.
+    await applyVisibility(collectionId, row.id, tx);
 
     return row.id;
   });

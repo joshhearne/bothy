@@ -617,3 +617,32 @@ ALTER TABLE kb_imports ADD COLUMN category text;
 
 -- Where a collection's source lives, for readers who would rather go there.
 ALTER TABLE kb_collections ADD COLUMN site_url text;
+
+-- ---------- Public site visibility by rule and by category ----------
+-- Why an article is held back, so a rule that no longer matches can let it go
+-- while one held back by hand stays. Rules match a title, a category or
+-- section name, or the file an article came from, as a literal or a regex.
+ALTER TABLE kb_articles ADD COLUMN hidden_by text
+  CHECK (hidden_by IN ('manual','rule','category'));
+UPDATE kb_articles SET hidden_by = 'manual' WHERE public_hidden;
+
+CREATE TABLE kb_hide_rules (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  collection_id uuid NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
+  pattern text NOT NULL,
+  is_regex boolean NOT NULL DEFAULT false,
+  match_articles boolean NOT NULL DEFAULT false,
+  match_categories boolean NOT NULL DEFAULT false,
+  match_files boolean NOT NULL DEFAULT false,
+  regex text NOT NULL,
+  file_regex text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX kb_hide_rules_collection_idx ON kb_hide_rules (collection_id);
+
+CREATE TABLE kb_hidden_categories (
+  collection_id uuid NOT NULL REFERENCES kb_collections(id) ON DELETE CASCADE,
+  category text NOT NULL,
+  PRIMARY KEY (collection_id, category)
+);

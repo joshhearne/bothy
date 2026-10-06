@@ -207,7 +207,7 @@ export function KbCollection({
       <div className="flex flex-col gap-6 lg:flex-row">
         <nav
           aria-label={t.kb.categories}
-          className="lg:sticky lg:top-20 lg:max-h-[calc(100dvh-7rem)] lg:w-64 lg:shrink-0 lg:overflow-y-auto"
+          className="lg:sticky lg:top-20 lg:max-h-[calc(100dvh-7rem)] lg:w-64 lg:shrink-0 lg:overflow-y-auto lg:pr-3 lg:[scrollbar-gutter:stable]"
         >
           <details className="lg:hidden">
             <summary className="cursor-pointer rounded-md border px-3 py-2 text-sm font-medium">
