@@ -93,6 +93,31 @@ kept apart from documents. Import from a zip, a folder, or a connector; upsert o
 (collection, source key); keyword search over chunks; read through MCP, and written through it by
 a key granted that on a collection. See docs/ARCHITECTURE.md.
 
+#### Bringing documentation in
+An imported article must read as its source did. Every converter (`src/server/kb/html.ts`, the
+archive extractors, a browser-side exporter) and every stored body is held to this:
+- Numbered steps keep their numbers and keep counting. A picture, a note, or a caption that sits
+  between two steps belongs to the step above it, indented under it, never left at the margin
+  where it ends the list and the next step starts again at 1. A list restarts only where the
+  source restarts: under a heading or a plain-text title.
+- No blank-line gaps that split one list into two. Nested lists are indented under their item.
+- A section title the source numbers (`<ol><li><h2>`, `<p class="h2">`) is a heading, not an
+  empty list item with its text on the next line.
+- A source site's own in-page navigation is never kept: breadcrumbs, "MENU" / "Contents" lists
+  of `#anchor` links, print and share buttons. Bothy builds its own outline from the article's
+  headings (`src/server/kb/outline.ts`, `KbOutline`): on the right of the text on a wide
+  screen, a button at the foot of the screen on a narrow one, and only when there are headings.
+- Pictures and files come along: `images/` and `files/` folders in an archive are attachments,
+  a crawled page's pictures are kept by their address, the original document is kept and offered.
+- Categories come from the source's structure (folder, breadcrumb, help-center section), and a
+  folder named on import overrides them.
+- `tidyImportedMarkdown` (`src/server/kb/tidy.ts`) runs on every imported Markdown body and
+  `scripts/kb-tidy.ts` runs it over what was imported earlier. Articles written through a key
+  are never touched. Teach a new source's quirk to the converter first, and to the tidy only
+  when it is in the stored text already.
+- Check a new source by importing it and reading three articles with steps against their
+  originals before importing the rest.
+
 ### Phase 15: Accounts and second factors
 Password policy with live validation and a breach check, lockout on guessing, temporary
 passwords that must be changed, reset by mail when SMTP is set. Second factors: authenticator

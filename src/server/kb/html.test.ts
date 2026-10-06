@@ -18,6 +18,35 @@ describe("htmlToMarkdown", () => {
   it("drops a link that would run script", () => {
     expect(htmlToMarkdown('<p><a href="javascript:alert(1)">x</a></p>')).not.toContain("javascript");
   });
+
+  it("numbers the steps a site wraps in an unmarked item, at the depth they are drawn", () => {
+    const html =
+      '<ol><li style="list-style-type: none;"><ol><li>Open the page.</li><li>Click Add.</li></ol></li></ol>';
+    expect(htmlToMarkdown(html)).toBe("1.  Open the page.\n2.  Click Add.");
+  });
+
+  it("takes a paragraph styled as a heading for one", () => {
+    expect(htmlToMarkdown('<p class="article-titles h2" id="1">Create a Group</p><p>Text</p>')).toBe(
+      "## Create a Group\n\nText",
+    );
+  });
+
+  it("drops breadcrumbs and a menu of links to anchors on the page, and keeps a list of real links", () => {
+    const html = [
+      '<ol class="x-crumbs-list"><li><a href="https://s/">Home</a></li><li><a href="https://s/c">Guides</a></li></ol>',
+      '<ul><li><a href="#1">Create</a></li><li><a href="#2">Modify</a></li></ul>',
+      '<ul><li><a href="https://s/a">A page</a></li><li><a href="https://s/b">Another</a></li></ul>',
+    ].join("");
+    expect(htmlToMarkdown(html)).toBe("-   [A page](https://s/a)\n-   [Another](https://s/b)");
+  });
+
+  it("keeps a picture with its link, and drops a link with nothing to click", () => {
+    expect(htmlToMarkdown('<p><a href="https://s/big.png"><img src="https://s/small.png" alt="Setup"></a></p>')).toBe(
+      "[![Setup](https://s/small.png)](https://s/big.png)",
+    );
+    expect(htmlToMarkdown('<p>Before <a href="https://s/x"></a> after</p>')).toBe("Before after");
+    expect(htmlToMarkdown('<p><a href="#"><img src="https://s/print.png" alt="Print"></a></p><p>Text</p>')).toBe("Text");
+  });
 });
 
 describe("mainContent", () => {

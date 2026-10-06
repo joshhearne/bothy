@@ -5,6 +5,7 @@ import {
   isListing,
   isTrackingLink,
   placePages,
+  repeatedNotices,
   type CrawledPage,
 } from "./crawl-structure";
 
@@ -107,5 +108,20 @@ describe("isTrackingLink", () => {
     expect(isTrackingLink("https://s/out?u=https://elsewhere")).toBe(true);
     expect(isTrackingLink("https://s/hc/en-us/articles/123-title")).toBe(false);
     expect(isTrackingLink("https://s/kb?id=42")).toBe(false);
+  });
+});
+
+describe("repeatedNotices", () => {
+  it("names the pages that all say the same thing, and leaves a pair alone", () => {
+    const notice = "It appears whatever you were looking for is no longer here.";
+    const pages = [
+      { url: "https://s/tag/video", text: notice },
+      { url: "https://s/tag/basic", text: notice },
+      { url: "https://s/tag/portal", text: notice },
+      { url: "https://s/a/1", text: "Open the panel and choose a line." },
+      { url: "https://s/a/2", text: "Twice is a reprint." },
+      { url: "https://s/a/3", text: "Twice is a reprint." },
+    ];
+    expect([...repeatedNotices(pages)].sort()).toEqual(["https://s/tag/basic", "https://s/tag/portal", "https://s/tag/video"]);
   });
 });

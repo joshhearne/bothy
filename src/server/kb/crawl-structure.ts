@@ -216,3 +216,20 @@ export function isTrackingLink(address: string): boolean {
     return true;
   }
 }
+
+/**
+ * Addresses whose pages say the same thing as two or more others. A site
+ * shows one notice wherever there is nothing: an empty tag, a page that
+ * moved. Three identical pages are that notice, not three articles.
+ */
+export function repeatedNotices(pages: { url: string; text: string }[]): Set<string> {
+  const byText = new Map<string, string[]>();
+  for (const page of pages) {
+    const list = byText.get(page.text) ?? [];
+    list.push(page.url);
+    byText.set(page.text, list);
+  }
+  const notices = new Set<string>();
+  for (const urls of byText.values()) if (urls.length >= 3) for (const url of urls) notices.add(url);
+  return notices;
+}

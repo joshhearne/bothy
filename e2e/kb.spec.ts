@@ -1294,6 +1294,87 @@ test("pictures come in with their articles and are read only through them", asyn
   await stranger.context.close();
 });
 
+test("an imported article's steps keep counting past a picture, and its headings make an outline", async ({
+  page,
+}) => {
+  await page.goto("/admin/kb");
+  await page.getByLabel("Collection name").fill(unique("Calder Ridge Steps"));
+  await page.getByRole("button", { name: "Create collection" }).click();
+  await expect(page).toHaveURL(/\/admin\/kb\/[0-9a-f-]{36}$/);
+  const steps = page.url().split("/").pop() as string;
+
+  // As a crawl leaves it: a menu of anchors, a numbered title kept apart from
+  // its number, and a picture between two steps that starts the count over.
+  await page.locator('input[type="file"]').first().setInputFiles({
+    name: "steps.zip",
+    mimeType: "application/zip",
+    buffer: Buffer.from(
+      zipSync({
+        "export/setup.md": text(
+          [
+            "# Setting up",
+            "",
+            "**MENU**",
+            "",
+            "-   [1\\. Before you start](#1)",
+            "-   [2\\. Adding a line](#2)",
+            "",
+            "1.",
+            "",
+            "Before you start",
+            "",
+            "Have the account number ready.",
+            "",
+            "2.",
+            "",
+            "Adding a line",
+            "",
+            "1.  Open the panel.",
+            "",
+            "![The panel](../images/panel.png)",
+            "",
+            "1.  Choose a line.",
+            "2.  Save.",
+            "",
+            "A plain paragraph closes the list.",
+            "",
+            "1.  A new list starts over.",
+            "",
+          ].join("\n"),
+        ),
+        "export/images/panel.png": ONE_PIXEL,
+      }),
+    ),
+  });
+  await page.getByRole("button", { name: "Start import" }).click();
+  await expect(page.getByText("Import finished.")).toBeVisible({ timeout: 60_000 });
+
+  const article = psql(`select id from kb_articles where collection_id='${steps}';`);
+  await page.goto(`/kb/articles/${article}`);
+
+  // The site's own menu is gone; the headings are ours and make the outline.
+  await expect(page.getByText("MENU")).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 2, name: "1. Before you start" })).toBeVisible();
+  const outline = page.getByRole("navigation", { name: "On this page" }).first();
+  await expect(outline.getByRole("link", { name: "2. Adding a line" })).toHaveAttribute("href", "#section-2");
+
+  // One list of three steps, the picture under the first, and a separate list after the paragraph.
+  const lists = page.locator(".kb-article ol");
+  await expect(lists).toHaveCount(2);
+  await expect(lists.first().locator("> li")).toHaveCount(3);
+  await expect(lists.first().locator("> li").first().getByRole("img", { name: "The panel" })).toBeVisible();
+  await expect(lists.first().locator("> li").nth(2)).toHaveText("Save.");
+  await expect(lists.nth(1).locator("> li")).toHaveCount(1);
+
+  // Only on a narrow screen is the outline a button at the foot of the page.
+  await expect(page.getByRole("button", { name: "On this page" })).toBeHidden();
+  await page.setViewportSize({ width: 600, height: 900 });
+  await page.getByRole("button", { name: "On this page" }).click();
+  await page.getByRole("link", { name: "2. Adding a line" }).last().click();
+  await expect(page).toHaveURL(/#section-2$/);
+  await expect(page.getByRole("button", { name: "On this page" })).toBeVisible();
+});
+
 test("the sections fold, stay folded on the same content, and open when it changes", async ({
   browser,
 }) => {

@@ -300,6 +300,9 @@
 }
 .kb-article img { max-width: 100%; height: auto; }
 
+/* A heading reached from the outline stops below the sticky header. */
+.kb-article :is(h1, h2, h3, h4)[id] { scroll-margin-top: 5rem; }
+
 /* A button worth noticing once: the PDF behind an article. Three pulses, then still. */
 @keyframes kb-attention {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--primary) 55%, transparent); }

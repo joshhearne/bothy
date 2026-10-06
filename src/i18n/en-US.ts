@@ -50,6 +50,7 @@ export const enUS = {
 
   common: {
     save: "Save",
+    close: "Close",
     saving: "Saving…",
     clear: "Clear",
     cancel: "Cancel",
@@ -497,6 +498,7 @@ export const enUS = {
     withhold: "Hold back",
     publish: "Put back",
 
+    outline: "On this page",
     openPdf: "Open the PDF",
     pdfHint: "Text doesn't read right? Open the PDF to see it as written, or download it.",
     downloadOriginal: "Download the original",

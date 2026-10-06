@@ -30,6 +30,7 @@ import {
   isListing,
   isTrackingLink,
   placePages,
+  repeatedNotices,
   type CrawledPage,
 } from "@/server/kb/crawl-structure";
 
@@ -404,10 +405,12 @@ export async function runConnector(id: string, actorId: string | null): Promise<
     }
 
     const placements = placePages(pages, start);
+    const notices = repeatedNotices([...drafts].map(([url, draft]) => ({ url, text: draft.article.body })));
     for (const [key, draft] of drafts) {
       const place = placements.get(key);
-      // A page that only leads to other pages is the site's structure, not an article.
-      if (!place) {
+      // A page that only leads to other pages is the site's structure, not an
+      // article; nor is the notice a site shows wherever there is nothing.
+      if (!place || notices.has(key)) {
         await run.ignore();
         continue;
       }

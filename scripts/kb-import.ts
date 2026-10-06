@@ -2,10 +2,12 @@
  * Imports a knowledge base archive that is already on this machine, without
  * going through the browser:
  *
- *   npx tsx --conditions react-server scripts/kb-import.ts "Calder Ridge KB" ./export.zip ["Manuals"]
+ *   npx tsx --conditions react-server scripts/kb-import.ts "Calder Ridge KB" ./export.zip ["Manuals"] [--ignore-manifest]
  *
  * A third argument is the category for every article in the archive; without
  * it, the archive's top folder names the category of articles that have none.
+ * --ignore-manifest opens every file and judges it by its content, for an
+ * export whose files changed without their dates changing.
  *
  * The collection is created if it does not exist. Running it again with a
  * newer export updates what changed and skips the rest.
@@ -14,7 +16,8 @@ import "dotenv/config";
 import { resolve } from "node:path";
 import { statSync } from "node:fs";
 
-const [name, file, category] = process.argv.slice(2);
+const flags = new Set(process.argv.slice(2).filter((arg) => arg.startsWith("--")));
+const [name, file, category] = process.argv.slice(2).filter((arg) => !arg.startsWith("--"));
 if (!name || !file) {
   console.error('usage: kb-import "<collection name>" <archive.zip>');
   process.exit(2);
@@ -53,6 +56,7 @@ const summary = await importArchive({
   importId,
   actorId: null,
   category: category ?? null,
+  ignoreManifest: flags.has("--ignore-manifest"),
 });
 const { failures, ...counts } = summary;
 

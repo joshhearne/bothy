@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { Route } from "next";
 import { ChevronLeft, ExternalLink, FileText } from "lucide-react";
 import { renderMarkdown } from "@/server/fields/render";
+import { outlineHtml } from "@/server/kb/outline";
+import { KbOutline } from "@/components/kb-outline";
 import type { ArticleDetail } from "@/server/services/kb";
 import { originalOf } from "@/server/services/kb-import";
 import { formatBytes, formatDateTime } from "@/i18n/format";
@@ -59,97 +61,102 @@ export function KbArticle({
 }) {
   const unread = attachments(article.metadata.doc_attachments).filter((item) => !item.extracted);
   const original = originalHref ? originalOf(article.metadata) : null;
+  const drawn =
+    article.extraction !== "unextracted" && article.format === "markdown"
+      ? outlineHtml(renderMarkdown(withoutLeadingTitle(article.body, article.title)))
+      : null;
 
   return (
-    <article className="flex max-w-4xl flex-col gap-6">
-      <header className="flex flex-col gap-3">
-        <Link
-          href={backHref as Route}
-          className="inline-flex items-center gap-1 text-sm text-[var(--muted-foreground)] hover:underline"
-        >
-          <ChevronLeft className="size-4" aria-hidden />
-          {t.kb.backTo(article.collectionName)}
-        </Link>
+    <div className="flex items-start gap-8">
+      <article className="flex min-w-0 max-w-4xl flex-1 flex-col gap-6">
+        <header className="flex flex-col gap-3">
+          <Link
+            href={backHref as Route}
+            className="inline-flex items-center gap-1 text-sm text-[var(--muted-foreground)] hover:underline"
+          >
+            <ChevronLeft className="size-4" aria-hidden />
+            {t.kb.backTo(article.collectionName)}
+          </Link>
 
-        <h1 className="text-2xl font-semibold tracking-tight break-words">{article.title}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight break-words">{article.title}</h1>
 
-        <p className="text-sm text-[var(--muted-foreground)]">
-          {[
-            article.category,
-            article.subcategory,
-            article.externalId && article.sourceType !== "html"
-              ? t.kb.articleId(article.externalId)
-              : null,
-            article.dateCreated ? t.kb.created(formatDateTime(article.dateCreated, locale)) : null,
-            article.dateModified ? t.kb.modified(formatDateTime(article.dateModified, locale)) : null,
-            t.kb.imported(formatDateTime(article.updatedAt, locale)),
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            {[
+              article.category,
+              article.subcategory,
+              article.externalId && article.sourceType !== "html"
+                ? t.kb.articleId(article.externalId)
+                : null,
+              article.dateCreated ? t.kb.created(formatDateTime(article.dateCreated, locale)) : null,
+              article.dateModified ? t.kb.modified(formatDateTime(article.dateModified, locale)) : null,
+              t.kb.imported(formatDateTime(article.updatedAt, locale)),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {article.sourceUrl && (
-            <a
-              href={article.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              className="inline-flex max-w-full items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]"
-            >
-              <ExternalLink className="size-4 shrink-0" aria-hidden />
-              <span className="shrink-0 font-medium">{t.kb.source}</span>
-              <span className="truncate text-[var(--muted-foreground)]">{article.sourceUrl}</span>
-            </a>
-          )}
-          {original && (
-            <a
-              href={originalHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={
-                "inline-flex max-w-full items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]" +
-                (original.mime === "application/pdf" ? " kb-attention" : "")
-              }
-            >
-              <FileText className="size-4 shrink-0" aria-hidden />
-              <span className="shrink-0 font-medium">
-                {original.mime === "application/pdf" ? t.kb.openPdf : t.kb.downloadOriginal}
-              </span>
-              <span className="truncate text-[var(--muted-foreground)]">
-                {original.name} · {formatBytes(original.bytes, locale)}
-              </span>
-            </a>
-          )}
-          {actions}
-        </div>
-      </header>
+          <div className="flex flex-wrap items-center gap-3">
+            {article.sourceUrl && (
+              <a
+                href={article.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="inline-flex max-w-full items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]"
+              >
+                <ExternalLink className="size-4 shrink-0" aria-hidden />
+                <span className="shrink-0 font-medium">{t.kb.source}</span>
+                <span className="truncate text-[var(--muted-foreground)]">{article.sourceUrl}</span>
+              </a>
+            )}
+            {original && (
+              <a
+                href={originalHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={
+                  "inline-flex max-w-full items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-[var(--muted)]" +
+                  (original.mime === "application/pdf" ? " kb-attention" : "")
+                }
+              >
+                <FileText className="size-4 shrink-0" aria-hidden />
+                <span className="shrink-0 font-medium">
+                  {original.mime === "application/pdf" ? t.kb.openPdf : t.kb.downloadOriginal}
+                </span>
+                <span className="truncate text-[var(--muted-foreground)]">
+                  {original.name} · {formatBytes(original.bytes, locale)}
+                </span>
+              </a>
+            )}
+            {actions}
+          </div>
+        </header>
 
-      {original?.mime === "application/pdf" && (
-        <p role="note" className="rounded-md border px-3 py-2 text-sm text-[var(--muted-foreground)]">
-          {t.kb.pdfHint}
-        </p>
-      )}
+        {original?.mime === "application/pdf" && (
+          <p role="note" className="rounded-md border px-3 py-2 text-sm text-[var(--muted-foreground)]">
+            {t.kb.pdfHint}
+          </p>
+        )}
 
-      {unread.length > 0 && (
-        <p role="note" className="rounded-md border px-3 py-2 text-sm">
-          {t.kb.unextractedAttachments(unread.map((item) => item.name).join(", "))}
-        </p>
-      )}
+        {unread.length > 0 && (
+          <p role="note" className="rounded-md border px-3 py-2 text-sm">
+            {t.kb.unextractedAttachments(unread.map((item) => item.name).join(", "))}
+          </p>
+        )}
 
-      {article.extraction === "unextracted" ? (
-        <p role="note" className="rounded-md border px-3 py-2 text-sm">
-          {t.kb.unextractedBody}
-        </p>
-      ) : article.format === "markdown" ? (
-        <div
-          className="prose-editor kb-article min-w-0 text-sm break-words"
-          dangerouslySetInnerHTML={{
-            __html: renderMarkdown(withoutLeadingTitle(article.body, article.title)),
-          }}
-        />
-      ) : (
-        <pre className="min-w-0 font-sans text-sm break-words whitespace-pre-wrap">{article.body}</pre>
-      )}
-    </article>
+        {article.extraction === "unextracted" ? (
+          <p role="note" className="rounded-md border px-3 py-2 text-sm">
+            {t.kb.unextractedBody}
+          </p>
+        ) : drawn ? (
+          <div
+            className="prose-editor kb-article min-w-0 text-sm break-words"
+            dangerouslySetInnerHTML={{ __html: drawn.html }}
+          />
+        ) : (
+          <pre className="min-w-0 font-sans text-sm break-words whitespace-pre-wrap">{article.body}</pre>
+        )}
+      </article>
+      {drawn && drawn.outline.length > 0 && <KbOutline items={drawn.outline} />}
+    </div>
   );
 }

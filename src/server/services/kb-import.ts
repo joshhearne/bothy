@@ -1,10 +1,11 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { and, desc, eq, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { kbArticles, kbChunks, kbCollections, kbImports } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { chunkText } from "@/server/kb/chunk";
+import { tidyImportedMarkdown } from "@/server/kb/tidy";
 import {
   extractArticle,
   NotAnArticleError,
@@ -527,7 +528,9 @@ export class ImportRun {
     article: ExtractedArticle,
     contentHash: string,
   ): Promise<string> {
-    return storeArticle(this.collectionId, key, path, article, contentHash);
+    // What was imported reads as its source did; the hash stays the source's.
+    const body = article.format === "markdown" ? tidyImportedMarkdown(article.body) : article.body;
+    return storeArticle(this.collectionId, key, path, { ...article, body }, contentHash);
   }
 
   private async progress(force = false): Promise<void> {
@@ -607,6 +610,12 @@ export async function importArchive(options: {
   actorId: string | null;
   /** Given for the whole archive; the folder's own name is used without it. */
   category?: string | null;
+  /**
+   * Open every file and judge it by its content, even where the manifest
+   * says it has not changed: for an export whose files changed shape without
+   * their dates changing, such as one that gained its pictures.
+   */
+  ignoreManifest?: boolean;
 }): Promise<ImportSummary> {
   let run: ImportRun | null = null;
 
@@ -625,7 +634,7 @@ export async function importArchive(options: {
     // they gave a better name for it, or an article names its own.
     const given = options.category?.trim() || null;
     const folder = root ? root.slice(0, -1) : null;
-    const manifest = manifestText ? parseManifest(manifestText) : null;
+    const manifest = manifestText && !options.ignoreManifest ? parseManifest(manifestText) : null;
     const attachments = manifestText ? withManifestAttachments(manifestText) : new Map();
     const importing = await ImportRun.begin(options.collectionId, options.importId, manifest);
     run = importing;
@@ -815,4 +824,66 @@ export async function failInterruptedImports(): Promise<number> {
     )
     .returning({ id: kbImports.id });
   return rows.length;
+}
+
+export type TidySummary = { seen: number; changed: number };
+
+/**
+ * Runs the tidying an import now does over what was imported before it did:
+ * every live Markdown article that came from a source, never one written
+ * through a key. An article whose text changes is chunked again. One audit
+ * entry per collection says how many.
+ */
+export async function tidyStoredArticles(
+  collectionId: string,
+  options: { dryRun?: boolean; log?: (line: string) => void } = {},
+): Promise<TidySummary> {
+  const rows = await db
+    .select({ id: kbArticles.id, title: kbArticles.title, body: kbArticles.body })
+    .from(kbArticles)
+    .where(
+      and(
+        eq(kbArticles.collectionId, collectionId),
+        eq(kbArticles.format, "markdown"),
+        isNull(kbArticles.archivedAt),
+        sql`not (${kbArticles.metadata} ? 'written_by')`,
+      ),
+    );
+
+  const summary: TidySummary = { seen: rows.length, changed: 0 };
+  for (const row of rows) {
+    const body = tidyImportedMarkdown(row.body);
+    if (body === row.body) continue;
+    summary.changed += 1;
+    options.log?.(`${row.id}  ${row.title}`);
+    if (options.dryRun) continue;
+
+    const chunks = chunkText(body);
+    await db.transaction(async (tx) => {
+      await tx.update(kbArticles).set({ body, updatedAt: new Date() }).where(eq(kbArticles.id, row.id));
+      await tx.delete(kbChunks).where(eq(kbChunks.articleId, row.id));
+      for (let at = 0; at < chunks.length; at += CHUNK_BATCH) {
+        await tx.insert(kbChunks).values(
+          chunks.slice(at, at + CHUNK_BATCH).map((chunk) => ({
+            articleId: row.id,
+            collectionId,
+            ordinal: chunk.ordinal,
+            title: row.title,
+            heading: chunk.heading.slice(0, 500),
+            content: chunk.content,
+          })),
+        );
+      }
+    });
+  }
+
+  if (!options.dryRun && summary.changed > 0) {
+    await writeAudit({
+      action: "kb_collection.tidied",
+      entity: "kb_collection",
+      entityId: collectionId,
+      detail: summary,
+    });
+  }
+  return summary;
 }
