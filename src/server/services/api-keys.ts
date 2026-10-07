@@ -14,7 +14,7 @@ import { grantsForKey, type KbGrant } from "@/server/services/kb-grants";
  * SHA-256 hash, looked up by an indexed prefix.
  */
 
-export const API_SCOPES = ["read", "write", "admin", "secrets:reveal"] as const;
+export const API_SCOPES = ["read", "write", "admin", "reactions", "secrets:reveal"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 const PREFIX_LENGTH = 8;
@@ -251,13 +251,16 @@ async function grantedCompanyIds(keyId: string): Promise<string[]> {
 }
 
 /**
- * admin implies write, write implies read. `secrets:reveal` is never implied:
- * docs/VAULT_INTEGRATION.md requires it to be granted explicitly, off by
- * default.
+ * admin implies write, write implies read, and admin implies `reactions`
+ * (acting for a named reader); write does not. `secrets:reveal` is never
+ * implied: docs/VAULT_INTEGRATION.md requires it to be granted explicitly,
+ * off by default.
  */
 export function hasScope(granted: ApiScope[], required: ApiScope): boolean {
   if (required === "secrets:reveal") return granted.includes("secrets:reveal");
   if (granted.includes("admin")) return true;
+  // Acting for a named reader is its own permission: granted, not implied by write.
+  if (required === "reactions") return granted.includes("reactions");
   if (required === "read") return granted.includes("read") || granted.includes("write");
   if (required === "write") return granted.includes("write");
   return false;

@@ -4,7 +4,7 @@ import { companyInputSchema } from "@/server/services/companies";
 import { locationInputSchema } from "@/server/services/locations";
 import { externalRefInputSchema } from "@/server/services/external-refs";
 import { API_SCOPES } from "@/server/services/api-keys";
-import { kbUpsertBodySchema } from "@/server/api/kb";
+import { kbUpsertBodySchema, voteBodySchema } from "@/server/api/kb";
 import { FIELD_TYPES } from "@/server/db/schema";
 
 /**
@@ -85,6 +85,10 @@ function body(schema: z.ZodType) {
     content: { "application/json": { schema: jsonSchema(schema) } },
   };
 }
+
+const AUDIENCE_PARAM = { name: "audience", in: "query", schema: { type: "string", enum: ["key", "public"] }, description: "public narrows the view to what the public site shows." };
+const SOURCE_TYPE_PARAM = { name: "source_type", in: "query", schema: { type: "array", items: { type: "string" } }, style: "form", explode: true, description: "md, html, pdf, docx, txt; repeatable." };
+const READER_PARAM = { name: "X-Trove-Reader", in: "header", required: true, schema: { type: "string", format: "email" }, description: "The reader the key acts for. Never stored; the same email is the same reader on the public site." };
 
 const idParam = {
   name: "id",
@@ -269,7 +273,7 @@ export function buildOpenApiDocument(baseUrl: string) {
         get: {
           tags: ["Knowledge base"],
           summary: "List the knowledge base collections this key may read",
-          parameters: [{ name: "writable", in: "query", schema: { type: "boolean" } }],
+          parameters: [{ name: "writable", in: "query", schema: { type: "boolean" } }, AUDIENCE_PARAM],
           responses: { "200": ok("Collections, each with whether this key may write to it"), ...ERRORS },
         },
       },
@@ -277,9 +281,9 @@ export function buildOpenApiDocument(baseUrl: string) {
         parameters: [idParam],
         get: {
           tags: ["Knowledge base"],
-          summary: "Fetch a collection with its categories and counts",
-          parameters: [{ name: "kind", in: "query", schema: { type: "string", enum: ["article", "runbook"] } }],
-          responses: { "200": ok("The collection and its categories"), ...ERRORS },
+          summary: "Fetch a collection with its categories, kinds, source types, and counts",
+          parameters: [{ name: "kind", in: "query", schema: { type: "string", enum: ["article", "runbook"] } }, AUDIENCE_PARAM],
+          responses: { "200": ok("The collection, its categories, and how its articles break down"), ...ERRORS },
         },
       },
       "/kb/collections/{id}/articles/{external_id}": {
@@ -317,6 +321,8 @@ export function buildOpenApiDocument(baseUrl: string) {
             { name: "collection_id", in: "query", schema: { type: "string", format: "uuid" } },
             { name: "category", in: "query", schema: { type: "string" } },
             { name: "kind", in: "query", schema: { type: "string", enum: ["article", "runbook"] } },
+            SOURCE_TYPE_PARAM,
+            AUDIENCE_PARAM,
             { name: "limit", in: "query", schema: { type: "integer", minimum: 1, maximum: 100, default: 25 } },
             { name: "cursor", in: "query", schema: { type: "string" } },
           ],
@@ -333,6 +339,8 @@ export function buildOpenApiDocument(baseUrl: string) {
             { name: "subcategory", in: "query", schema: { type: "string" } },
             { name: "kind", in: "query", schema: { type: "string", enum: ["article", "runbook"] } },
             { name: "updated_since", in: "query", schema: { type: "string", format: "date-time" } },
+            SOURCE_TYPE_PARAM,
+            AUDIENCE_PARAM,
             { name: "sort", in: "query", schema: { type: "string", enum: ["name", "modified"] } },
             { name: "dir", in: "query", schema: { type: "string", enum: ["asc", "desc"] } },
             ...PAGE_PARAMS,
@@ -346,9 +354,43 @@ export function buildOpenApiDocument(baseUrl: string) {
           tags: ["Knowledge base"],
           summary: "Fetch an article in full",
           description:
-            "The Markdown body, `external_id`, `source_url`, and `public_url` (the address on the public " +
-            "site, or null). A runbook also carries `steps`.",
+            "The Markdown body, `external_id`, `source_url`, `source_type`, `public`, `public_url` (the address " +
+            "on the public site, or null), `favorites` and `helpfulness`. A runbook also carries `steps`. With " +
+            "X-Trove-Reader, `mine` says what that reader made of it.",
+          parameters: [AUDIENCE_PARAM, { ...READER_PARAM, required: false }],
           responses: { "200": ok("The article"), ...ERRORS },
+        },
+      },
+      "/kb/articles/{id}/reactions": {
+        parameters: [idParam, READER_PARAM, AUDIENCE_PARAM],
+        get: {
+          tags: ["Knowledge base"],
+          summary: "Everyone's favorites and votes on the article, and the named reader's own",
+          responses: { "200": ok("{ favorites, helpful_up, helpful_down, helpfulness, mine: { favorite, vote } }"), "400": { $ref: "#/components/responses/InvalidRequest" }, ...ERRORS },
+        },
+      },
+      "/kb/articles/{id}/favorite": {
+        parameters: [idParam, READER_PARAM, AUDIENCE_PARAM],
+        put: { tags: ["Knowledge base"], summary: "Keep the article for the named reader", responses: { "204": { description: "Kept" }, ...ERRORS } },
+        delete: { tags: ["Knowledge base"], summary: "Let it go", responses: { "204": { description: "Let go" }, ...ERRORS } },
+      },
+      "/kb/articles/{id}/vote": {
+        parameters: [idParam, READER_PARAM, AUDIENCE_PARAM],
+        put: {
+          tags: ["Knowledge base"],
+          summary: "The named reader's vote",
+          requestBody: body(voteBodySchema),
+          responses: { "204": { description: "Recorded" }, ...ERRORS },
+        },
+        delete: { tags: ["Knowledge base"], summary: "Take the vote back", responses: { "204": { description: "Taken back" }, ...ERRORS } },
+      },
+      "/kb/favorites": {
+        parameters: [READER_PARAM, AUDIENCE_PARAM],
+        get: {
+          tags: ["Knowledge base"],
+          summary: "The named reader's favorites, newest first",
+          parameters: PAGE_PARAMS,
+          responses: { "200": ok("Articles with favorited_at"), ...ERRORS },
         },
       },
       "/users": {

@@ -41,6 +41,9 @@ describe("brandingInputSchema", () => {
       scheme: "light",
       accent: "#1f6feb",
       altAccent: null,
+      // Text on the accent is chosen for each mode unless stated.
+      accentText: null,
+      altAccentText: null,
       // The credit is on unless an operator turns it off.
       showPoweredBy: true,
     });

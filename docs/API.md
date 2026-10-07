@@ -86,6 +86,34 @@ DELETE /kb/collections/:id/grants/api-keys/:keyId                      withdraw
 ```
 Every grant change is an audit entry naming the key that made it.
 
+Every article item carries `kind`, `source_type` (`md`, `html`, `pdf`, `docx`,
+`txt`: what it was made from), `public` (on the public site right now),
+`favorites`, and `helpfulness` (0–100, null until somebody votes). A collection
+carries `kinds: { article, runbook }` and `source_types: [{ source_type, articles }]`
+for the articles the caller may read. `source_type=` filters a list or a search
+and repeats: `?source_type=pdf&source_type=docx`.
+
+`audience=public` on any knowledge base read narrows the key's view to what
+the public site shows (collections on the site, articles not held back), on
+top of the key's own grants, so an integration can show a person exactly what
+they would see there. `audience=key` is the default.
+
+### Favorites and votes for a named reader
+Favorites and helpfulness votes are kept under a reader key derived from an
+email, the same key the public site uses when Cloudflare Access names the
+reader, so a favorite made through the API is the one the person sees on the
+public site and the other way round. These routes need the `reactions` scope
+(granted explicitly; `admin` implies it) and the header `X-Trove-Reader:
+<email>`, which names the reader; the email is never stored. No header → 400.
+```
+GET    /kb/articles/:id/reactions   -> { favorites, helpful_up, helpful_down, helpfulness, mine: { favorite, vote: "up"|"down"|null } }
+PUT    /kb/articles/:id/favorite    -> 204          DELETE -> 204
+PUT    /kb/articles/:id/vote        { helpful: true|false } -> 204     DELETE -> 204 (vote taken back)
+GET    /kb/favorites?limit=&cursor= -> { data: [ article item + { favorited_at } ], next_cursor }
+```
+`GET /kb/articles/:id` with `X-Trove-Reader` adds `mine` to the article too,
+under the `read` scope; the header is optional there.
+
 `public_url` is the article's address on the public site when the site is on,
 the collection is on it, and the article is not held back; otherwise null.
 `internal_only` on a PUT holds the article back by hand (true) or puts it back

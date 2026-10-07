@@ -1,5 +1,5 @@
 import { json, withApi } from "@/server/api/http";
-import { kbReaderFor, serializeHit } from "@/server/api/kb";
+import { kbReaderFor, serializeHit, sourceTypesFrom } from "@/server/api/kb";
 import { searchKb } from "@/server/services/kb";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +13,11 @@ export const GET = withApi("read", async ({ key, url }) => {
       collectionId: q.get("collection_id") ?? undefined,
       category: q.get("category") ?? undefined,
       kind: (q.get("kind") as "article" | "runbook" | null) ?? undefined,
+      sourceTypes: sourceTypesFrom(url),
       limit: q.get("limit") ?? undefined,
       cursor: q.get("cursor") ?? undefined,
     },
-    kbReaderFor(key),
+    kbReaderFor(key, url),
   );
   return json({ data: results.hits.map(serializeHit), next_cursor: results.nextCursor });
 });

@@ -44,6 +44,12 @@ export type KbReader = {
   granted?: readonly string[];
   /** The signed-in person, whose own grants by name count the same way. */
   userId?: string;
+  /**
+   * "public" narrows a key's view to what the public site would show, on top
+   * of the key's own grants, so an integration can show a reader exactly
+   * what they would see there.
+   */
+  audience?: "public";
 };
 
 export function readable(reader: KbReader): SQL[] {
@@ -77,6 +83,9 @@ export function readable(reader: KbReader): SQL[] {
     filters.push(sql`(${byCompany} OR ${granted})`);
   }
   if (reader.via === "mcp") filters.push(eq(kbCollections.mcpEnabled, true));
+  if (reader.audience === "public") {
+    filters.push(eq(kbCollections.publicAccess, true), eq(kbArticlesPublic(), true));
+  }
   return filters;
 }
 
@@ -426,6 +435,10 @@ export type ArticleSummary = {
   externalId: string | null;
   title: string;
   kind: ArticleKind;
+  /** What the article was made from: md, html, pdf, docx, txt. */
+  sourceType: string;
+  /** On the public site right now: its collection is on it and it is not held back. */
+  public: boolean;
   category: string | null;
   subcategory: string | null;
   sourceUrl: string | null;
@@ -443,6 +456,8 @@ export const articleSummaryColumns = {
   externalId: kbArticles.externalId,
   title: kbArticles.title,
   kind: sql<ArticleKind>`${kbArticles.kind}`,
+  sourceType: kbArticles.sourceType,
+  public: sql<boolean>`(${kbCollections.publicAccess} AND NOT ${kbArticles.publicHidden})`,
   category: kbArticles.category,
   subcategory: kbArticles.subcategory,
   sourceUrl: kbArticles.sourceUrl,
@@ -461,7 +476,6 @@ export type ArticleDetail = ArticleSummary & {
   collectionId: string;
   collectionName: string;
   sourcePath: string | null;
-  sourceType: string;
   format: string;
   body: string;
   metadata: Record<string, unknown>;
@@ -483,6 +497,8 @@ export const articleListSchema = z.object({
   kind: z.enum(ARTICLE_KINDS).optional(),
   /** Only articles stored or changed at or after this instant. */
   updatedSince: z.coerce.date().optional(),
+  /** Only articles made from these: pdf, docx, md, html, txt. */
+  sourceTypes: z.array(z.string().trim().min(1).max(20)).max(10).optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   cursor: z.string().optional(),
   sort: z.enum(ARTICLE_SORTS).default("name"),
@@ -528,6 +544,7 @@ export async function listArticles(
   if (data.type) filters.push(typeFilter(data.type));
   if (data.kind) filters.push(eq(kbArticles.kind, data.kind));
   if (data.updatedSince) filters.push(sql`${kbArticles.updatedAt} >= ${data.updatedSince}`);
+  if (data.sourceTypes?.length) filters.push(inArray(kbArticles.sourceType, data.sourceTypes));
 
   const rows = await db
     .select(articleSummaryColumns)
@@ -601,12 +618,45 @@ export async function listCategories(
     .orderBy(asc(kbArticles.category), asc(kbArticles.subcategory));
 }
 
+export type CollectionProfile = {
+  kinds: Record<ArticleKind, number>;
+  sourceTypes: { sourceType: string; articles: number }[];
+};
+
+/** How a collection's readable articles break down, by kind and by what they were made from. */
+export async function collectionProfile(collectionId: string, reader: KbReader): Promise<CollectionProfile> {
+  const rows = await db
+    .select({
+      kind: sql<ArticleKind>`${kbArticles.kind}`,
+      sourceType: kbArticles.sourceType,
+      articles: count(kbArticles.id),
+    })
+    .from(kbArticles)
+    .innerJoin(kbCollections, eq(kbCollections.id, kbArticles.collectionId))
+    .where(and(eq(kbArticles.collectionId, collectionId), isNull(kbArticles.archivedAt), ...readable(reader)))
+    .groupBy(kbArticles.kind, kbArticles.sourceType);
+
+  const kinds: Record<ArticleKind, number> = { article: 0, runbook: 0 };
+  const bySource = new Map<string, number>();
+  for (const row of rows) {
+    kinds[row.kind] = (kinds[row.kind] ?? 0) + row.articles;
+    bySource.set(row.sourceType, (bySource.get(row.sourceType) ?? 0) + row.articles);
+  }
+  return {
+    kinds,
+    sourceTypes: [...bySource.entries()]
+      .map(([sourceType, articles]) => ({ sourceType, articles }))
+      .sort((a, b) => b.articles - a.articles || a.sourceType.localeCompare(b.sourceType)),
+  };
+}
+
 export async function getArticle(id: string, reader: KbReader): Promise<ArticleDetail | null> {
   const [row] = await db
     .select({
       id: kbArticles.id,
       title: kbArticles.title,
       kind: sql<ArticleKind>`${kbArticles.kind}`,
+      public: sql<boolean>`(${kbCollections.publicAccess} AND NOT ${kbArticles.publicHidden})`,
       category: kbArticles.category,
       subcategory: kbArticles.subcategory,
       sourceUrl: kbArticles.sourceUrl,
@@ -699,6 +749,7 @@ export const kbSearchSchema = z.object({
   collectionId: z.uuid().optional(),
   category: z.string().trim().max(200).optional(),
   kind: z.enum(ARTICLE_KINDS).optional(),
+  sourceTypes: z.array(z.string().trim().min(1).max(20)).max(10).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
   cursor: z.string().optional(),
 });
@@ -709,6 +760,8 @@ export type KbHit = {
   articleId: string;
   title: string;
   kind: ArticleKind;
+  sourceType: string;
+  public: boolean;
   collectionId: string;
   collectionName: string;
   category: string | null;
@@ -731,7 +784,7 @@ export async function searchKb(
   input: KbSearchInput,
   reader: KbReader,
 ): Promise<{ hits: KbHit[]; nextCursor: string | null }> {
-  const { q, collectionId, category, kind, limit, cursor } = kbSearchSchema.parse(input);
+  const { q, collectionId, category, kind, sourceTypes, limit, cursor } = kbSearchSchema.parse(input);
   if (q === "") return { hits: [], nextCursor: null };
 
   const offset = decodeCursor(cursor);
@@ -745,6 +798,7 @@ export async function searchKb(
   if (collectionId) filters.push(eq(kbChunks.collectionId, collectionId));
   if (category) filters.push(eq(kbArticles.category, category));
   if (kind) filters.push(eq(kbArticles.kind, kind));
+  if (sourceTypes?.length) filters.push(inArray(kbArticles.sourceType, sourceTypes));
 
   const rank = sql<number>`ts_rank_cd(${kbChunks.searchVec}, ${query}, 1)`;
 
@@ -768,6 +822,8 @@ export async function searchKb(
       articleId: kbArticles.id,
       title: kbArticles.title,
       kind: sql<ArticleKind>`${kbArticles.kind}`,
+      sourceType: kbArticles.sourceType,
+      public: sql<boolean>`(${kbCollections.publicAccess} AND NOT ${kbArticles.publicHidden})`,
       collectionId: kbCollections.id,
       collectionName: kbCollections.name,
       category: kbArticles.category,

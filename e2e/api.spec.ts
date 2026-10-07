@@ -2,7 +2,7 @@ import { createHmac } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { psql, setKeyCompanies } from "./db";
 import { readReceived, startHookReceiver, stopHookReceiver } from "./hook-receiver";
-import { createCompany, createDocType, signInAsAdmin, unique } from "./support";
+import { ADMIN, createCompany, createDocType, signInAsAdmin, unique } from "./support";
 
 /**
  * Phase 5: /api/v1 under bearer auth, the PSA integration endpoints, the
@@ -25,7 +25,7 @@ async function createKey(page: Page, name: string, scopes: string[]): Promise<st
   await page.goto("/admin/api-keys");
   await page.getByLabel("Name").fill(name);
 
-  for (const scope of ["read", "write", "admin"]) {
+  for (const scope of ["read", "write", "admin", "reactions"]) {
     const box = page.getByRole("checkbox", { name: scope, exact: true });
     if (scopes.includes(scope)) await box.check();
     else await box.uncheck();
@@ -520,4 +520,67 @@ test("an endpoint that never answers does not hold up another", async ({ request
   expect(took).toBeLessThan(18_000);
 
   psql("delete from webhook_deliveries; delete from webhooks;");
+});
+
+test("a key with the reactions scope keeps favorites and votes for a named reader, the same ones the app shows", async ({
+  browser,
+  request,
+}) => {
+  const page = await browser.newPage();
+  await signInAsAdmin(page);
+  const reactKey = await createKey(page, unique("reactions key"), ["read", "reactions"]);
+  await page.goto("/admin/kb");
+  const name = unique("Reactions KB");
+  await page.getByLabel("Collection name").fill(name);
+  await page.getByRole("button", { name: "Create collection" }).click();
+  await expect(page).toHaveURL(/\/admin\/kb\/[0-9a-f-]{36}$/);
+  const collectionId = page.url().split("/").pop() as string;
+  psql(`insert into api_key_kb_collections (api_key_id, collection_id, can_write) select id, '${collectionId}', true from api_keys where name='${WRITE_KEY_NAME}';`);
+  const put = (externalId: string, data: Record<string, unknown>) =>
+    request.put(`/api/v1/kb/collections/${collectionId}/articles/${externalId}`, { headers: auth(writeKey), data });
+  const guide = await (await put("guide", { title: "Printer guide", body: "Turn it off and on." })).json();
+  const held = await (await put("held", { title: "Admin notes", body: "Held back.", internal_only: true })).json();
+
+  // The scope is explicit; the header is required.
+  const reader = { ...auth(reactKey), "X-Trove-Reader": ADMIN.email };
+  expect((await request.get(`/api/v1/kb/articles/${guide.id}/reactions`, { headers: auth(readKey) })).status()).toBe(403);
+  expect((await request.get(`/api/v1/kb/articles/${guide.id}/reactions`, { headers: auth(reactKey) })).status()).toBe(400);
+
+  expect((await request.put(`/api/v1/kb/articles/${guide.id}/favorite`, { headers: reader })).status()).toBe(204);
+  expect((await request.put(`/api/v1/kb/articles/${guide.id}/vote`, { headers: reader, data: { helpful: true } })).status()).toBe(204);
+  const reactions = await (await request.get(`/api/v1/kb/articles/${guide.id}/reactions`, { headers: reader })).json();
+  expect(reactions).toEqual({ favorites: 1, helpful_up: 1, helpful_down: 0, helpfulness: 100, mine: { favorite: true, vote: "up" } });
+  const article = await (await request.get(`/api/v1/kb/articles/${guide.id}`, { headers: { ...auth(readKey), "X-Trove-Reader": ADMIN.email } })).json();
+  expect(article).toMatchObject({ favorites: 1, helpfulness: 100, source_type: "md", public: false, mine: { favorite: true, vote: "up" } });
+  const favorites = await (await request.get("/api/v1/kb/favorites", { headers: reader })).json();
+  expect(favorites.data.map((row: { id: string }) => row.id)).toContain(guide.id);
+  expect(typeof favorites.data[0].favorited_at).toBe("string");
+
+  // The same reader, signed in: the favorite is already theirs.
+  await page.goto(`/kb/articles/${guide.id}`);
+  await expect(page.getByRole("button", { name: "Favorited" })).toBeVisible();
+
+  // Taken back.
+  expect((await request.delete(`/api/v1/kb/articles/${guide.id}/favorite`, { headers: reader })).status()).toBe(204);
+  expect((await request.delete(`/api/v1/kb/articles/${guide.id}/vote`, { headers: reader })).status()).toBe(204);
+  expect(await (await request.get(`/api/v1/kb/articles/${guide.id}/reactions`, { headers: reader })).json()).toMatchObject({ favorites: 0, helpfulness: null, mine: { favorite: false, vote: null } });
+
+  // Source types and kinds on the collection; audience narrows to the public site's view.
+  psql(`update kb_collections set public_access=true where id='${collectionId}';`);
+  const detail = await (await request.get(`/api/v1/kb/collections/${collectionId}`, { headers: auth(readKey) })).json();
+  expect(detail.kinds).toEqual({ article: 2, runbook: 0 });
+  expect(detail.source_types).toEqual([{ source_type: "md", articles: 2 }]);
+  const asPublic = await (await request.get(`/api/v1/kb/collections/${collectionId}?audience=public`, { headers: auth(readKey) })).json();
+  expect(asPublic.kinds).toEqual({ article: 1, runbook: 0 });
+  const listed = await (await request.get(`/api/v1/kb/articles?collection_id=${collectionId}`, { headers: auth(readKey) })).json();
+  expect(listed.data.map((row: { id: string; public: boolean }) => [row.id, row.public]).sort()).toEqual([[guide.id, true], [held.id, false]].sort());
+  const listedPublic = await (await request.get(`/api/v1/kb/articles?collection_id=${collectionId}&audience=public`, { headers: auth(readKey) })).json();
+  expect(listedPublic.data.map((row: { id: string }) => row.id)).toEqual([guide.id]);
+  expect((await request.get(`/api/v1/kb/articles/${held.id}?audience=public`, { headers: auth(readKey) })).status()).toBe(404);
+  expect((await request.get(`/api/v1/kb/articles/${held.id}`, { headers: auth(readKey) })).status()).toBe(200);
+  const none = await (await request.get(`/api/v1/kb/articles?collection_id=${collectionId}&source_type=pdf`, { headers: auth(readKey) })).json();
+  expect(none.data).toEqual([]);
+  const some = await (await request.get(`/api/v1/kb/search?q=printer&collection_id=${collectionId}&source_type=md&source_type=pdf`, { headers: auth(readKey) })).json();
+  expect(some.data.map((hit: { id: string; source_type: string }) => [hit.id, hit.source_type])).toEqual([[guide.id, "md"]]);
+  await page.close();
 });

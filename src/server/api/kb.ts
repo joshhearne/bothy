@@ -4,6 +4,8 @@ import type { AuthenticatedKey } from "@/server/services/api-keys";
 import type { KbReader, ArticleSummary, ArticleDetail, KbHit, CollectionRow } from "@/server/services/kb";
 import { mayWrite, type KbWriter } from "@/server/services/kb-write";
 import { publicAddressFor } from "@/server/kb/share";
+import { readerKey } from "@/server/kb/identity";
+import { readerReaction, reactionCounts, type FavoriteRow } from "@/server/services/kb-reactions";
 import { ARTICLE_KINDS } from "@/server/kb/extract";
 
 /**
@@ -13,12 +15,39 @@ import { ARTICLE_KINDS } from "@/server/kb/extract";
  * a collection can close, so `mcp_enabled` plays no part here.
  */
 
-export function kbReaderFor(key: AuthenticatedKey): KbReader {
+/**
+ * The key as a reader. `?audience=public` narrows it to what the public site
+ * shows, so an integration can show a person exactly what they would see there.
+ */
+export function kbReaderFor(key: AuthenticatedKey, url?: URL): KbReader {
   return {
     scope: key.companies,
     via: "api",
     granted: key.kbGrants.map((grant) => grant.collectionId),
+    ...(url?.searchParams.get("audience") === "public" ? { audience: "public" as const } : {}),
   };
+}
+
+/** The `source_type` filter, repeatable: `?source_type=pdf&source_type=docx`. */
+export function sourceTypesFrom(url: URL): string[] | undefined {
+  const values = url.searchParams.getAll("source_type").map((v) => v.trim()).filter(Boolean);
+  return values.length > 0 ? values : undefined;
+}
+
+export const READER_HEADER = "X-Trove-Reader";
+
+/** The body of a vote: helpful, or not. */
+export const voteBodySchema = z.object({ helpful: z.boolean() });
+
+/**
+ * The reader an integration acts for, as the key favorites and votes are
+ * kept under on the public site: the same email gives the same key, and the
+ * email itself is never stored. Null when the header is absent.
+ */
+export function readerKeyFrom(request: Request): string | null {
+  const email = request.headers.get(READER_HEADER)?.trim() ?? "";
+  if (email === "" || !email.includes("@") || email.length > 320) return null;
+  return readerKey(email);
 }
 
 export function kbWriterFor(key: AuthenticatedKey): KbWriter {
@@ -45,6 +74,8 @@ export function serializeCollection(row: CollectionRow, writer: Pick<KbWriter, "
     site_url: row.siteUrl ?? null,
     public: row.publicAccess,
     writable: mayWrite(writer, row.id),
+    favorites: row.favorites,
+    helpfulness: row.helpful,
     articles: row.articleCount,
     created_at: row.createdAt.toISOString(),
   };
@@ -56,6 +87,10 @@ export function serializeArticleSummary(article: ArticleSummary, collection?: { 
     external_id: article.externalId,
     title: article.title,
     kind: article.kind,
+    source_type: article.sourceType,
+    public: article.public,
+    favorites: article.favorites,
+    helpfulness: article.helpful,
     category: article.category,
     subcategory: article.subcategory,
     source_url: article.sourceUrl,
@@ -65,9 +100,35 @@ export function serializeArticleSummary(article: ArticleSummary, collection?: { 
   };
 }
 
-export async function serializeArticle(article: ArticleDetail) {
+export function serializeFavorite(row: FavoriteRow) {
+  return {
+    ...serializeArticleSummary(row, { id: row.collectionId, name: row.collectionName }),
+    favorited_at: row.favoritedAt.toISOString(),
+  };
+}
+
+/** What one reader did with the article, when the request names one. */
+export async function mineFor(readerKey: string | null, articleId: string) {
+  if (!readerKey) return {};
+  const reaction = await readerReaction(readerKey, articleId);
+  return { mine: { favorite: reaction.favorite, vote: reaction.vote === null ? null : reaction.vote ? "up" : "down" } };
+}
+
+export async function serializeReactions(articleId: string, readerKey: string | null) {
+  const counts = await reactionCounts(articleId);
+  return {
+    favorites: counts.favorites,
+    helpful_up: counts.helpfulUp,
+    helpful_down: counts.helpfulDown,
+    helpfulness: counts.helpfulness,
+    ...(await mineFor(readerKey, articleId)),
+  };
+}
+
+export async function serializeArticle(article: ArticleDetail, readerKey: string | null = null) {
   return {
     ...serializeArticleSummary(article, { id: article.collectionId, name: article.collectionName }),
+    ...(await mineFor(readerKey, article.id)),
     body: article.body,
     format: article.format,
     ...(article.kind === "runbook" ? { steps: article.steps } : {}),
@@ -87,6 +148,8 @@ export function serializeHit(hit: KbHit) {
     id: hit.articleId,
     title: hit.title,
     kind: hit.kind,
+    source_type: hit.sourceType,
+    public: hit.public,
     collection: { id: hit.collectionId, name: hit.collectionName },
     category: hit.category,
     subcategory: hit.subcategory,

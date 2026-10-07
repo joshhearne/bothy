@@ -359,6 +359,13 @@ appears in the documentation search.
   without a token, the site reads the same and offers nothing of the reader's
   own. Every reaction takes the public `KbReader` too: nobody reacts to an
   article they could not open.
+- **Readers named by an integration**: a key with the `reactions` scope acts
+  for a reader by naming their email in `X-Trove-Reader`; the key derives the
+  same `readerKey(email)` the public site uses for a reader Cloudflare Access
+  names, so favorites and votes are one set wherever they were made. The email
+  is read, hashed, and dropped. `audience=public` on any API read puts the
+  public site's predicate on top of the key's grants, so an integration can
+  show what the site would.
 - **Ordering and lists**: collections and articles sort by name, last change
   (the source's date, or arrival where the source gave none), article count,
   favorites, and helpfulness, which is the share of votes in favor, 0 to 100,

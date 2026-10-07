@@ -746,7 +746,8 @@ export const enUS = {
       revoked: "Revoked",
       nameHint: "Where the key will be used.",
       scopes: "Scopes",
-      scopeHint: "admin implies write, write implies read.",
+      scopeHint:
+        "admin implies write, write implies read. reactions lets a key keep favorites and votes for a named reader; secrets:reveal is never implied.",
       copyNow: "Copy this key now",
       newApiKey: "New API key",
       storedNote: (prefix: string) =>

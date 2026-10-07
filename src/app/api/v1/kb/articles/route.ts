@@ -1,5 +1,5 @@
 import { json, withApi } from "@/server/api/http";
-import { kbReaderFor, serializeArticleSummary } from "@/server/api/kb";
+import { kbReaderFor, serializeArticleSummary, sourceTypesFrom } from "@/server/api/kb";
 import { listArticles } from "@/server/services/kb";
 
 export const dynamic = "force-dynamic";
@@ -14,12 +14,13 @@ export const GET = withApi("read", async ({ key, url }) => {
       subcategory: q.get("subcategory") ?? undefined,
       kind: (q.get("kind") as "article" | "runbook" | null) ?? undefined,
       updatedSince: q.get("updated_since") ?? undefined,
+      sourceTypes: sourceTypesFrom(url),
       limit: q.get("limit") ?? undefined,
       cursor: q.get("cursor") ?? undefined,
       sort: (q.get("sort") as "name" | "modified" | null) ?? undefined,
       dir: (q.get("dir") as "asc" | "desc" | null) ?? undefined,
     },
-    kbReaderFor(key),
+    kbReaderFor(key, url),
   );
   return json({ data: page.articles.map((article) => serializeArticleSummary(article)), next_cursor: page.nextCursor });
 });

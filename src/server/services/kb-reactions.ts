@@ -112,6 +112,61 @@ export async function listFavorites(
     .limit(limit);
 }
 
+export type FavoriteRow = ArticleWithCollection & { favoritedAt: Date };
+
+/** The same, a page at a time, with when each was kept. */
+export async function pageFavorites(
+  readerKey: string,
+  reader: KbReader,
+  limit: number,
+  cursor?: string,
+): Promise<{ favorites: FavoriteRow[]; nextCursor: string | null }> {
+  const offset = cursor ? Math.max(0, Number.parseInt(cursor, 10) || 0) : 0;
+  const rows = await db
+    .select({ ...withCollection, favoritedAt: kbFavorites.createdAt })
+    .from(kbFavorites)
+    .innerJoin(kbArticles, eq(kbArticles.id, kbFavorites.articleId))
+    .innerJoin(kbCollections, eq(kbCollections.id, kbArticles.collectionId))
+    .where(and(eq(kbFavorites.readerKey, readerKey), ...open(reader)))
+    .orderBy(desc(kbFavorites.createdAt), sql`lower(${kbArticles.title})`)
+    .limit(limit + 1)
+    .offset(offset);
+  return {
+    favorites: rows.slice(0, limit),
+    nextCursor: rows.length > limit ? String(offset + limit) : null,
+  };
+}
+
+export type ReactionCounts = {
+  favorites: number;
+  helpfulUp: number;
+  helpfulDown: number;
+  /** 0 to 100, or null before anyone has voted. */
+  helpfulness: number | null;
+};
+
+/** What every reader together has made of one article. */
+export async function reactionCounts(articleId: string): Promise<ReactionCounts> {
+  const [[favorites], [votes]] = await Promise.all([
+    db.select({ n: sql<number>`count(*)::int` }).from(kbFavorites).where(eq(kbFavorites.articleId, articleId)),
+    db
+      .select({
+        up: sql<number>`count(*) filter (where ${kbVotes.helpful})::int`,
+        down: sql<number>`count(*) filter (where not ${kbVotes.helpful})::int`,
+      })
+      .from(kbVotes)
+      .where(eq(kbVotes.articleId, articleId)),
+  ]);
+  const up = votes?.up ?? 0;
+  const down = votes?.down ?? 0;
+  return {
+    favorites: favorites?.n ?? 0,
+    helpfulUp: up,
+    helpfulDown: down,
+    helpfulness: up + down === 0 ? null : Math.round((100 * up) / (up + down)),
+  };
+}
+
 /**
  * The articles readers found most helpful: the share of votes in favor,
  * then how many voted, so one lone thumbs-up does not outrank a hundred.
