@@ -3,27 +3,37 @@ import { I18nProvider } from "@/i18n/client";
 import { getLocale } from "@/i18n/server";
 import { getTheme } from "@/server/theme";
 import { getInstanceBranding } from "@/server/services/branding";
-import { iconHref } from "@/lib/brand-icon";
+import { iconHref, iconPlan } from "@/lib/brand-icon";
 import { SURFACE_DARK, SURFACE_LIGHT } from "@/lib/trove-mark";
 import { PRODUCT_NAME } from "@/lib/app-meta";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getInstanceBranding();
+  const plan = iconPlan(branding);
 
   return {
     title: branding.name?.trim() || PRODUCT_NAME,
     description: "Self-hosted structured IT documentation",
-    // The tab icon is the product mark in the instance's accent, whatever is
-    // in the header: a logo is drawn for a masthead, not a 16px square. The
-    // PNG comes first for a browser that will not take an SVG; the rest
-    // prefer the last one listed, the SVG, which follows the reader's mode.
+    // The tab icon is the operator's own, or the product mark in the
+    // instance's accent, whatever is in the header: a logo is drawn for a
+    // masthead, not a 16px square. A raster comes first for a browser that
+    // will not take an SVG; the rest prefer the last one listed, the SVG
+    // that follows the reader's mode, when the modes differ.
     icons: {
       icon: [
-        { url: iconHref(branding, undefined, { png: true, size: 32 }), type: "image/png", sizes: "32x32" },
-        { url: iconHref(branding), type: "image/svg+xml", sizes: "any" },
+        plan.type === "image/svg+xml"
+          ? { url: iconHref(branding, undefined, { png: true, size: 32 }), type: "image/png", sizes: "32x32" }
+          : { url: iconHref(branding, "light"), type: plan.type },
+        ...(plan.switches || plan.type === "image/svg+xml"
+          ? [{ url: iconHref(branding), type: "image/svg+xml", sizes: "any" }]
+          : []),
       ],
-      apple: [{ url: iconHref(branding, undefined, { png: true, size: 180 }), sizes: "180x180" }],
+      apple: [
+        plan.type === "image/svg+xml"
+          ? { url: iconHref(branding, undefined, { png: true, size: 180 }), sizes: "180x180" }
+          : { url: iconHref(branding, "light"), type: plan.type },
+      ],
     },
   };
 }

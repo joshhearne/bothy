@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { contrastRatio, toRgb } from "./brand-color";
-import { iconColors, iconHref } from "./brand-icon";
+import { iconColors, iconHref, iconPlan, uploadedIcons } from "./brand-icon";
 import { DEFAULT_ACCENT_DARK, DEFAULT_ACCENT_LIGHT, FACETS, iconSvg, SURFACE_DARK, SURFACE_LIGHT } from "./trove-mark";
 
 const WHITE = { tile: "#123456", gem: "#ffffff" };
@@ -67,5 +67,15 @@ describe("the tab icon's colours", () => {
     // A pinned mode or a PNG is one icon whatever the modes do.
     expect(iconHref(bare, "dark")).toBe("/api/branding/icon?mode=dark&v=2dd4bf101317");
     expect(iconHref(bare, undefined, { png: true, size: 180 })).toBe("/api/branding/icon?format=png&size=180&v=0f766effffff");
+  });
+
+  it("give way to an uploaded icon, which stands in for both modes until there are two", () => {
+    const one = { version: "aaaaaaaaaaaa", mime: "image/png" };
+    const two = { version: "bbbbbbbbbbbb", mime: "image/x-icon" };
+    expect(uploadedIcons({ ...bare, altIcon: one })).toEqual({ light: one, dark: one });
+    expect(iconPlan({ ...bare, icon: one })).toEqual({ type: "image/png", switches: false, light: "iaaaaaaaaaaaa", dark: "iaaaaaaaaaaaa" });
+    expect(iconHref({ ...bare, icon: one })).toBe("/api/branding/icon?v=iaaaaaaaaaaaa");
+    expect(iconHref({ ...bare, icon: one, altIcon: two })).toBe("/api/branding/icon?v=iaaaaaaaaaaaa-ibbbbbbbbbbbb");
+    expect(iconHref({ ...bare, icon: one, altIcon: two }, "dark")).toBe("/api/branding/icon?mode=dark&v=ibbbbbbbbbbbb");
   });
 });

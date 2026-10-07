@@ -135,6 +135,13 @@ Cloudflare steps inline and the public-site form beneath.
   and a PNG is always one mode. The address carries the colours (`?v=`, from
   `src/lib/brand-icon.ts`), so it caches hard and changes with the accent.
   The default palette is a teal (`globals.css`, hex twins in `trove-mark.ts`).
+- An operator may upload a tab icon per mode instead (`icon_key` /
+  `alt_icon_key`, PNG/JPEG/WebP/ICO sniffed, SVG refused as for logos). One
+  stands in for both modes; two different ones make `/api/branding/icon` an
+  SVG wrapping both as `data:` images under the same media query, with
+  `mode=` serving the raster itself for the first link, the touch icon, and
+  the previews. `iconPlan()` in `brand-icon.ts` decides which links the head
+  lists.
 - The footer credit ("Powered by Trove KB | Hearne Technologies") names the
   product and its maker, is the same on every install, and is optional:
   `instance_branding.show_powered_by`, on by default. The AGPL notice and the

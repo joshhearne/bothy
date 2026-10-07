@@ -285,7 +285,10 @@ the mode the reader is in, in the header and in the tab alike: with a
 different accent per mode the tab icon switches with the browser (Firefox and
 Chromium; Safari and home-screen icons keep the light-mode accent). Upload a
 logo and it takes the mark's place in the header; the tab keeps the mark,
-since a logo is drawn for a masthead, not a 16-pixel square.
+since a logo is drawn for a masthead, not a 16-pixel square. If you would
+rather have your own tab icon, upload one per mode (PNG, WebP, or ICO) under
+the logos; one icon serves both modes, two switch with the browser the same
+way, and Remove brings the mark back.
 
 Each company can carry a logo and accent of its own, set on its edit page, and
 they show on that company's pages and its documents. The shell keeps your

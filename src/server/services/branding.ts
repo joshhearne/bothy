@@ -50,13 +50,22 @@ const SIGNATURES: {
   },
 ];
 
-export const LOGO_ACCEPT = SIGNATURES.map((signature) => signature.mime).join(
-  ",",
-);
+/** A tab icon may also be the format browsers have taken for one since the start. */
+const ICON_SIGNATURES: typeof SIGNATURES = [
+  ...SIGNATURES,
+  {
+    mime: "image/x-icon",
+    extension: "ico",
+    matches: (b) => b[0] === 0 && b[1] === 0 && b[2] === 1 && b[3] === 0,
+  },
+];
+
+export const LOGO_ACCEPT = SIGNATURES.map((signature) => signature.mime).join(",");
+export const ICON_ACCEPT = ICON_SIGNATURES.map((signature) => signature.mime).join(",");
 
 export class UnsupportedLogoError extends Error {
-  constructor() {
-    super("A logo must be a PNG, JPEG, or WebP image");
+  constructor(icon = false) {
+    super(icon ? "A tab icon must be a PNG, JPEG, WebP, or ICO image" : "A logo must be a PNG, JPEG, or WebP image");
     this.name = "UnsupportedLogoError";
   }
 }
@@ -71,10 +80,8 @@ export class LogoTooLargeError extends Error {
 }
 
 /** The type a file actually is, or null. The declared type is not consulted. */
-export function sniffImage(
-  bytes: Buffer,
-): { mime: string; extension: string } | null {
-  const found = SIGNATURES.find((signature) => signature.matches(bytes));
+export function sniffImage(bytes: Buffer, icon = false): { mime: string; extension: string } | null {
+  const found = (icon ? ICON_SIGNATURES : SIGNATURES).find((signature) => signature.matches(bytes));
   return found ? { mime: found.mime, extension: found.extension } : null;
 }
 
@@ -119,10 +126,34 @@ export type Branding = {
   logoUrl: string | null;
   /** The logo for the other mode, when one was uploaded. */
   altLogoUrl: string | null;
+  /** An uploaded tab icon per mode: its version and type, or null for the mark. */
+  icon: BrandIcon | null;
+  altIcon: BrandIcon | null;
 };
+
+export type BrandIcon = { version: string; mime: string };
 
 /** Which of the two slots a logo or color belongs to. */
 export type BrandSlot = "primary" | "alt";
+/** The instance has two more: a tab icon per mode. */
+export type InstanceSlot = BrandSlot | "icon" | "altIcon";
+
+export const INSTANCE_SLOTS: InstanceSlot[] = ["primary", "alt", "icon", "altIcon"];
+
+export function instanceSlot(value: string | null | undefined): InstanceSlot {
+  return INSTANCE_SLOTS.find((slot) => slot === value) ?? "primary";
+}
+
+const KEY_COLUMNS = {
+  primary: { key: "logoKey", mime: "logoMime" },
+  alt: { key: "altLogoKey", mime: "altLogoMime" },
+  icon: { key: "iconKey", mime: "iconMime" },
+  altIcon: { key: "altIconKey", mime: "altIconMime" },
+} as const;
+
+function iconOf(key: string | null, mime: string | null): BrandIcon | null {
+  return key ? { version: version(key), mime: mime ?? "application/octet-stream" } : null;
+}
 
 export function otherScheme(scheme: BrandScheme): BrandScheme {
   return scheme === "light" ? "dark" : "light";
@@ -153,6 +184,8 @@ export async function getInstanceBranding(): Promise<Branding> {
       kbPoweredByName: null,
       logoUrl: null,
       altLogoUrl: null,
+      icon: null,
+      altIcon: null,
     };
   }
 
@@ -171,6 +204,8 @@ export async function getInstanceBranding(): Promise<Branding> {
     altLogoUrl: row.altLogoKey
       ? `/api/branding/logo?variant=alt&v=${version(row.altLogoKey)}`
       : null,
+    icon: iconOf(row.iconKey, row.iconMime),
+    altIcon: iconOf(row.altIconKey, row.altIconMime),
   };
 }
 
@@ -214,16 +249,12 @@ export async function setInstanceBranding(
   });
 }
 
-async function storeLogo(
-  prefix: string,
-  file: File,
-): Promise<{ key: string; mime: string }> {
-  if (file.size === 0 || file.size > MAX_LOGO_BYTES)
-    throw new LogoTooLargeError();
+async function storeLogo(prefix: string, file: File, icon = false): Promise<{ key: string; mime: string }> {
+  if (file.size === 0 || file.size > MAX_LOGO_BYTES) throw new LogoTooLargeError();
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const kind = sniffImage(bytes);
-  if (!kind) throw new UnsupportedLogoError();
+  const kind = sniffImage(bytes, icon);
+  if (!kind) throw new UnsupportedLogoError(icon);
 
   const key = `branding/${prefix}/${randomUUID()}.${kind.extension}`;
   const storage = await getStorage();
@@ -245,19 +276,14 @@ async function forget(key: string | null): Promise<void> {
 export async function setInstanceLogo(
   file: File,
   actorId: string,
-  slot: BrandSlot = "primary",
+  slot: InstanceSlot = "primary",
 ): Promise<void> {
-  const [existing] = await db
-    .select()
-    .from(instanceBranding)
-    .where(eq(instanceBranding.id, true))
-    .limit(1);
-  const stored = await storeLogo("instance", file);
+  const [existing] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
+  const isIcon = slot === "icon" || slot === "altIcon";
+  const stored = await storeLogo(isIcon ? "instance-icon" : "instance", file, isIcon);
 
-  const values =
-    slot === "alt"
-      ? { altLogoKey: stored.key, altLogoMime: stored.mime }
-      : { logoKey: stored.key, logoMime: stored.mime };
+  const columns = KEY_COLUMNS[slot];
+  const values = { [columns.key]: stored.key, [columns.mime]: stored.mime };
 
   await db.transaction(async (tx) => {
     await tx
@@ -280,27 +306,19 @@ export async function setInstanceLogo(
     );
   });
 
-  await forget(
-    (slot === "alt" ? existing?.altLogoKey : existing?.logoKey) ?? null,
-  );
+  await forget(existing?.[columns.key] ?? null);
 }
 
 export async function clearInstanceLogo(
   actorId: string,
-  slot: BrandSlot = "primary",
+  slot: InstanceSlot = "primary",
 ): Promise<void> {
-  const [existing] = await db
-    .select()
-    .from(instanceBranding)
-    .where(eq(instanceBranding.id, true))
-    .limit(1);
-  const key = slot === "alt" ? existing?.altLogoKey : existing?.logoKey;
+  const [existing] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
+  const columns = KEY_COLUMNS[slot];
+  const key = existing?.[columns.key];
   if (!key) return;
 
-  const cleared =
-    slot === "alt"
-      ? { altLogoKey: null, altLogoMime: null }
-      : { logoKey: null, logoMime: null };
+  const cleared = { [columns.key]: null, [columns.mime]: null };
 
   await db.transaction(async (tx) => {
     await tx
@@ -323,22 +341,17 @@ export async function clearInstanceLogo(
   await forget(key);
 }
 
-/** The bytes behind the instance logo, for the route that serves it. */
+/** The bytes behind the instance logo or tab icon, for the route that serves it. */
 export async function readInstanceLogo(
-  slot: BrandSlot = "primary",
+  slot: InstanceSlot = "primary",
 ): Promise<{ body: Buffer; mime: string } | null> {
-  const [row] = await db
-    .select()
-    .from(instanceBranding)
-    .where(eq(instanceBranding.id, true))
-    .limit(1);
-  const key = slot === "alt" ? row?.altLogoKey : row?.logoKey;
+  const [row] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
+  const columns = KEY_COLUMNS[slot];
+  const key = row?.[columns.key];
   if (!key) return null;
 
   const storage = await getStorage();
-  const mime =
-    (slot === "alt" ? row?.altLogoMime : row?.logoMime) ??
-    "application/octet-stream";
+  const mime = row?.[columns.mime] ?? "application/octet-stream";
   return { body: await storage.get(key), mime };
 }
 
@@ -378,6 +391,8 @@ export async function getCompanyBranding(
     altLogoUrl: row.altLogoKey
       ? `/api/companies/${companyId}/logo?variant=alt&v=${version(row.altLogoKey)}`
       : null,
+    icon: null,
+    altIcon: null,
   };
 }
 

@@ -297,9 +297,12 @@ export const instanceBranding = pgTable(
     logoMime: text("logo_mime"),
     altLogoKey: text("alt_logo_key"),
     altLogoMime: text("alt_logo_mime"),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .default(now),
+    /** An operator's own tab icon, per mode; without one the mark stands. */
+    iconKey: text("icon_key"),
+    iconMime: text("icon_mime"),
+    altIconKey: text("alt_icon_key"),
+    altIconMime: text("alt_icon_mime"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
     updatedBy: uuid("updated_by").references(() => users.id),
   },
   (t) => [

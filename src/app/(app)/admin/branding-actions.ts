@@ -12,6 +12,7 @@ import { NotFoundError } from "@/server/services/errors";
 import {
   clearCompanyLogo,
   clearInstanceLogo,
+  instanceSlot,
   LogoTooLargeError,
   setCompanyBranding,
   setCompanyLogo,
@@ -69,7 +70,7 @@ export async function uploadLogoAction(
     return { fieldErrors: { logo: "Choose an image to upload" } };
   }
 
-  const slot = text(formData, "slot") === "alt" ? "alt" : "primary";
+  const slot = instanceSlot(text(formData, "slot"));
 
   try {
     const user = await requireAdmin();
@@ -83,7 +84,7 @@ export async function uploadLogoAction(
 }
 
 export async function removeLogoAction(formData: FormData): Promise<void> {
-  const slot = text(formData, "slot") === "alt" ? "alt" : "primary";
+  const slot = instanceSlot(text(formData, "slot"));
   const user = await requireAdmin();
   await clearInstanceLogo(user.id, slot);
   revalidatePath("/", "layout");

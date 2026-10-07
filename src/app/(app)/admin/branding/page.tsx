@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { canManageIntegrations, requireUser } from "@/server/auth/session";
 import {
   getInstanceBranding,
+  ICON_ACCEPT,
   LOGO_ACCEPT,
   type BrandScheme,
   type Branding,
@@ -129,6 +130,57 @@ function LogoPanel({
   );
 }
 
+/**
+ * One mode's tab icon: the upload, and what that mode's tab shows — the
+ * upload, the other mode's standing in, or the mark in that mode's accent.
+ */
+function IconPanel({
+  theme,
+  slot,
+  uploaded,
+  branding,
+  t,
+}: {
+  theme: BrandScheme;
+  slot: "icon" | "altIcon";
+  uploaded: boolean;
+  branding: Branding;
+  t: Messages;
+}) {
+  const mode = (theme === "light" ? t.admin.branding.lightMode : t.admin.branding.darkMode).toLowerCase();
+  return (
+    <div className="flex flex-col gap-3">
+      <LogoForm
+        accept={ICON_ACCEPT}
+        hasLogo={uploaded}
+        slot={slot}
+        label={t.admin.branding.iconFor(mode)}
+        hint={theme === "light" ? t.admin.branding.iconHint : t.admin.branding.altIconHint(mode)}
+        buttons={{ upload: t.admin.branding.uploadIcon, replace: t.admin.branding.replaceIcon }}
+      />
+      <div data-theme={theme} className="flex items-center gap-3 rounded-lg border bg-[var(--background)] p-4">
+        {/* Our own route; the version in the address keeps it current. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={iconHref(branding, theme)}
+          alt={t.admin.branding.currentIcon(mode)}
+          data-tab-icon
+          className="size-8 rounded-md object-contain"
+        />
+        {!uploaded && <p className="text-sm text-[var(--muted-foreground)]">{t.admin.branding.noIcon}</p>}
+      </div>
+      {uploaded && (
+        <form action={removeLogoAction}>
+          <input type="hidden" name="slot" value={slot} />
+          <Button type="submit" variant="outline" size="sm">
+            {t.admin.branding.removeIcon}
+          </Button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export default async function BrandingPage() {
   const user = await requireUser();
   if (!canManageIntegrations(user.role)) redirect("/companies");
@@ -174,6 +226,17 @@ export default async function BrandingPage() {
             theme="dark"
             slot="alt"
             url={branding.altLogoUrl}
+            t={t}
+          />,
+        ]}
+        icons={[
+          <IconPanel key="light" theme="light" slot="icon" uploaded={branding.icon !== null} branding={branding} t={t} />,
+          <IconPanel
+            key="dark"
+            theme="dark"
+            slot="altIcon"
+            uploaded={branding.altIcon !== null}
+            branding={branding}
             t={t}
           />,
         ]}

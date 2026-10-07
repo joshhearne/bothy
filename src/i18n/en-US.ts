@@ -922,6 +922,15 @@ export const enUS = {
       poweredByHint:
         "Names the product and who makes it, at the foot of every page. The licence and the link to the source stay either way — anyone using this over a network is entitled to them.",
       tabIcon: "Tab icon",
+      iconFor: (mode: string) => `Tab icon for ${mode}`,
+      iconHint:
+        "Optional. PNG, WebP, or ICO, square, 32 px or larger, up to 1 MB. Without one, the mark in your accent is the tab icon.",
+      altIconHint: (mode: string) => `Optional. Left empty, the other icon is shown on ${mode} too.`,
+      uploadIcon: "Upload icon",
+      replaceIcon: "Replace icon",
+      removeIcon: "Remove icon",
+      currentIcon: (mode: string) => `The tab icon shown on ${mode}`,
+      noIcon: "No icon of your own; the mark in your accent stands.",
       previewHint: "Both themes, as a reader on each would see them.",
       save: "Save branding",
       preview: "Preview",

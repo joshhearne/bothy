@@ -8,12 +8,8 @@ import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/alert";
 import { useMessages } from "@/i18n/client";
 import type { FormState } from "@/lib/form";
-import type { BrandScheme } from "@/server/services/branding";
-import {
-  saveBrandingAction,
-  saveCompanyBrandingAction,
-  uploadLogoAction,
-} from "./branding-actions";
+import type { BrandScheme, InstanceSlot } from "@/server/services/branding";
+import { saveBrandingAction, saveCompanyBrandingAction, uploadLogoAction } from "./branding-actions";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -136,6 +132,7 @@ export function InstanceBrandingForm({
   kbPoweredByName,
   previews,
   logos,
+  icons,
 }: {
   name: string | null;
   /** Light mode. */
@@ -151,6 +148,8 @@ export function InstanceBrandingForm({
   previews: [React.ReactNode, React.ReactNode];
   /** The two logo panels, light then dark, drawn by the page. */
   logos: [React.ReactNode, React.ReactNode];
+  /** The two tab icon panels, light then dark, drawn by the page. */
+  icons: [React.ReactNode, React.ReactNode];
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(
     saveBrandingAction,
@@ -244,6 +243,12 @@ export function InstanceBrandingForm({
         {logos[1]}
       </div>
 
+      {/* The tab icon, one per mode, under the logo for that mode. */}
+      <div className="grid gap-6 sm:grid-cols-2">
+        {icons[0]}
+        {icons[1]}
+      </div>
+
       {/* Part of the form above, drawn after the logos: the page reads top to bottom. */}
       <div className="flex flex-col gap-4 border-t pt-6">
         <label className="flex items-start gap-2 text-sm">
@@ -292,12 +297,15 @@ export function LogoForm({
   slot,
   label,
   hint,
+  buttons,
 }: {
   accept: string;
   hasLogo: boolean;
-  slot: "primary" | "alt";
+  slot: InstanceSlot;
   label: string;
   hint: string;
+  /** What the button says, for a slot that is not a logo. */
+  buttons?: { upload: string; replace: string };
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(
     uploadLogoAction,
@@ -305,6 +313,7 @@ export function LogoForm({
   );
   const t = useMessages();
   const id = `logo-${slot}`;
+  const words = buttons ?? { upload: t.admin.branding.upload, replace: t.admin.branding.replace };
 
   return (
     <form action={formAction} className="flex max-w-xl flex-col gap-3">
@@ -323,9 +332,7 @@ export function LogoForm({
       </Field>
 
       <div>
-        <Submit
-          label={hasLogo ? t.admin.branding.replace : t.admin.branding.upload}
-        />
+        <Submit label={hasLogo ? words.replace : words.upload} />
       </div>
     </form>
   );

@@ -99,7 +99,7 @@ test.afterAll(() => {
   psql(
     "update instance_branding set name = null, scheme = 'light', accent = null, " +
       "alt_accent = null, accent_text = null, alt_accent_text = null, show_powered_by = true, logo_key = null, logo_mime = null, " +
-      "alt_logo_key = null, alt_logo_mime = null;",
+      "alt_logo_key = null, alt_logo_mime = null, icon_key = null, icon_mime = null, alt_icon_key = null, alt_icon_mime = null;",
   );
 });
 
@@ -205,13 +205,9 @@ test("the tab icon takes each mode's accent, and is one icon when they are the s
     /v=1f6feb[0-9a-f]{6}$/,
   );
 
-  // Each preview shows the icon its mode would get.
-  await expect(
-    page.locator("img[src*='/api/branding/icon?mode=light']"),
-  ).toHaveCount(1);
-  await expect(
-    page.locator("img[src*='/api/branding/icon?mode=dark']"),
-  ).toHaveCount(1);
+  // The preview and the icon panel for each mode both show the icon it gets.
+  await expect(page.locator("img[src*='/api/branding/icon?mode=light']")).toHaveCount(2);
+  await expect(page.locator("img[src*='/api/branding/icon?mode=dark']")).toHaveCount(2);
 
   // The same accent in both modes is one icon, with nothing to switch.
   await page.getByLabel("Accent color for dark mode").first().fill("#1f6feb");
@@ -222,6 +218,50 @@ test("the tab icon takes each mode's accent, and is one icon when they are the s
       await request.get((await icon.getAttribute("href")) as string)
     ).text(),
   ).not.toContain("prefers-color-scheme");
+});
+
+test("an operator's own tab icon replaces the mark, one per mode, and comes off again", async ({ page, request }) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/branding");
+
+  // One icon: both modes show it, and nothing is left to switch.
+  await page.getByLabel("Tab icon for light mode").setInputFiles({ name: "icon.png", mimeType: "image/png", buffer: PNG });
+  await page.getByRole("button", { name: "Upload icon" }).first().click();
+  await expect(page.getByRole("button", { name: "Remove icon" })).toHaveCount(1);
+
+  const raster = page.locator('link[rel="icon"][type="image/png"]');
+  await expect(raster).toHaveAttribute("href", /\/api\/branding\/icon\?mode=light&v=i[0-9a-f]{11}$/);
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveCount(0);
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", /mode=light&v=i/);
+  const served = await request.get((await raster.getAttribute("href")) as string);
+  expect(served.headers()["content-type"]).toBe("image/png");
+  expect(await served.body()).toEqual(PNG);
+  expect(await (await request.get("/api/branding/icon?mode=dark")).body()).toEqual(PNG);
+
+  // A second, for dark: the tab gets an SVG that is one in a light browser and the other in a dark one.
+  await page.getByLabel("Tab icon for dark mode").setInputFiles({ name: "dark.png", mimeType: "image/png", buffer: ALT_PNG });
+  await page.getByRole("button", { name: /Upload icon|Replace icon/ }).last().click();
+  await expect(page.getByRole("button", { name: "Remove icon" })).toHaveCount(2);
+
+  const svg = page.locator('link[rel="icon"][type="image/svg+xml"]');
+  await expect(svg).toHaveAttribute("href", /\?v=i[0-9a-f]{11}-i[0-9a-f]{11}$/);
+  const body = await (await request.get((await svg.getAttribute("href")) as string)).text();
+  expect(body).toContain("@media (prefers-color-scheme: dark)");
+  expect(body).toContain(`data:image/png;base64,${PNG.toString("base64")}`);
+  expect(body).toContain(`data:image/png;base64,${ALT_PNG.toString("base64")}`);
+  expect(await (await request.get("/api/branding/icon?mode=dark")).body()).toEqual(ALT_PNG);
+
+  // Not an image, whatever it is called.
+  await page.getByLabel("Tab icon for light mode").setInputFiles({ name: "icon.ico", mimeType: "image/x-icon", buffer: Buffer.from("MZ not an icon") });
+  await page.getByRole("button", { name: /Upload icon|Replace icon/ }).first().click();
+  await expect(page.getByText("A tab icon must be a PNG, JPEG, WebP, or ICO image")).toBeVisible();
+
+  // Off again, and the mark is back.
+  await page.getByRole("button", { name: "Remove icon" }).first().click();
+  await expect(page.getByRole("button", { name: "Remove icon" })).toHaveCount(1);
+  await page.getByRole("button", { name: "Remove icon" }).click();
+  await expect(page.getByRole("button", { name: "Remove icon" })).toHaveCount(0);
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute("href", /\?v=[0-9a-f]{12}(-[0-9a-f]{12})?$/);
 });
 
 test("a logo is uploaded, served, and shown", async ({ page, request }) => {
