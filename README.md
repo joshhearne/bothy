@@ -3,11 +3,6 @@
 Self-hosted, open-source structured IT documentation for internal IT teams and MSPs.
 A lightweight alternative to Hudu and IT Glue.
 
-> A trove-kb is a simple shelter in the hills, left unlocked and kept stocked by
-> whoever passes through, for whoever comes next. That is what good client
-> documentation is: not a record you keep for yourself, but something you
-> maintain for the person who picks up the ticket after you.
-
 - Companies > Locations > Documents hierarchy
 - Documents built from templates (doc types) with typed fields
 - Add fields and dropdown options inline while editing. No round trips to admin.
@@ -18,10 +13,16 @@ A lightweight alternative to Hudu and IT Glue.
 - Credentials stay in your own Bitwarden or Vaultwarden; Trove KB brokers access
 - Local accounts or OIDC single sign-on, with an append-only audit trail
 - en-US and en-GB interface, switchable per reader
+- A knowledge base beside the documentation: vendor help sites, wikis, and
+  manuals brought in by import or crawled on a schedule, searched and read in
+  one place, with runbooks whose steps a ticketing system can track
+- A public site for the collections you choose, with favorites and ratings,
+  and keyword rules that keep the rest off it
 - MCP endpoint so AI assistants can read your documentation, never your secrets
 - Runs as a Docker container, or as a Cloudflare Worker with no server at all
 - Per-company export as JSON or Markdown
-- REST API + signed webhooks for any PSA or ticketing system
+- REST API + signed webhooks for any PSA or ticketing system, the knowledge
+  base and runbooks included
 - Deep links and an id mapping so a ticket can jump straight to its client
 - One `docker compose up` to run
 
@@ -93,13 +94,48 @@ claude mcp add --transport http trove-kb https://trove-kb.example.com/api/mcp \
   --header "Authorization: Bearer $TROVE_KEY"
 ```
 
-Five read-only tools: `search_documents`, `get_document`, `list_companies`,
-`get_company`, and `list_doc_types`. A key needs only the `read` scope.
+Documentation tools are read-only: `search_documents`, `get_document`,
+`list_companies`, `get_company`, and `list_doc_types`. Knowledge base tools
+read too (`list_kb_collections`, `search_kb`, `get_kb_article`,
+`list_kb_articles`), and a key granted write on a collection also gets
+`upsert_kb_article` and `archive_kb_article`, so an assistant working in a
+code repository can keep that product's own documentation current. A key needs
+only the `read` scope; writing is a grant per collection.
 
 **No assistant can read a credential.** Secret fields are stripped from every
 MCP response, and there is deliberately no reveal tool — revealing a credential
 stays a decision a person makes in Trove KB, where it is audited. Nothing exposed
-over MCP can change a record either; the tools are read-only by construction.
+over MCP can change client documentation.
+
+## Knowledge base
+
+Collections hold reference articles from outside sources, kept apart from
+client documentation: a vendor's help center read by its own structure, a
+website crawled by sitemap or from a starting page, a wiki or an export of
+another system's articles brought in as a zip or a folder, with their pictures
+and the PDFs and Word documents they link. Imports upsert on a stable id, so a
+newer export updates what changed and nothing else. What comes in is tidied to
+read as its source did: numbered steps keep counting past a screenshot, a
+site's own menus and buttons are dropped, and an embedded video plays in the
+article.
+
+Articles can also be written in Trove KB, by administrators and by people
+granted a collection by name. A **runbook** is an article whose lists are a
+procedure: every step carries a stable id, written into the body, so a
+ticketing system that links the runbook can keep per-ticket progress by step.
+Trove KB stores none of that progress itself.
+
+The **public site** publishes the collections you choose at a hostname of its
+own, with search, favorites, and "was this helpful" votes, and recognises
+readers who arrive through Cloudflare Access without any account here. Keyword
+rules (phrases or regular expressions, by title, category, or file type) and
+per-category switches keep the rest off it, and apply to what arrives later.
+
+Everything the app can do with the knowledge base, a program can do over
+`/api/v1/kb`: list and search collections and articles, read one in full with
+its steps, upsert and archive under an external id, grant collections to
+people and keys, and subscribe to `kb.article.upserted` and
+`kb.article.archived` webhooks. See `docs/API.md`.
 
 ## Running it on Cloudflare
 
