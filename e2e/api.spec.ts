@@ -486,3 +486,38 @@ test("an admin key provisions a person and grants collections by API", async ({ 
   expect((await request.delete(`/api/v1/kb/collections/${collectionId}/grants/api-keys/${keyId}`, { headers: auth(adminKey) })).status()).toBe(204);
   expect((await request.get(`/api/v1/kb/collections/${collectionId}`, { headers: auth(writeKey) })).status()).toBe(404);
 });
+
+test("an endpoint that never answers does not hold up another", async ({ request }) => {
+  test.setTimeout(90_000);
+  const cronSecret = process.env.E2E_CRON_SECRET ?? "an-e2e-cron-secret-value";
+
+  // Two endpoints at addresses nothing answers at, one delivery each. Each one
+  // costs the full ten-second timeout, so a pass that waits on the first before
+  // starting the second takes twice as long as it has to — long enough to
+  // outlast a cron trigger, and to take the schedule announcement down with it.
+  psql("delete from webhook_deliveries; delete from webhooks;");
+  psql(
+    "insert into webhooks (url, secret, events) values " +
+      "('http://203.0.113.1:9/one','slow-one','{company.created}')," +
+      "('http://203.0.113.2:9/two','slow-two','{company.created}');",
+  );
+  psql(
+    "insert into webhook_deliveries (webhook_id, event, payload) " +
+      `select id, 'company.created', '{"event":"company.created","data":{}}'::jsonb from webhooks;`,
+  );
+
+  const started = Date.now();
+  const pass = await request.post("/api/internal/webhooks", {
+    headers: { "x-bothy-cron-secret": cronSecret },
+    timeout: 60_000,
+  });
+  const took = Date.now() - started;
+
+  expect(pass.status()).toBe(200);
+  expect((await pass.json()).attempted).toBe(2);
+  // Both timeouts at once is ten seconds and change; one after the other is
+  // twenty. Anything under eighteen can only be the former.
+  expect(took).toBeLessThan(18_000);
+
+  psql("delete from webhook_deliveries; delete from webhooks;");
+});

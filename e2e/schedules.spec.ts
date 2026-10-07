@@ -119,6 +119,12 @@ test("what is due is announced once, not on every pass", async ({ page, request 
   await page.goto(`/documents/${documentId}`);
   await setSchedule(page, "expiry", inDays(2));
 
+  // The container runs the same pass on a timer — every five seconds on the
+  // test stack — so it may have announced this date already, which would make
+  // the first pass below behave like the second. Take the date back to never
+  // announced, so what follows is the first pass whoever runs it.
+  psql(`update document_schedules set notified_for = null where document_id = '${documentId}';`);
+
   // The endpoint the Worker deployment's cron calls, which runs exactly what
   // the container's timer runs. Driving it directly beats waiting on a clock.
   const headers = { "x-bothy-cron-secret": CRON_SECRET };

@@ -186,6 +186,7 @@ export async function deliverDueWebhooks(limit = 20): Promise<DeliveryAttempt[]>
   const due = await db
     .select({
       id: webhookDeliveries.id,
+      webhookId: webhookDeliveries.webhookId,
       event: webhookDeliveries.event,
       payload: webhookDeliveries.payload,
       attempts: webhookDeliveries.attempts,
@@ -208,9 +209,22 @@ export async function deliverDueWebhooks(limit = 20): Promise<DeliveryAttempt[]>
     .orderBy(asc(webhookDeliveries.id))
     .limit(limit);
 
-  const results: DeliveryAttempt[] = [];
-
+  /**
+   * Endpoints are independent, so they are not made to wait on each other: a
+   * pass used to be one request after another, and twenty deliveries to an
+   * endpoint that never answers took twenty timeouts end to end — long enough
+   * to outlast a cron trigger, and the pass that announces schedules with it.
+   * Deliveries to the *same* endpoint stay in order, since a consumer reading
+   * them as a sequence should see them as one.
+   */
+  const byWebhook = new Map<string, typeof due>();
   for (const delivery of due) {
+    const group = byWebhook.get(delivery.webhookId);
+    if (group) group.push(delivery);
+    else byWebhook.set(delivery.webhookId, [delivery]);
+  }
+
+  const attempt = async (delivery: (typeof due)[number]): Promise<DeliveryAttempt> => {
     const attempts = delivery.attempts + 1;
 
     if (!delivery.active) {
@@ -219,8 +233,7 @@ export async function deliverDueWebhooks(limit = 20): Promise<DeliveryAttempt[]>
         .update(webhookDeliveries)
         .set({ attempts, nextRetryAt: null, deliveredAt: null, statusCode: null })
         .where(eq(webhookDeliveries.id, delivery.id));
-      results.push({ deliveryId: delivery.id, status: "exhausted", statusCode: null });
-      continue;
+      return { deliveryId: delivery.id, status: "exhausted", statusCode: null };
     }
 
     const body = JSON.stringify(delivery.payload);
@@ -251,8 +264,7 @@ export async function deliverDueWebhooks(limit = 20): Promise<DeliveryAttempt[]>
         .update(webhookDeliveries)
         .set({ attempts, statusCode, deliveredAt: new Date(), nextRetryAt: null })
         .where(eq(webhookDeliveries.id, delivery.id));
-      results.push({ deliveryId: delivery.id, status: "delivered", statusCode });
-      continue;
+      return { deliveryId: delivery.id, status: "delivered", statusCode };
     }
 
     const exhausted = attempts >= MAX_ATTEMPTS;
@@ -265,12 +277,23 @@ export async function deliverDueWebhooks(limit = 20): Promise<DeliveryAttempt[]>
       })
       .where(eq(webhookDeliveries.id, delivery.id));
 
-    results.push({
+    return {
       deliveryId: delivery.id,
       status: exhausted ? "exhausted" : "retrying",
       statusCode,
-    });
-  }
+    };
+  };
+
+  const grouped = await Promise.all(
+    [...byWebhook.values()].map(async (group) => {
+      const attempts: DeliveryAttempt[] = [];
+      for (const delivery of group) attempts.push(await attempt(delivery));
+      return attempts;
+    }),
+  );
+
+  // Oldest first, as the single pass used to report them.
+  const results = grouped.flat().sort((left, right) => left.deliveryId - right.deliveryId);
 
   return results;
 }
