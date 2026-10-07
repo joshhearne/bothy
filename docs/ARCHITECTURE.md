@@ -405,6 +405,14 @@ appears in the documentation search.
   Knowledge base → the collection → People, or by an `admin`-scope key over
   REST, which can also make an account ahead of the person's first sign-in;
   single sign-on links to it by email.
+- **Moving an article**: an administrator with the second step fresh can
+  move an article to another collection from the editor. The article keeps
+  its id, name, pictures (each copied to the new collection under the same
+  stored file), and history; its chunks follow it, the new collection's hide
+  rules apply on arrival, and the move is audited and announced as an upsert.
+  The editor's category and section are dropdowns of what the collection
+  already uses, with "New…" to type a fresh one; after a move they refresh to
+  the new collection's, and anyone who may edit sets them.
 - **Writing in the app**: administrators, and people granted write, get a Markdown editor at
   `/kb/articles/new?collection=` and `/kb/articles/:id/edit`, the same
   `writeArticle` service a key uses, with a `KbWriter` that names the person.

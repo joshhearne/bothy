@@ -1357,6 +1357,7 @@ test("a runbook keeps its step ids across edits, renders as a checklist, and rea
   await page.goto(`/kb/${runbooks}`);
   await page.getByRole("link", { name: "New article" }).click();
   await page.getByLabel("Title").fill("Reset a voicemail PIN");
+  await page.getByLabel("Category").selectOption({ label: "New…" });
   await page.getByLabel("Category").fill("Phones");
   await page.getByRole("checkbox", { name: "This is a runbook" }).check();
   await page.getByRole("textbox", { name: "Body" }).fill(
@@ -1497,6 +1498,60 @@ test("a person granted a collection by name reads it, and writes to it when the 
   await expect.poll(() => psql(`select count(*) from user_kb_collections u join users x on x.id=u.user_id where x.email='${email}' and u.collection_id='${granted}';`)).toBe("0");
   expect((await person.goto(`/kb/articles/${written}`))?.status()).toBe(404);
   await context.close();
+});
+
+test("an article is edited with the collection's own categories to pick from, and an administrator moves it elsewhere", async ({
+  page,
+}) => {
+  const make = async (name: string) => {
+    await page.goto("/admin/kb");
+    await page.getByLabel("Collection name").fill(name);
+    await page.getByRole("button", { name: "Create collection" }).click();
+    await expect(page).toHaveURL(/\/admin\/kb\/[0-9a-f-]{36}$/);
+    return page.url().split("/").pop() as string;
+  };
+  const here = await make(unique("Calder Ridge Here"));
+  const there = await make(unique("Calder Ridge There"));
+  psql(`insert into kb_articles (collection_id, source_key, external_id, title, body, source_type, content_hash, category, subcategory) values ('${there}', 'id:seed', 'seed', 'Seed', 'Words.', 'md', 'seed', 'Printers', 'Toner');`);
+
+  // Written here, with a category typed fresh.
+  await page.goto(`/kb/${here}`);
+  await page.getByRole("link", { name: "New article" }).click();
+  await page.getByLabel("Title").fill("Moving article");
+  await page.getByLabel("Category").selectOption({ label: "New…" });
+  await page.getByLabel("Category").fill("Phones");
+  await page.getByRole("textbox", { name: "Body" }).fill("Some words.");
+  await page.getByRole("button", { name: "Save article" }).click();
+  await expect(page).toHaveURL(/\/kb\/articles\/[0-9a-f-]{36}$/);
+  const articleId = page.url().split("/").pop() as string;
+
+  // Edited: the category is a choice among what this collection uses.
+  await page.getByRole("link", { name: "Edit" }).click();
+  await expect(page.getByLabel("Category")).toHaveValue("Phones");
+  await expect(page.getByLabel("Category").locator("option")).toContainText(["No category", "Phones", "New…"]);
+  await expect(page.getByLabel("Category").locator("option")).not.toContainText(["Printers"]);
+
+  // Moving takes the second step fresh; the e2e admin has none enrolled, so unlocking comes straight back.
+  await page.getByRole("button", { name: "Unlock moving" }).click();
+  await expect(page).toHaveURL(new RegExp(`/kb/articles/${articleId}/edit\\?unlock=move$`));
+  await page.getByRole("button", { name: "Move…" }).click();
+  const dialog = page.getByRole("dialog", { name: "Move to another knowledge base" });
+  await dialog.getByLabel("Move to").selectOption(there);
+  await dialog.getByRole("button", { name: "Move here" }).click();
+  await expect(page.getByText(/Will move to .*Calder Ridge There/)).toBeVisible();
+  // The dropdowns now offer the new collection's categories and sections.
+  await expect(page.getByLabel("Category").locator("option")).toContainText(["Printers"]);
+  await page.getByLabel("Category").selectOption("Printers");
+  await expect(page.getByLabel("Section").locator("option")).toContainText(["Toner"]);
+  await page.getByLabel("Section").selectOption("Toner");
+  await page.getByRole("button", { name: "Save article" }).click();
+  await expect(page).toHaveURL(`/kb/articles/${articleId}`);
+
+  expect(psql(`select collection_id || '|' || category || '|' || subcategory from kb_articles where id='${articleId}';`)).toBe(`${there}|Printers|Toner`);
+  expect(psql(`select count(distinct collection_id) || ':' || min(collection_id::text) from kb_chunks where article_id='${articleId}';`)).toBe(`1:${there}`);
+  expect(psql(`select count(*) from audit_log where action='kb_article.moved' and entity_id='${articleId}';`)).toBe("1");
+  await page.goto(`/kb/${here}`);
+  await expect(page.getByRole("link", { name: "Moving article" })).toHaveCount(0);
 });
 
 /** One pixel, which is enough for a browser to draw. */

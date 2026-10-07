@@ -1,14 +1,15 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/server/db";
-import { kbArticles } from "@/server/db/schema";
+import { kbArticles, kbChunks, kbCollections, kbImages } from "@/server/db/schema";
+import { picturesOf } from "@/server/services/kb-images";
 import { writeAudit } from "@/server/services/audit";
 import { applyVisibility } from "@/server/services/kb-visibility";
 import { queueEvent } from "@/server/services/webhooks";
 import { ForbiddenError, NotFoundError } from "@/server/services/errors";
-import { getCollection, type KbReader } from "@/server/services/kb";
+import { getArticle, getCollection, type KbReader } from "@/server/services/kb";
 import { ARTICLE_KINDS } from "@/server/kb/extract";
 import { sourceKey, storeArticle } from "@/server/services/kb-import";
 import { safeUrl } from "@/server/kb/extract";
@@ -292,4 +293,82 @@ export async function archiveArticle(articleId: string, writer: KbWriter): Promi
 export async function userMayWrite(user: { id: string; role: string }, collectionId: string): Promise<boolean> {
   if (user.role === "admin") return true;
   return (await grantsForUser(user.id)).some((grant) => grant.collectionId === collectionId && grant.canWrite);
+}
+
+/**
+ * Moves an article to another collection, with the pictures it refers to:
+ * a picture belongs to a collection, so each one the article uses is held
+ * in the new collection too, under the same stored file. The article keeps
+ * its name, so the next import of it under the old collection makes a new
+ * one there; that is what a move means. The new collection's hide rules
+ * apply on arrival.
+ */
+export async function moveArticle(articleId: string, toCollectionId: string, writer: KbWriter): Promise<void> {
+  const reader = readerFor(writer);
+  const article = await getArticle(articleId, reader);
+  if (!article) throw new NotFoundError("Article");
+  if (article.collectionId === toCollectionId) return;
+  await writable(article.collectionId, writer);
+  const target = await writable(toCollectionId, writer);
+
+  const pictures = await picturesOf(article);
+  await db.transaction(async (tx) => {
+    const [clash] = await tx
+      .select({ id: kbArticles.id })
+      .from(kbArticles)
+      .innerJoin(kbCollections, eq(kbCollections.id, kbArticles.collectionId))
+      .where(and(eq(kbArticles.collectionId, toCollectionId), eq(kbArticles.sourceKey, sql`(select source_key from kb_articles where id = ${articleId})`)))
+      .limit(1);
+    if (clash) throw new ForbiddenError(`"${target.name}" already holds an article with this name`);
+
+    await tx
+      .update(kbArticles)
+      .set({ collectionId: toCollectionId, updatedAt: new Date() })
+      .where(eq(kbArticles.id, articleId));
+    await tx.update(kbChunks).set({ collectionId: toCollectionId }).where(eq(kbChunks.articleId, articleId));
+
+    if (pictures.size > 0) {
+      const rows = await tx
+        .select()
+        .from(kbImages)
+        .where(inArray(kbImages.id, [...pictures.values()]));
+      if (rows.length > 0) {
+        await tx
+          .insert(kbImages)
+          .values(
+            rows.map((row) => ({
+              collectionId: toCollectionId,
+              sourcePath: row.sourcePath,
+              storageKey: row.storageKey,
+              mimeType: row.mimeType,
+              sizeBytes: row.sizeBytes,
+              contentHash: row.contentHash,
+            })),
+          )
+          .onConflictDoNothing();
+      }
+    }
+
+    await applyVisibility(toCollectionId, articleId, tx);
+    await writeAudit(
+      {
+        action: "kb_article.moved",
+        entity: "kb_article",
+        entityId: articleId,
+        detail: {
+          from: { id: article.collectionId, name: article.collectionName },
+          to: { id: toCollectionId, name: target.name },
+          externalId: article.externalId,
+          title: article.title,
+          ...attribution(writer),
+        },
+      },
+      tx,
+    );
+    await queueEvent(
+      "kb.article.upserted",
+      { collection_id: toCollectionId, article_id: articleId, external_id: article.externalId, kind: article.kind },
+      tx,
+    );
+  });
 }

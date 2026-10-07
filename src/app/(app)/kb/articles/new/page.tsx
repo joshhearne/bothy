@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireScopedUser } from "@/server/auth/session";
-import { getCollection } from "@/server/services/kb";
+import { getCollection, listCategories } from "@/server/services/kb";
 import { userMayWrite } from "@/server/services/kb-write";
 import { getI18n } from "@/i18n/server";
 import { KbEditor } from "../../kb-editor";
@@ -15,9 +15,10 @@ export default async function NewArticlePage({
   const { user, scope } = await requireScopedUser();
   const { collection: collectionId } = await searchParams;
   if (!collectionId || !/^[0-9a-f-]{36}$/i.test(collectionId)) notFound();
-  const collection = await getCollection(collectionId, { scope, via: "app", userId: user.id });
+  const reader = { scope, via: "app" as const, userId: user.id };
+  const collection = await getCollection(collectionId, reader);
   if (!collection || !(await userMayWrite(user, collection.id))) notFound();
-  const { messages: t } = await getI18n();
+  const [categories, { messages: t }] = await Promise.all([listCategories(collection.id, reader), getI18n()]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -27,6 +28,11 @@ export default async function NewArticlePage({
       </div>
       <KbEditor
         backHref={`/kb/${collection.id}`}
+        categories={categories.map((row) => ({ category: row.category, subcategory: row.subcategory }))}
+        collections={[]}
+        collectionName={collection.name}
+        canMove={false}
+        moveUnlocked={false}
         values={{
           collectionId: collection.id,
           title: "",

@@ -1,21 +1,34 @@
 import { notFound } from "next/navigation";
-import { requireScopedUser } from "@/server/auth/session";
-import { getArticle } from "@/server/services/kb";
+import { hasRecentMfa, requireScopedUser } from "@/server/auth/session";
+import { getArticle, listCategories, listCollections, type KbReader } from "@/server/services/kb";
 import { userMayWrite } from "@/server/services/kb-write";
 import { getI18n } from "@/i18n/server";
 import { KbEditor } from "../../../kb-editor";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditArticlePage({ params }: { params: Promise<{ articleId: string }> }) {
+export default async function EditArticlePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ articleId: string }>;
+  searchParams: Promise<{ unlock?: string }>;
+}) {
   const { user, scope } = await requireScopedUser();
   const { articleId } = await params;
+  const { unlock } = await searchParams;
   if (!/^[0-9a-f-]{36}$/i.test(articleId)) notFound();
-  const article = await getArticle(articleId, { scope, via: "app", userId: user.id });
+  const reader: KbReader = { scope, via: "app", userId: user.id };
+  const article = await getArticle(articleId, reader);
   // Only an article with a name of its own can be written again under it.
   if (!article || !article.externalId || article.format !== "markdown") notFound();
   if (!(await userMayWrite(user, article.collectionId))) notFound();
-  const { messages: t } = await getI18n();
+  const canMove = user.role === "admin";
+  const [categories, collections, { messages: t }] = await Promise.all([
+    listCategories(article.collectionId, reader),
+    canMove ? listCollections(reader) : Promise.resolve([]),
+    getI18n(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -25,7 +38,13 @@ export default async function EditArticlePage({ params }: { params: Promise<{ ar
       </div>
       <KbEditor
         backHref={`/kb/articles/${article.id}`}
+        categories={categories.map((row) => ({ category: row.category, subcategory: row.subcategory }))}
+        collections={collections.map((row) => ({ id: row.id, name: row.name }))}
+        collectionName={article.collectionName}
+        canMove={canMove}
+        moveUnlocked={canMove && unlock === "move" && hasRecentMfa(user)}
         values={{
+          articleId: article.id,
           collectionId: article.collectionId,
           externalId: article.externalId,
           title: article.title,

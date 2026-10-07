@@ -127,7 +127,7 @@ export async function storeImage(
 type Referenced = Pick<ArticleDetail, "collectionId" | "sourcePath" | "format" | "body">;
 
 /** The pictures an article refers to that the collection holds, by the path it used. */
-async function picturesOf(article: Referenced): Promise<Map<string, string>> {
+export async function picturesOf(article: Referenced): Promise<Map<string, string>> {
   const found = new Map<string, string>();
   if (article.format !== "markdown" || !article.body.includes("](")) return found;
 

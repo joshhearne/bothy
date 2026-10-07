@@ -110,6 +110,12 @@ export async function requireUser(): Promise<CurrentUser> {
  * the last few minutes: issuing keys, changing people and roles, changing
  * security settings. Somebody with no second factor has nothing to repeat.
  */
+/** Whether the second step is fresh enough for a sensitive action, or was never enrolled. */
+export function hasRecentMfa(user: Pick<CurrentUser, "mfa">): boolean {
+  if (!user.mfa.enrolled) return true;
+  return Date.now() - (user.mfa.verifiedAt?.getTime() ?? 0) <= STEP_UP_MINUTES * 60_000;
+}
+
 export async function requireRecentMfa(user: CurrentUser, path?: string): Promise<void> {
   if (!user.mfa.enrolled) return;
   const verified = user.mfa.verifiedAt?.getTime() ?? 0;
