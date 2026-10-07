@@ -79,6 +79,7 @@ export const brandingInputSchema = z.object({
   accentText: hexColor,
   altAccentText: hexColor,
   showPoweredBy: z.boolean().default(true),
+  iconFollowsMode: z.boolean().default(false),
 });
 
 export type BrandingInput = z.input<typeof brandingInputSchema>;
@@ -97,6 +98,8 @@ export type Branding = {
   altAccentText: string | null;
   /** Whether the "Powered by" credit is shown. */
   showPoweredBy: boolean;
+  /** Whether the tab icon takes the dark accent in a dark browser. */
+  iconFollowsMode: boolean;
   /** Ready to put in an img src, with a version so a replaced logo shows up. */
   logoUrl: string | null;
   /** The logo for the other mode, when one was uploaded. */
@@ -126,6 +129,7 @@ export async function getInstanceBranding(): Promise<Branding> {
       accentText: null,
       altAccentText: null,
       showPoweredBy: true,
+      iconFollowsMode: false,
       logoUrl: null,
       altLogoUrl: null,
     };
@@ -139,6 +143,7 @@ export async function getInstanceBranding(): Promise<Branding> {
     accentText: row.accentText,
     altAccentText: row.altAccentText,
     showPoweredBy: row.showPoweredBy,
+    iconFollowsMode: row.iconFollowsMode,
     logoUrl: row.logoKey ? `/api/branding/logo?v=${version(row.logoKey)}` : null,
     altLogoUrl: row.altLogoKey
       ? `/api/branding/logo?variant=alt&v=${version(row.altLogoKey)}`
@@ -158,6 +163,7 @@ export async function setInstanceBranding(input: BrandingInput, actorId: string)
     accentText: data.accentText,
     altAccentText: data.altAccentText,
     showPoweredBy: data.showPoweredBy,
+    iconFollowsMode: data.iconFollowsMode,
   };
 
   await db.transaction(async (tx) => {
@@ -319,6 +325,7 @@ export async function getCompanyBranding(
     accentText: null,
     altAccentText: null,
     showPoweredBy: true,
+    iconFollowsMode: false,
     logoUrl: row.logoKey ? `/api/companies/${companyId}/logo?v=${version(row.logoKey)}` : null,
     altLogoUrl: row.altLogoKey
       ? `/api/companies/${companyId}/logo?variant=alt&v=${version(row.altLogoKey)}`

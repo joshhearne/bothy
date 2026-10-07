@@ -192,6 +192,8 @@ export const instanceBranding = pgTable(
     scheme: text("scheme").notNull().default("light"),
     /** The "Powered by" credit. On unless an operator turns it off. */
     showPoweredBy: boolean("show_powered_by").notNull().default(true),
+    /** Whether the tab icon takes the dark accent when the browser is dark. */
+    iconFollowsMode: boolean("icon_follows_mode").notNull().default(false),
     accent: text("accent"),
     /** An exact color for the other mode. Derived from `accent` when null. */
     altAccent: text("alt_accent"),

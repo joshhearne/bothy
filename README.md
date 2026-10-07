@@ -265,7 +265,10 @@ page; the logo appears beside it and doubles as the tab icon.
 
 Until you set any of that, the portal wears its own: a teal accent, and a cut
 gem as the mark beside the name and in the tab. Change only the accent and the
-mark and the tab icon follow it; upload a logo and they step aside.
+mark and the tab icon follow it; upload a logo and they step aside. The tab
+icon takes the light-mode accent; tick **Tab icon follows the reader's mode**
+and it takes the dark-mode accent in a dark browser too (Firefox and Chromium
+honour that; Safari and home-screen icons keep light).
 
 Each company can carry a logo and accent of its own, set on its edit page, and
 they show on that company's pages and its documents. The shell keeps your

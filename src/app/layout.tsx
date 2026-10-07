@@ -3,25 +3,24 @@ import { I18nProvider } from "@/i18n/client";
 import { getLocale } from "@/i18n/server";
 import { getTheme } from "@/server/theme";
 import { getInstanceBranding } from "@/server/services/branding";
-import { brandTokens } from "@/lib/brand-color";
-import { DEFAULT_ACCENT_LIGHT, SURFACE_DARK, SURFACE_LIGHT } from "@/lib/trove-mark";
+import { iconHref } from "@/lib/brand-icon";
+import { SURFACE_DARK, SURFACE_LIGHT } from "@/lib/trove-mark";
 import { PRODUCT_NAME } from "@/lib/app-meta";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getInstanceBranding();
-  // The product mark in the instance's accent; the address changes with it.
-  const accent = (brandTokens(branding)?.light ?? DEFAULT_ACCENT_LIGHT).slice(1);
 
   return {
     title: branding.name?.trim() || PRODUCT_NAME,
     description: "Self-hosted structured IT documentation",
-    // A logo doubles as the tab icon; without one the product mark stands.
+    // A logo doubles as the tab icon; without one the product mark stands, in
+    // the instance's accent — both modes' accents, if the operator asked.
     icons: branding.logoUrl
       ? { icon: branding.logoUrl }
       : {
-          icon: [{ url: `/api/branding/icon?v=${accent}`, type: "image/svg+xml" }],
-          apple: [{ url: `/api/branding/icon?format=png&size=180&v=${accent}`, sizes: "180x180" }],
+          icon: [{ url: iconHref(branding), type: "image/svg+xml" }],
+          apple: [{ url: iconHref(branding, undefined, { png: true, size: 180 }), sizes: "180x180" }],
         },
   };
 }

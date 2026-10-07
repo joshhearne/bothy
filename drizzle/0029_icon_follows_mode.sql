@@ -1,0 +1,1 @@
+ALTER TABLE "instance_branding" ADD COLUMN "icon_follows_mode" boolean DEFAULT false NOT NULL;

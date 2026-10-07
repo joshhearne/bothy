@@ -41,6 +41,7 @@ export async function saveBrandingAction(
         accentText: text(formData, "accentText") ?? null,
         altAccentText: text(formData, "altAccentText") ?? null,
         showPoweredBy: checkbox(formData, "showPoweredBy"),
+        iconFollowsMode: checkbox(formData, "iconFollowsMode"),
       },
       user.id,
     );

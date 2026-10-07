@@ -107,8 +107,13 @@ for. `instance_settings` is a single row holding what an operator chooses once
   facets): inline SVG in `var(--primary)` beside the name, and the tab icon
   from `/api/branding/icon`, a tile in the instance's accent — SVG, or PNG
   with `format=png&size=N` for the touch icon. The icon address carries the
-  accent (`?v=`), so it caches hard and changes when the accent does. The
-  default palette is a teal (`globals.css`, hex twins in `trove-mark.ts`).
+  colours (`?v=`, built by `src/lib/brand-icon.ts`), so it caches hard and
+  changes when the accent does. The gem is cut in the accent's text colour.
+  With `instance_branding.icon_follows_mode` the SVG carries a
+  `prefers-color-scheme: dark` style block switching to the dark accent —
+  the one way a favicon can follow the reader's mode; `mode=light|dark` pins
+  one for the previews, and the PNG is always light. The default palette is
+  a teal (`globals.css`, hex twins in `trove-mark.ts`).
 - The footer credit ("Powered by Trove KB | Hearne Technologies") names the
   product and its maker, is the same on every install, and is optional:
   `instance_branding.show_powered_by`, on by default. The AGPL notice and the

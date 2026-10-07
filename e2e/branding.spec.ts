@@ -89,7 +89,7 @@ test.afterAll(() => {
   // Leave the instance as it was found: every other spec reads this shell.
   psql(
     "update instance_branding set name = null, scheme = 'light', accent = null, " +
-      "alt_accent = null, accent_text = null, alt_accent_text = null, show_powered_by = true, logo_key = null, logo_mime = null, " +
+      "alt_accent = null, accent_text = null, alt_accent_text = null, show_powered_by = true, icon_follows_mode = false, logo_key = null, logo_mime = null, " +
       "alt_logo_key = null, alt_logo_mime = null;",
   );
 });
@@ -118,7 +118,7 @@ test("without a logo, the product mark stands, in the header and in the tab", as
   await expect(page.getByRole("banner").locator("svg[data-brand-mark]")).toBeVisible();
 
   const icon = page.locator('link[rel="icon"]');
-  await expect(icon).toHaveAttribute("href", /\/api\/branding\/icon\?v=[0-9a-f]{6}/);
+  await expect(icon).toHaveAttribute("href", /\/api\/branding\/icon\?v=[0-9a-f]{12}$/);
   await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", /format=png&size=180/);
 
   // Public, and in whatever colour the instance has chosen: here the default.
@@ -126,12 +126,41 @@ test("without a logo, the product mark stands, in the header and in the tab", as
   const svg = await request.get(href);
   expect(svg.status()).toBe(200);
   expect(svg.headers()["content-type"]).toBe("image/svg+xml");
-  expect(await svg.text()).toContain('fill="#0f766e"');
+  const body = await svg.text();
+  expect(body).toContain('fill="#0f766e"');
+  expect(body).not.toContain("prefers-color-scheme");
 
   const png = await request.get("/api/branding/icon?format=png&size=64");
   expect(png.status()).toBe(200);
   expect(png.headers()["content-type"]).toBe("image/png");
   expect((await png.body()).subarray(0, 4)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+});
+
+test("the tab icon can take the dark accent when the browser is dark", async ({ page, request }) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/branding");
+  await page.getByLabel("Accent color for light mode").first().fill("#1f6feb");
+  await page.getByLabel("Accent color for dark mode").first().fill("#7c3aed");
+  await page.getByRole("checkbox", { name: /Tab icon follows/ }).check();
+  await page.getByRole("button", { name: "Save branding" }).click();
+  await expect(page.getByRole("checkbox", { name: /Tab icon follows/ })).toBeChecked();
+
+  // One address naming both modes' colours, and an SVG that switches itself.
+  const icon = page.locator('link[rel="icon"]');
+  await expect(icon).toHaveAttribute("href", /\?v=1f6feb[0-9a-f]{6}-7c3aed[0-9a-f]{6}$/);
+  const svg = await request.get((await icon.getAttribute("href")) as string);
+  const body = await svg.text();
+  expect(body).toContain('fill="#1f6feb"');
+  expect(body).toContain("@media (prefers-color-scheme: dark){.t{fill:#7c3aed}");
+
+  // A pinned mode is that mode only; the touch icon stays light.
+  expect(await (await request.get("/api/branding/icon?mode=dark")).text()).not.toContain("prefers-color-scheme");
+  expect(await (await request.get("/api/branding/icon?mode=dark")).text()).toContain('fill="#7c3aed"');
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", /v=1f6feb[0-9a-f]{6}$/);
+
+  // Each preview shows the icon its mode would get.
+  await expect(page.locator("img[src*='/api/branding/icon?mode=light']")).toHaveCount(1);
+  await expect(page.locator("img[src*='/api/branding/icon?mode=dark']")).toHaveCount(1);
 });
 
 test("a logo is uploaded, served, and shown", async ({ page, request }) => {
@@ -293,7 +322,7 @@ async function themeOf(page: Page, theme: "light" | "dark") {
     const host = document.querySelector(`[data-theme="${mode}"]`);
     if (!host) return null;
 
-    const shown = [...host.querySelectorAll("img")].filter(
+    const shown = [...host.querySelectorAll<HTMLImageElement>("img:not([data-tab-icon])")].filter(
       (img) => getComputedStyle(img).display !== "none",
     );
     const probe = document.createElement("div");

@@ -8,6 +8,7 @@ import {
   type Branding,
 } from "@/server/services/branding";
 import { BrandAccent, BrandMark } from "@/components/brand";
+import { iconHref } from "@/lib/brand-icon";
 import { getMessages } from "@/i18n/server";
 import type { Messages } from "@/i18n";
 import { InstanceBrandingForm, LogoForm } from "../branding-forms";
@@ -31,6 +32,18 @@ function Preview({ theme, branding, t }: { theme: BrandScheme; branding: Brandin
         <BrandMark branding={branding} fallbackName={t.app.name} className="text-lg" />
         <Button type="button">{t.admin.branding.previewButton}</Button>
       </BrandAccent>
+
+      {/* The tab icon a browser in this mode would show: the logo, or the mark on its tile. */}
+      <p className="mt-4 flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={branding.logoUrl ?? iconHref(branding, theme)}
+          alt=""
+          data-tab-icon
+          className="size-4 rounded-sm object-contain"
+        />
+        {t.admin.branding.tabIcon}
+      </p>
     </div>
   );
 }
@@ -104,6 +117,7 @@ export default async function BrandingPage() {
         accentText={branding.accentText}
         altAccentText={branding.altAccentText}
         showPoweredBy={branding.showPoweredBy}
+        iconFollowsMode={branding.iconFollowsMode}
         previews={[
           <Preview key="light" theme="light" branding={branding} t={t} />,
           <Preview key="dark" theme="dark" branding={branding} t={t} />,

@@ -32,16 +32,26 @@ function facets(): string {
   return FACETS.map((facet) => `<path d="${facet.d}" fill-opacity="${facet.opacity}"/>`).join("");
 }
 
+/** A tile colour and the colour the gem is cut in on it. */
+export type IconColors = { tile: string; gem: string };
+
 /**
- * The icon as an SVG document: a rounded tile in the accent with the gem in
- * white on it, which is what a favicon or home-screen icon wants. The colour
- * is a hex the caller has already normalized; nothing else is interpolated.
+ * The icon as an SVG document: a rounded tile in the accent with the gem on
+ * it, which is what a favicon or home-screen icon wants. Given colours for
+ * dark as well, the document carries a media query and the browser picks:
+ * an SVG favicon can follow the reader's mode where a PNG cannot. Every
+ * colour is a hex the caller has already normalized; nothing else is
+ * interpolated.
  */
-export function iconSvg(accent: string): string {
+export function iconSvg(light: IconColors, dark?: IconColors): string {
+  const style = dark
+    ? `<style>@media (prefers-color-scheme: dark){.t{fill:${dark.tile}}.g{fill:${dark.gem}}}</style>`
+    : "";
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">` +
-    `<rect width="32" height="32" rx="7" fill="${accent}"/>` +
-    `<g transform="translate(4 4) scale(0.75)" fill="#ffffff">${facets()}</g>` +
+    style +
+    `<rect class="t" width="32" height="32" rx="7" fill="${light.tile}"/>` +
+    `<g class="g" transform="translate(4 4) scale(0.75)" fill="${light.gem}">${facets()}</g>` +
     `</svg>`
   );
 }

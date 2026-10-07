@@ -698,6 +698,10 @@ export const enUS = {
       poweredBy: "Show the “Powered by” credit",
       poweredByHint:
         "Names the product and who makes it, at the foot of every page. The licence and the link to the source stay either way — anyone using this over a network is entitled to them.",
+      iconFollowsMode: "Tab icon follows the reader's mode",
+      iconFollowsModeHint:
+        "The product mark in the tab takes your dark-mode accent when the browser is dark. Firefox and Chromium honour it; Safari and home-screen icons keep the light-mode accent. Moot once a logo is uploaded, since the logo is the tab icon then.",
+      tabIcon: "Tab icon",
       previewHint: "Both themes, as a reader on each would see them.",
       save: "Save branding",
       preview: "Preview",
