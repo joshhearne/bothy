@@ -671,7 +671,7 @@ export const enUS = {
       accentHint: "A hex color like #1f6feb. Used exactly as given in the mode it is for.",
       accentClear: "No accent color",
       logo: "Logo",
-      logoHint: "PNG, JPEG, or WebP, up to 1 MB. Shown beside the name and used as the tab icon.",
+      logoHint: "PNG, JPEG, or WebP, up to 1 MB. Shown beside the name; the tab keeps the mark in your accent.",
       upload: "Upload logo",
       replace: "Replace logo",
       remove: "Remove logo",
@@ -698,9 +698,6 @@ export const enUS = {
       poweredBy: "Show the “Powered by” credit",
       poweredByHint:
         "Names the product and who makes it, at the foot of every page. The licence and the link to the source stay either way — anyone using this over a network is entitled to them.",
-      iconFollowsMode: "Tab icon follows the reader's mode",
-      iconFollowsModeHint:
-        "The product mark in the tab takes your dark-mode accent when the browser is dark. Firefox and Chromium honour it; Safari and home-screen icons keep the light-mode accent. Moot once a logo is uploaded, since the logo is the tab icon then.",
       tabIcon: "Tab icon",
       previewHint: "Both themes, as a reader on each would see them.",
       save: "Save branding",

@@ -46,7 +46,6 @@ describe("brandingInputSchema", () => {
       altAccentText: null,
       // The credit is on unless an operator turns it off.
       showPoweredBy: true,
-      iconFollowsMode: false,
     });
   });
 

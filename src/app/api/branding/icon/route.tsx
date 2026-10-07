@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { iconColors } from "@/lib/brand-icon";
+import { iconColors, iconDiffers } from "@/lib/brand-icon";
 import { FACETS, iconSvg } from "@/lib/trove-mark";
 import { getInstanceBranding } from "@/server/services/branding";
 
@@ -8,20 +8,17 @@ export const dynamic = "force-dynamic";
 const MAX_PNG = 512;
 
 /**
- * The tab icon for an instance with no logo of its own: the product mark on
- * a tile in the instance's accent, so even the favicon follows Admin →
- * Branding. SVG by default; `format=png&size=N` for the home-screen icons
- * that will not take a vector. When the operator has asked for it, the SVG
- * carries both modes' colours and the browser picks; `mode=light|dark`
- * pins one, for a preview or a browser that cannot. Unauthenticated, as a
- * favicon has to be.
+ * The tab icon: the product mark on a tile in the instance's accent, so the
+ * favicon follows Admin → Branding whatever logo is in the header. SVG by
+ * default; `format=png&size=N` for the home-screen icons that will not take
+ * a vector. When the two modes' accents differ the SVG carries both and a
+ * media query, and the browser picks; `mode=light|dark` pins one, for a
+ * preview or a browser that cannot. Unauthenticated, as a favicon has to be.
  */
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const branding = await getInstanceBranding().catch(() => null);
-  const colors = iconColors(
-    branding ?? { accent: null, altAccent: null, scheme: "light", iconFollowsMode: false },
-  );
+  const colors = iconColors(branding ?? { accent: null, altAccent: null, scheme: "light" });
   const mode = params.get("mode") === "dark" ? "dark" : params.get("mode") === "light" ? "light" : null;
   const pinned = colors[mode ?? "light"];
 
@@ -47,8 +44,8 @@ export async function GET(request: Request): Promise<Response> {
     );
   }
 
-  const follows = !mode && (branding?.iconFollowsMode ?? false);
-  return new Response(iconSvg(pinned, follows ? colors.dark : undefined), {
+  const both = !mode && iconDiffers(colors);
+  return new Response(iconSvg(pinned, both ? colors.dark : undefined), {
     headers: {
       "Content-Type": "image/svg+xml",
       "X-Content-Type-Options": "nosniff",

@@ -14,14 +14,17 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: branding.name?.trim() || PRODUCT_NAME,
     description: "Self-hosted structured IT documentation",
-    // A logo doubles as the tab icon; without one the product mark stands, in
-    // the instance's accent — both modes' accents, if the operator asked.
-    icons: branding.logoUrl
-      ? { icon: branding.logoUrl }
-      : {
-          icon: [{ url: iconHref(branding), type: "image/svg+xml" }],
-          apple: [{ url: iconHref(branding, undefined, { png: true, size: 180 }), sizes: "180x180" }],
-        },
+    // The tab icon is the product mark in the instance's accent, whatever is
+    // in the header: a logo is drawn for a masthead, not a 16px square. The
+    // PNG comes first for a browser that will not take an SVG; the rest
+    // prefer the last one listed, the SVG, which follows the reader's mode.
+    icons: {
+      icon: [
+        { url: iconHref(branding, undefined, { png: true, size: 32 }), type: "image/png", sizes: "32x32" },
+        { url: iconHref(branding), type: "image/svg+xml", sizes: "any" },
+      ],
+      apple: [{ url: iconHref(branding, undefined, { png: true, size: 180 }), sizes: "180x180" }],
+    },
   };
 }
 

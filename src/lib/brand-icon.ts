@@ -8,7 +8,6 @@ export type IconBranding = {
   scheme: "light" | "dark";
   accentText?: string | null;
   altAccentText?: string | null;
-  iconFollowsMode: boolean;
 };
 
 /**
@@ -29,10 +28,19 @@ export function iconColors(branding: IconBranding): { light: IconColors; dark: I
   };
 }
 
+/** Whether the two modes want different icons at all. */
+export function iconDiffers(colors: { light: IconColors; dark: IconColors }): boolean {
+  return colors.light.tile !== colors.dark.tile || colors.light.gem !== colors.dark.gem;
+}
+
+const version = (colors: IconColors) => colors.tile.slice(1) + colors.gem.slice(1);
+
 /**
  * The address of the tab icon, or of the icon one mode would show. The
  * version is the colours themselves, so a cached icon is this exact icon and
- * a changed accent is a new address.
+ * a changed accent is a new address. The SVG with no mode pinned is the one
+ * for the tab: it names both modes' colours when they differ, and the
+ * browser picks.
  */
 export function iconHref(
   branding: IconBranding,
@@ -45,14 +53,11 @@ export function iconHref(
     params.set("format", "png");
     params.set("size", String(format.size));
   }
-  const follows = branding.iconFollowsMode && !mode && !format;
   if (mode) params.set("mode", mode);
-  const version = (colors: IconColors) => colors.tile.slice(1) + colors.gem.slice(1);
+  const both = !mode && !format && iconDiffers(colors);
   params.set(
     "v",
-    follows
-      ? `${version(colors.light)}-${version(colors.dark)}`
-      : version(mode === "dark" ? colors.dark : colors.light),
+    both ? `${version(colors.light)}-${version(colors.dark)}` : version(mode === "dark" ? colors.dark : colors.light),
   );
   return `/api/branding/icon?${params.toString()}`;
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "instance_branding" DROP COLUMN "icon_follows_mode";

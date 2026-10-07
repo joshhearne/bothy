@@ -33,11 +33,11 @@ function Preview({ theme, branding, t }: { theme: BrandScheme; branding: Brandin
         <Button type="button">{t.admin.branding.previewButton}</Button>
       </BrandAccent>
 
-      {/* The tab icon a browser in this mode would show: the logo, or the mark on its tile. */}
+      {/* The tab icon a browser in this mode would show: the mark on a tile in this mode's accent. */}
       <p className="mt-4 flex items-center gap-2 text-xs text-[var(--muted-foreground)]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={branding.logoUrl ?? iconHref(branding, theme)}
+          src={iconHref(branding, theme)}
           alt=""
           data-tab-icon
           className="size-4 rounded-sm object-contain"
@@ -117,7 +117,6 @@ export default async function BrandingPage() {
         accentText={branding.accentText}
         altAccentText={branding.altAccentText}
         showPoweredBy={branding.showPoweredBy}
-        iconFollowsMode={branding.iconFollowsMode}
         previews={[
           <Preview key="light" theme="light" branding={branding} t={t} />,
           <Preview key="dark" theme="dark" branding={branding} t={t} />,

@@ -103,17 +103,19 @@ for. `instance_settings` is a single row holding what an operator chooses once
   key. `companies.accent` / `companies.logo_key` hold the same per client.
 - The name replaces the product name in the top bar, the tab title, and the
   sign-in page.
-- With no logo, the product mark stands (`src/lib/trove-mark.ts`, a gem in six
-  facets): inline SVG in `var(--primary)` beside the name, and the tab icon
-  from `/api/branding/icon`, a tile in the instance's accent — SVG, or PNG
-  with `format=png&size=N` for the touch icon. The icon address carries the
-  colours (`?v=`, built by `src/lib/brand-icon.ts`), so it caches hard and
-  changes when the accent does. The gem is cut in the accent's text colour.
-  With `instance_branding.icon_follows_mode` the SVG carries a
-  `prefers-color-scheme: dark` style block switching to the dark accent —
-  the one way a favicon can follow the reader's mode; `mode=light|dark` pins
-  one for the previews, and the PNG is always light. The default palette is
-  a teal (`globals.css`, hex twins in `trove-mark.ts`).
+- The product mark (`src/lib/trove-mark.ts`, a gem in six facets) stands in
+  the header when there is no logo, as inline SVG in `var(--primary)`, so it
+  is in the accent of the mode in force. The tab icon is always the mark on
+  a tile in the accent, logo or not, from `/api/branding/icon`: SVG, or PNG
+  with `format=png&size=N` (a 32px PNG is listed first for browsers that
+  will not take an SVG, the SVG last so the others prefer it; the touch icon
+  is 180px). The gem is cut in the accent's text colour. When the two modes'
+  colours differ the SVG carries a `prefers-color-scheme: dark` style block
+  switching to the dark ones — the one way a favicon can follow the reader's
+  mode; `mode=light|dark` pins one, for the previews on the branding page,
+  and a PNG is always one mode. The address carries the colours (`?v=`, from
+  `src/lib/brand-icon.ts`), so it caches hard and changes with the accent.
+  The default palette is a teal (`globals.css`, hex twins in `trove-mark.ts`).
 - The footer credit ("Powered by Trove KB | Hearne Technologies") names the
   product and its maker, is the same on every install, and is optional:
   `instance_branding.show_powered_by`, on by default. The AGPL notice and the

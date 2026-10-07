@@ -89,7 +89,7 @@ test.afterAll(() => {
   // Leave the instance as it was found: every other spec reads this shell.
   psql(
     "update instance_branding set name = null, scheme = 'light', accent = null, " +
-      "alt_accent = null, accent_text = null, alt_accent_text = null, show_powered_by = true, icon_follows_mode = false, logo_key = null, logo_mime = null, " +
+      "alt_accent = null, accent_text = null, alt_accent_text = null, show_powered_by = true, logo_key = null, logo_mime = null, " +
       "alt_logo_key = null, alt_logo_mime = null;",
   );
 });
@@ -117,8 +117,9 @@ test("without a logo, the product mark stands, in the header and in the tab", as
   await page.goto("/companies");
   await expect(page.getByRole("banner").locator("svg[data-brand-mark]")).toBeVisible();
 
-  const icon = page.locator('link[rel="icon"]');
-  await expect(icon).toHaveAttribute("href", /\/api\/branding\/icon\?v=[0-9a-f]{12}$/);
+  const icon = page.locator('link[rel="icon"][type="image/svg+xml"]');
+  await expect(icon).toHaveAttribute("href", /\/api\/branding\/icon\?v=[0-9a-f]{12}-[0-9a-f]{12}$/);
+  await expect(page.locator('link[rel="icon"][type="image/png"]')).toHaveAttribute("href", /format=png&size=32/);
   await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", /format=png&size=180/);
 
   // Public, and in whatever colour the instance has chosen: here the default.
@@ -126,9 +127,10 @@ test("without a logo, the product mark stands, in the header and in the tab", as
   const svg = await request.get(href);
   expect(svg.status()).toBe(200);
   expect(svg.headers()["content-type"]).toBe("image/svg+xml");
+  // The default palette has an accent per mode, so the icon switches with the browser.
   const body = await svg.text();
   expect(body).toContain('fill="#0f766e"');
-  expect(body).not.toContain("prefers-color-scheme");
+  expect(body).toContain("@media (prefers-color-scheme: dark){.t{fill:#2dd4bf}");
 
   const png = await request.get("/api/branding/icon?format=png&size=64");
   expect(png.status()).toBe(200);
@@ -136,17 +138,17 @@ test("without a logo, the product mark stands, in the header and in the tab", as
   expect((await png.body()).subarray(0, 4)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
 });
 
-test("the tab icon can take the dark accent when the browser is dark", async ({ page, request }) => {
+test("the tab icon takes each mode's accent, and is one icon when they are the same", async ({ page, request }) => {
   await signInAsAdmin(page);
   await page.goto("/admin/branding");
   await page.getByLabel("Accent color for light mode").first().fill("#1f6feb");
   await page.getByLabel("Accent color for dark mode").first().fill("#7c3aed");
-  await page.getByRole("checkbox", { name: /Tab icon follows/ }).check();
   await page.getByRole("button", { name: "Save branding" }).click();
-  await expect(page.getByRole("checkbox", { name: /Tab icon follows/ })).toBeChecked();
 
   // One address naming both modes' colours, and an SVG that switches itself.
-  const icon = page.locator('link[rel="icon"]');
+  // The head is rendered by the layout the save revalidates, so the new
+  // address is the signal that it landed.
+  const icon = page.locator('link[rel="icon"][type="image/svg+xml"]');
   await expect(icon).toHaveAttribute("href", /\?v=1f6feb[0-9a-f]{6}-7c3aed[0-9a-f]{6}$/);
   const svg = await request.get((await icon.getAttribute("href")) as string);
   const body = await svg.text();
@@ -161,6 +163,14 @@ test("the tab icon can take the dark accent when the browser is dark", async ({ 
   // Each preview shows the icon its mode would get.
   await expect(page.locator("img[src*='/api/branding/icon?mode=light']")).toHaveCount(1);
   await expect(page.locator("img[src*='/api/branding/icon?mode=dark']")).toHaveCount(1);
+
+  // The same accent in both modes is one icon, with nothing to switch.
+  await page.getByLabel("Accent color for dark mode").first().fill("#1f6feb");
+  await page.getByRole("button", { name: "Save branding" }).click();
+  await expect(icon).toHaveAttribute("href", /\?v=1f6feb[0-9a-f]{6}$/);
+  expect(await (await request.get((await icon.getAttribute("href")) as string)).text()).not.toContain(
+    "prefers-color-scheme",
+  );
 });
 
 test("a logo is uploaded, served, and shown", async ({ page, request }) => {
@@ -179,9 +189,9 @@ test("a logo is uploaded, served, and shown", async ({ page, request }) => {
   await expect(logo).toBeVisible();
   const src = (await logo.getAttribute("src")) as string;
   expect(src).toContain("/api/branding/logo");
-  // The operator's logo takes the mark's place, and the tab's.
+  // The operator's logo takes the mark's place in the header; the tab keeps the mark.
   await expect(page.getByRole("banner").locator("svg[data-brand-mark]")).toHaveCount(0);
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", /\/api\/branding\/logo/);
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute("href", /\/api\/branding\/icon/);
 
   // The instance logo is public: the sign-in page has to be able to draw it.
   const served = await request.get(src);

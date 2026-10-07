@@ -119,7 +119,6 @@ export function InstanceBrandingForm({
   accentText,
   altAccentText,
   showPoweredBy,
-  iconFollowsMode,
   previews,
   logos,
 }: {
@@ -131,7 +130,6 @@ export function InstanceBrandingForm({
   accentText: string | null;
   altAccentText: string | null;
   showPoweredBy: boolean;
-  iconFollowsMode: boolean;
   /** The two theme previews, light then dark, drawn by the page. */
   previews: [React.ReactNode, React.ReactNode];
   /** The two logo panels, light then dark, drawn by the page. */
@@ -232,21 +230,6 @@ export function InstanceBrandingForm({
             <span className="font-medium">{t.admin.branding.poweredBy}</span>
             <span className="block text-xs text-[var(--muted-foreground)]">
               {t.admin.branding.poweredByHint}
-            </span>
-          </span>
-        </label>
-        <label className="flex items-start gap-2 text-sm">
-          <input
-            type="checkbox"
-            name="iconFollowsMode"
-            form={formId}
-            defaultChecked={iconFollowsMode}
-            className="mt-0.5 size-4 rounded border"
-          />
-          <span>
-            <span className="font-medium">{t.admin.branding.iconFollowsMode}</span>
-            <span className="block text-xs text-[var(--muted-foreground)]">
-              {t.admin.branding.iconFollowsModeHint}
             </span>
           </span>
         </label>

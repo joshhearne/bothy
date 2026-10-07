@@ -264,11 +264,12 @@ replaces the product name in the top bar, the browser tab, and on the sign-in
 page; the logo appears beside it and doubles as the tab icon.
 
 Until you set any of that, the portal wears its own: a teal accent, and a cut
-gem as the mark beside the name and in the tab. Change only the accent and the
-mark and the tab icon follow it; upload a logo and they step aside. The tab
-icon takes the light-mode accent; tick **Tab icon follows the reader's mode**
-and it takes the dark-mode accent in a dark browser too (Firefox and Chromium
-honour that; Safari and home-screen icons keep light).
+gem as the mark beside the name and in the tab. The mark takes the accent of
+the mode the reader is in, in the header and in the tab alike: with a
+different accent per mode the tab icon switches with the browser (Firefox and
+Chromium; Safari and home-screen icons keep the light-mode accent). Upload a
+logo and it takes the mark's place in the header; the tab keeps the mark,
+since a logo is drawn for a masthead, not a 16-pixel square.
 
 Each company can carry a logo and accent of its own, set on its edit page, and
 they show on that company's pages and its documents. The shell keeps your

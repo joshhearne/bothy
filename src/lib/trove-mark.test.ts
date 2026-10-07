@@ -44,7 +44,7 @@ describe("the product mark", () => {
 });
 
 describe("the tab icon's colours", () => {
-  const bare = { accent: null, altAccent: null, scheme: "light" as const, iconFollowsMode: false };
+  const bare = { accent: null, altAccent: null, scheme: "light" as const };
 
   it("are the defaults when nothing is set, with the gem in the colour text takes on them", () => {
     expect(iconColors(bare)).toEqual({
@@ -60,13 +60,12 @@ describe("the tab icon's colours", () => {
     expect(colors.dark.tile).not.toBe("#1f6feb");
   });
 
-  it("address the icon by its colours, both modes' when it follows the mode", () => {
-    expect(iconHref(bare)).toBe("/api/branding/icon?v=0f766effffff");
-    expect(iconHref({ ...bare, iconFollowsMode: true })).toBe("/api/branding/icon?v=0f766effffff-2dd4bf101317");
-    // A pinned mode or a PNG is one icon whatever the setting.
-    expect(iconHref({ ...bare, iconFollowsMode: true }, "dark")).toBe("/api/branding/icon?mode=dark&v=2dd4bf101317");
-    expect(iconHref({ ...bare, iconFollowsMode: true }, undefined, { png: true, size: 180 })).toBe(
-      "/api/branding/icon?format=png&size=180&v=0f766effffff",
-    );
+  it("address the icon by its colours, both modes' when they differ", () => {
+    expect(iconHref(bare)).toBe("/api/branding/icon?v=0f766effffff-2dd4bf101317");
+    // The same accent stated for both modes is one icon.
+    expect(iconHref({ ...bare, accent: "#ee2c24", altAccent: "#ee2c24" })).toBe("/api/branding/icon?v=ee2c24101317");
+    // A pinned mode or a PNG is one icon whatever the modes do.
+    expect(iconHref(bare, "dark")).toBe("/api/branding/icon?mode=dark&v=2dd4bf101317");
+    expect(iconHref(bare, undefined, { png: true, size: 180 })).toBe("/api/branding/icon?format=png&size=180&v=0f766effffff");
   });
 });
