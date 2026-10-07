@@ -667,7 +667,14 @@ export const enUS = {
       lightMode: "Light mode",
       darkMode: "Dark mode",
       accentFor: (mode: string) => `Accent color for ${mode}`,
+      accentTextFor: (mode: string) => `Text on the accent for ${mode}`,
+      accentTextHint: "The color of a button's label and of text on the accent. Auto picks black or white, whichever reads.",
+      auto: "Auto",
       logoFor: (mode: string) => `Logo for ${mode}`,
+      currentLogo: (mode: string) => `The logo shown on ${mode}`,
+      lightSection: "Light mode",
+      darkSection: "Dark mode",
+      colorsHint: "Each mode has its own accent and its own logo. A mode left without an accent gets one derived from the other, kept readable on its background.",
       altAccentHint: (mode: string) =>
         `Optional. Left empty, one is derived from your accent so it stays readable on ${mode}.`,
       altLogoHint: (mode: string) =>

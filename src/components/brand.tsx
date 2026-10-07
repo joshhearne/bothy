@@ -86,12 +86,19 @@ export function BrandLogo({
  *
  * An unset or unparseable color renders the children untouched.
  */
-export function brandStyle(
-  brand: string | null | undefined | Pick<Branding, "accent" | "altAccent" | "scheme">,
-): CSSProperties | undefined {
+export type BrandColors = Pick<Branding, "accent" | "altAccent" | "scheme"> &
+  Partial<Pick<Branding, "accentText" | "altAccentText">>;
+
+export function brandStyle(brand: string | null | undefined | BrandColors): CSSProperties | undefined {
   const tokens = brandTokens(
     typeof brand === "object" && brand !== null
-      ? { accent: brand.accent, altAccent: brand.altAccent, scheme: brand.scheme }
+      ? {
+          accent: brand.accent,
+          altAccent: brand.altAccent,
+          scheme: brand.scheme,
+          accentText: brand.accentText ?? null,
+          altAccentText: brand.altAccentText ?? null,
+        }
       : brand,
   );
   if (!tokens) return undefined;
@@ -108,7 +115,7 @@ export function BrandAccent({
   children,
   className = "",
 }: {
-  brand: Pick<Branding, "accent" | "altAccent" | "scheme">;
+  brand: BrandColors;
   children: ReactNode;
   className?: string;
 }) {

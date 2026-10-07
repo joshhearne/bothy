@@ -135,4 +135,12 @@ describe("brandTokens with a mode declared", () => {
   it("keeps the old single-color call working", () => {
     expect(brandTokens("#1f6feb")?.light).toBe("#1f6feb");
   });
+
+  it("uses a stated text-on-accent color for its mode, and picks one where none is stated", () => {
+    const tokens = brandTokens({ accent: "#ee2c24", altAccent: "#ff6b63", accentText: "#FFF", altAccentText: null });
+    expect(tokens?.onLight).toBe("#ffffff");
+    expect(tokens?.onDark).toBe("#101317");
+    const junk = brandTokens({ accent: "#ee2c24", accentText: "not a color" });
+    expect(junk?.onLight).toBe(readableOn({ r: 238, g: 44, b: 36 }));
+  });
 });

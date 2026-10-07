@@ -72,9 +72,12 @@ const hexColor = z
 
 export const brandingInputSchema = z.object({
   name: z.string().trim().max(60).optional().nullable(),
+  /** The instance's slots are fixed: primary is light mode, alternate is dark. */
   scheme: z.enum(["light", "dark"]).default("light"),
   accent: hexColor,
   altAccent: hexColor,
+  accentText: hexColor,
+  altAccentText: hexColor,
   showPoweredBy: z.boolean().default(true),
 });
 
@@ -89,6 +92,9 @@ export type Branding = {
   accent: string | null;
   /** The exact color for the other mode, when one was given. */
   altAccent: string | null;
+  /** Text on the accent, per slot; null means black or white, whichever reads. */
+  accentText: string | null;
+  altAccentText: string | null;
   /** Whether the "Powered by" credit is shown. */
   showPoweredBy: boolean;
   /** Ready to put in an img src, with a version so a replaced logo shows up. */
@@ -117,6 +123,8 @@ export async function getInstanceBranding(): Promise<Branding> {
       scheme: "light",
       accent: null,
       altAccent: null,
+      accentText: null,
+      altAccentText: null,
       showPoweredBy: true,
       logoUrl: null,
       altLogoUrl: null,
@@ -128,6 +136,8 @@ export async function getInstanceBranding(): Promise<Branding> {
     scheme: (row.scheme === "dark" ? "dark" : "light") as BrandScheme,
     accent: row.accent,
     altAccent: row.altAccent,
+    accentText: row.accentText,
+    altAccentText: row.altAccentText,
     showPoweredBy: row.showPoweredBy,
     logoUrl: row.logoKey ? `/api/branding/logo?v=${version(row.logoKey)}` : null,
     altLogoUrl: row.altLogoKey
@@ -141,9 +151,12 @@ export async function setInstanceBranding(input: BrandingInput, actorId: string)
 
   const values = {
     name: data.name || null,
-    scheme: data.scheme,
+    // Fixed since the slots became the modes; kept so an older row still reads.
+    scheme: "light" as const,
     accent: data.accent,
     altAccent: data.altAccent,
+    accentText: data.accentText,
+    altAccentText: data.altAccentText,
     showPoweredBy: data.showPoweredBy,
   };
 
@@ -303,6 +316,8 @@ export async function getCompanyBranding(
     scheme: (row.scheme === "dark" ? "dark" : "light") as BrandScheme,
     accent: row.accent,
     altAccent: row.altAccent,
+    accentText: null,
+    altAccentText: null,
     showPoweredBy: true,
     logoUrl: row.logoKey ? `/api/companies/${companyId}/logo?v=${version(row.logoKey)}` : null,
     altLogoUrl: row.altLogoKey

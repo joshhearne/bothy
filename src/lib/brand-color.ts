@@ -131,6 +131,9 @@ export type BrandInput = {
   scheme?: "light" | "dark";
   /** The color for the other mode. Derived from `accent` when absent. */
   altAccent?: string | null | undefined;
+  /** Text on the accent in its own mode, and in the other. Absent, black or white, whichever reads. */
+  accentText?: string | null | undefined;
+  altAccentText?: string | null | undefined;
 };
 
 /**
@@ -158,10 +161,13 @@ export function brandTokens(input: string | null | undefined | BrandInput): Bran
   const light = statedLight ?? adjustFor(statedDark as Rgb, LIGHT_SURFACE);
   const dark = statedDark ?? adjustFor(statedLight as Rgb, DARK_SURFACE);
 
+  const statedOnLight = normalizeHex((scheme === "light" ? brand.accentText : brand.altAccentText) ?? "");
+  const statedOnDark = normalizeHex((scheme === "light" ? brand.altAccentText : brand.accentText) ?? "");
+
   return {
     light: toHex(light),
     dark: toHex(dark),
-    onLight: readableOn(light),
-    onDark: readableOn(dark),
+    onLight: statedOnLight ?? readableOn(light),
+    onDark: statedOnDark ?? readableOn(dark),
   };
 }

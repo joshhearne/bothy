@@ -4,7 +4,6 @@ import { canManageIntegrations, requireUser } from "@/server/auth/session";
 import {
   getInstanceBranding,
   LOGO_ACCEPT,
-  otherScheme,
   type BrandScheme,
   type Branding,
 } from "@/server/services/branding";
@@ -21,17 +20,9 @@ export const dynamic = "force-dynamic";
  * so this really is the other theme rather than a picture of it — an admin on
  * light can see what someone on dark gets.
  */
-function Preview({
-  theme,
-  branding,
-  t,
-}: {
-  theme: BrandScheme;
-  branding: Branding;
-  t: Messages;
-}) {
+function Preview({ theme, branding, t }: { theme: BrandScheme; branding: Branding; t: Messages }) {
   return (
-    <div data-theme={theme} className="flex-1 rounded-lg border bg-[var(--background)] p-4">
+    <div data-theme={theme} className="rounded-lg border bg-[var(--background)] p-4">
       <p className="mb-3 text-xs uppercase tracking-wide text-[var(--muted-foreground)]">
         {theme === "light" ? t.admin.branding.lightMode : t.admin.branding.darkMode}
       </p>
@@ -44,14 +35,60 @@ function Preview({
   );
 }
 
+/**
+ * One mode's logo: the upload, and the logo as that mode shows it, drawn in
+ * that mode so a white-on-transparent mark is seen against the dark it is for.
+ */
+function LogoPanel({
+  theme,
+  slot,
+  url,
+  t,
+}: {
+  theme: BrandScheme;
+  slot: "primary" | "alt";
+  url: string | null;
+  t: Messages;
+}) {
+  const mode = (theme === "light" ? t.admin.branding.lightMode : t.admin.branding.darkMode).toLowerCase();
+  return (
+    <div className="flex flex-col gap-3">
+      <LogoForm
+        accept={LOGO_ACCEPT}
+        hasLogo={url !== null}
+        slot={slot}
+        label={t.admin.branding.logoFor(mode)}
+        hint={theme === "light" ? t.admin.branding.logoHint : t.admin.branding.altLogoHint(mode)}
+      />
+      {url ? (
+        <>
+          <div
+            data-theme={theme}
+            className="flex items-center justify-center rounded-lg border bg-[var(--background)] p-4"
+          >
+            {/* Our own route, serving an image of unknown dimensions. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={url} alt={t.admin.branding.currentLogo(mode)} className="h-12 w-auto max-w-full object-contain" />
+          </div>
+          <form action={removeLogoAction}>
+            <input type="hidden" name="slot" value={slot} />
+            <Button type="submit" variant="outline" size="sm">
+              {t.admin.branding.remove}
+            </Button>
+          </form>
+        </>
+      ) : (
+        <p className="text-sm text-[var(--muted-foreground)]">{t.admin.branding.noLogo}</p>
+      )}
+    </div>
+  );
+}
+
 export default async function BrandingPage() {
   const user = await requireUser();
   if (!canManageIntegrations(user.role)) redirect("/companies");
 
   const [branding, t] = await Promise.all([getInstanceBranding(), getMessages()]);
-  const other = otherScheme(branding.scheme);
-  const modeName = (scheme: BrandScheme) =>
-    (scheme === "light" ? t.admin.branding.lightMode : t.admin.branding.darkMode).toLowerCase();
 
   return (
     <div className="flex flex-col gap-8">
@@ -60,69 +97,22 @@ export default async function BrandingPage() {
         <p className="text-sm text-[var(--muted-foreground)]">{t.admin.branding.subtitle}</p>
       </div>
 
-      <section className="flex flex-col gap-3">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">{t.admin.branding.preview}</h2>
-          <p className="text-sm text-[var(--muted-foreground)]">{t.admin.branding.previewHint}</p>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Preview theme="light" branding={branding} t={t} />
-          <Preview theme="dark" branding={branding} t={t} />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <InstanceBrandingForm
-          name={branding.name}
-          scheme={branding.scheme}
-          accent={branding.accent}
-          altAccent={branding.altAccent}
-          showPoweredBy={branding.showPoweredBy}
-        />
-      </section>
-
-      <section className="flex flex-col gap-6">
-        <div className="flex flex-col gap-3">
-          <LogoForm
-            accept={LOGO_ACCEPT}
-            hasLogo={branding.logoUrl !== null}
-            slot="primary"
-            label={t.admin.branding.logoFor(modeName(branding.scheme))}
-            hint={t.admin.branding.logoHint}
-          />
-
-          {branding.logoUrl ? (
-            <form action={removeLogoAction}>
-              <input type="hidden" name="slot" value="primary" />
-              <Button type="submit" variant="outline" size="sm">
-                {t.admin.branding.remove}
-              </Button>
-            </form>
-          ) : (
-            <p className="text-sm text-[var(--muted-foreground)]">{t.admin.branding.noLogo}</p>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-3 border-t pt-6">
-          <LogoForm
-            accept={LOGO_ACCEPT}
-            hasLogo={branding.altLogoUrl !== null}
-            slot="alt"
-            label={t.admin.branding.logoFor(modeName(other))}
-            hint={t.admin.branding.altLogoHint(modeName(other))}
-          />
-
-          {branding.altLogoUrl && (
-            <form action={removeLogoAction}>
-              <input type="hidden" name="slot" value="alt" />
-              <Button type="submit" variant="outline" size="sm">
-                {t.admin.branding.remove}
-              </Button>
-            </form>
-          )}
-        </div>
-      </section>
+      <InstanceBrandingForm
+        name={branding.name}
+        accent={branding.accent}
+        altAccent={branding.altAccent}
+        accentText={branding.accentText}
+        altAccentText={branding.altAccentText}
+        showPoweredBy={branding.showPoweredBy}
+        previews={[
+          <Preview key="light" theme="light" branding={branding} t={t} />,
+          <Preview key="dark" theme="dark" branding={branding} t={t} />,
+        ]}
+        logos={[
+          <LogoPanel key="light" theme="light" slot="primary" url={branding.logoUrl} t={t} />,
+          <LogoPanel key="dark" theme="dark" slot="alt" url={branding.altLogoUrl} t={t} />,
+        ]}
+      />
     </div>
   );
 }

@@ -195,6 +195,9 @@ export const instanceBranding = pgTable(
     accent: text("accent"),
     /** An exact color for the other mode. Derived from `accent` when null. */
     altAccent: text("alt_accent"),
+    /** Text on the accent, per mode. Null means black or white, whichever reads. */
+    accentText: text("accent_text"),
+    altAccentText: text("alt_accent_text"),
     logoKey: text("logo_key"),
     logoMime: text("logo_mime"),
     altLogoKey: text("alt_logo_key"),

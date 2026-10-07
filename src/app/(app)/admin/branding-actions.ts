@@ -38,6 +38,8 @@ export async function saveBrandingAction(
         scheme: text(formData, "scheme") === "dark" ? "dark" : "light",
         accent: text(formData, "accent") ?? null,
         altAccent: text(formData, "altAccent") ?? null,
+        accentText: text(formData, "accentText") ?? null,
+        altAccentText: text(formData, "altAccentText") ?? null,
         showPoweredBy: checkbox(formData, "showPoweredBy"),
       },
       user.id,

@@ -667,3 +667,17 @@ CREATE TABLE user_kb_collections (
   PRIMARY KEY (user_id, collection_id)
 );
 CREATE INDEX user_kb_collections_collection_idx ON user_kb_collections (collection_id);
+
+-- ---------- Branding: text on the accent, per mode ----------
+-- The instance's primary slot is light mode and the alternate slot is dark,
+-- always: the row that said which mode its assets were drawn for is folded
+-- into the slots. Text on the accent can be stated per mode; null picks
+-- black or white, whichever reads.
+UPDATE instance_branding SET
+  accent = alt_accent, alt_accent = accent,
+  logo_key = alt_logo_key, alt_logo_key = logo_key,
+  logo_mime = alt_logo_mime, alt_logo_mime = logo_mime,
+  scheme = 'light'
+WHERE scheme = 'dark';
+ALTER TABLE instance_branding ADD COLUMN accent_text text;
+ALTER TABLE instance_branding ADD COLUMN alt_accent_text text;

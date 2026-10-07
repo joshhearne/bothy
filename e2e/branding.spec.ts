@@ -89,7 +89,7 @@ test.afterAll(() => {
   // Leave the instance as it was found: every other spec reads this shell.
   psql(
     "update instance_branding set name = null, scheme = 'light', accent = null, " +
-      "alt_accent = null, show_powered_by = true, logo_key = null, logo_mime = null, " +
+      "alt_accent = null, accent_text = null, alt_accent_text = null, show_powered_by = true, logo_key = null, logo_mime = null, " +
       "alt_logo_key = null, alt_logo_mime = null;",
   );
 });
@@ -308,6 +308,36 @@ test("a color given for a mode is used in that mode exactly as given", async ({ 
 
   // Neither is adjusted: an operator's stated color stands in its own mode.
   expect((await themeOf(page, "light"))?.accent).toBe("rgb(124, 58, 237)");
+});
+
+test("text on the accent can be stated per mode, and Auto gives it back", async ({ page }) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/branding");
+
+  const onAccent = (mode: "light" | "dark") =>
+    page.evaluate((theme) => {
+      const host = document.querySelector(`[data-theme="${theme}"]`);
+      const probe = document.createElement("div");
+      probe.style.color = "var(--primary-foreground)";
+      (host?.querySelector("[style*='--primary']") ?? host)?.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    }, mode);
+
+  await page.getByLabel("Text on the accent for light mode").first().fill("#101317");
+  await page.getByLabel("Text on the accent for dark mode").first().fill("#ffff00");
+  await page.getByRole("button", { name: "Save branding" }).click();
+  await expect.poll(() => onAccent("light")).toBe("rgb(16, 19, 23)");
+  expect(await onAccent("dark")).toBe("rgb(255, 255, 0)");
+
+  // Auto empties the field, and the save picks black or white again.
+  const darkText = page.getByLabel("Text on the accent for dark mode").first();
+  await expect(darkText).toHaveValue("#ffff00");
+  await page.getByRole("button", { name: "Auto" }).last().click();
+  await expect(darkText).toHaveValue("");
+  await page.getByRole("button", { name: "Save branding" }).click();
+  await expect.poll(() => onAccent("dark")).not.toBe("rgb(255, 255, 0)");
 });
 
 test("each theme shows the logo drawn for it", async ({ page }) => {

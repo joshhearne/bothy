@@ -32,12 +32,17 @@ function AccentField({
   hint,
   defaultValue,
   error,
+  placeholder = "#1f6feb",
+  clearLabel,
 }: {
   name: string;
   label: string;
   hint: string;
   defaultValue: string | null;
   error?: string | undefined;
+  placeholder?: string;
+  /** What emptying the field means, when it is not simply "no color": "Auto", say. */
+  clearLabel?: string;
 }) {
   const t = useMessages();
   const [value, setValue] = useState(defaultValue ?? "");
@@ -50,20 +55,20 @@ function AccentField({
           name={name}
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          placeholder="#1f6feb"
+          placeholder={placeholder}
           maxLength={7}
           className="font-mono"
         />
         <input
           type="color"
           aria-label={label}
-          value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : "#1f6feb"}
+          value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : placeholder}
           onChange={(event) => setValue(event.target.value)}
           className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent"
         />
-        {value !== "" && (
-          <Button type="button" variant="outline" size="sm" onClick={() => setValue("")}>
-            {t.common.clear}
+        {(value !== "" || clearLabel) && (
+          <Button type="button" variant="outline" size="sm" disabled={value === ""} onClick={() => setValue("")}>
+            {clearLabel ?? t.common.clear}
           </Button>
         )}
       </div>
@@ -109,76 +114,132 @@ function SchemeChoice({
 
 export function InstanceBrandingForm({
   name,
-  scheme,
   accent,
   altAccent,
+  accentText,
+  altAccentText,
   showPoweredBy,
+  previews,
+  logos,
 }: {
   name: string | null;
-  scheme: BrandScheme;
+  /** Light mode. */
   accent: string | null;
+  /** Dark mode. */
   altAccent: string | null;
+  accentText: string | null;
+  altAccentText: string | null;
   showPoweredBy: boolean;
+  /** The two theme previews, light then dark, drawn by the page. */
+  previews: [React.ReactNode, React.ReactNode];
+  /** The two logo panels, light then dark, drawn by the page. */
+  logos: [React.ReactNode, React.ReactNode];
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(saveBrandingAction, {});
-  const [chosen, setChosen] = useState<BrandScheme>(scheme);
   const fieldErrors = state.fieldErrors ?? {};
   const t = useMessages();
+  const light = t.admin.branding.lightMode.toLowerCase();
+  const dark = t.admin.branding.darkMode.toLowerCase();
 
-  const modeName = (value: BrandScheme) =>
-    value === "light" ? t.admin.branding.lightMode : t.admin.branding.darkMode;
-  const other: BrandScheme = chosen === "light" ? "dark" : "light";
+  const formId = "instance-branding";
 
   return (
-    <form action={formAction} className="flex max-w-xl flex-col gap-4">
-      <FormError>{state.error}</FormError>
+    <div className="flex flex-col gap-6">
+      <form id={formId} action={formAction} className="flex flex-col gap-6">
+        <FormError>{state.error}</FormError>
 
-      <Field
-        id="name"
-        label={t.admin.branding.portalName}
-        error={fieldErrors.name}
-        hint={t.admin.branding.portalNameHint}
-      >
-        <Input id="name" name="name" defaultValue={name ?? ""} maxLength={60} placeholder="Trove KB" />
-      </Field>
+        <Field
+          id="name"
+          label={t.admin.branding.portalName}
+          error={fieldErrors.name}
+          hint={t.admin.branding.portalNameHint}
+        >
+          <Input
+            id="name"
+            name="name"
+            defaultValue={name ?? ""}
+            maxLength={60}
+            placeholder="Trove KB"
+            className="max-w-xl"
+          />
+        </Field>
 
-      <SchemeChoice scheme={scheme} onChange={setChosen} />
+        <p className="text-sm text-[var(--muted-foreground)]">{t.admin.branding.colorsHint}</p>
 
-      <AccentField
-        name="accent"
-        label={t.admin.branding.accentFor(modeName(chosen).toLowerCase())}
-        hint={t.admin.branding.accentHint}
-        defaultValue={accent}
-        error={fieldErrors.accent}
-      />
+        {/* Light on the left, dark on the right; one under the other on a phone. */}
+        <div className="grid gap-6 sm:grid-cols-2">
+          <section aria-label={t.admin.branding.lightSection} className="flex flex-col gap-4">
+            {previews[0]}
+            <AccentField
+              name="accent"
+              label={t.admin.branding.accentFor(light)}
+              hint={t.admin.branding.accentHint}
+              defaultValue={accent}
+              error={fieldErrors.accent}
+            />
+            <AccentField
+              name="accentText"
+              label={t.admin.branding.accentTextFor(light)}
+              hint={t.admin.branding.accentTextHint}
+              defaultValue={accentText}
+              error={fieldErrors.accentText}
+              placeholder="#ffffff"
+              clearLabel={t.admin.branding.auto}
+            />
+          </section>
 
-      <AccentField
-        name="altAccent"
-        label={t.admin.branding.accentFor(modeName(other).toLowerCase())}
-        hint={t.admin.branding.altAccentHint(modeName(other).toLowerCase())}
-        defaultValue={altAccent}
-        error={fieldErrors.altAccent}
-      />
+          <section aria-label={t.admin.branding.darkSection} className="flex flex-col gap-4">
+            {previews[1]}
+            <AccentField
+              name="altAccent"
+              label={t.admin.branding.accentFor(dark)}
+              hint={t.admin.branding.altAccentHint(dark)}
+              defaultValue={altAccent}
+              error={fieldErrors.altAccent}
+            />
+            <AccentField
+              name="altAccentText"
+              label={t.admin.branding.accentTextFor(dark)}
+              hint={t.admin.branding.accentTextHint}
+              defaultValue={altAccentText}
+              error={fieldErrors.altAccentText}
+              placeholder="#ffffff"
+              clearLabel={t.admin.branding.auto}
+            />
+          </section>
+        </div>
+      </form>
 
-      <label className="flex items-start gap-2 text-sm">
-        <input
-          type="checkbox"
-          name="showPoweredBy"
-          defaultChecked={showPoweredBy}
-          className="mt-0.5 size-4 rounded border"
-        />
-        <span>
-          <span className="font-medium">{t.admin.branding.poweredBy}</span>
-          <span className="block text-xs text-[var(--muted-foreground)]">
-            {t.admin.branding.poweredByHint}
-          </span>
-        </span>
-      </label>
-
-      <div>
-        <Submit label={t.admin.branding.save} />
+      {/* Logos upload on their own, one per mode, under the colors for that mode. */}
+      <div className="grid gap-6 sm:grid-cols-2">
+        {logos[0]}
+        {logos[1]}
       </div>
-    </form>
+
+      {/* Part of the form above, drawn after the logos: the page reads top to bottom. */}
+      <div className="flex flex-col gap-4 border-t pt-6">
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            name="showPoweredBy"
+            form={formId}
+            defaultChecked={showPoweredBy}
+            className="mt-0.5 size-4 rounded border"
+          />
+          <span>
+            <span className="font-medium">{t.admin.branding.poweredBy}</span>
+            <span className="block text-xs text-[var(--muted-foreground)]">
+              {t.admin.branding.poweredByHint}
+            </span>
+          </span>
+        </label>
+        <div>
+          <Button type="submit" form={formId}>
+            {t.admin.branding.save}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
