@@ -28,6 +28,9 @@ export default async function KbAdminPage() {
       <div>
         <h2 className="text-lg font-semibold tracking-tight">{t.admin.kb.title}</h2>
         <p className="text-sm text-[var(--muted-foreground)]">{t.admin.kb.subtitle}</p>
+        <Link href="/admin/kb/access" className="text-sm underline">
+          {t.admin.kb.accessLink}
+        </Link>
       </div>
 
       <section className="flex flex-col gap-3">

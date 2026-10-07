@@ -1,0 +1,2 @@
+ALTER TABLE "api_key_kb_collections" ADD COLUMN "can_read" boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE "api_key_kb_collections" ADD COLUMN "reactions" boolean DEFAULT true NOT NULL;

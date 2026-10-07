@@ -80,7 +80,11 @@ export function readable(reader: KbReader): SQL[] {
               AND ${inArray(kbCollectionCompanies.companyId, [...reader.scope.companyIds])}
           ))`;
 
-    filters.push(sql`(${byCompany} OR ${granted})`);
+    // A collection on the public site is open to the world, so it is open to
+    // any key or person too: what the public sees of it, held-back articles
+    // apart, which still take a grant.
+    const published = sql`(${kbCollections.publicAccess} AND ${kbArticlesPublic()})`;
+    filters.push(sql`(${byCompany} OR ${granted} OR ${published})`);
   }
   if (reader.via === "mcp") filters.push(eq(kbCollections.mcpEnabled, true));
   if (reader.audience === "public") {

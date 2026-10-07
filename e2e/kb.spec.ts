@@ -644,7 +644,7 @@ const WRITTEN = {
   category: "Firewall",
 };
 
-test("a key with no grant is offered nothing that writes, and sees no collection", async ({
+test("a key with no grant is offered nothing that writes, and sees nothing but the public collections", async ({
   request,
 }) => {
   const names = await toolNames(request, repoKey);
@@ -652,8 +652,11 @@ test("a key with no grant is offered nothing that writes, and sees no collection
   expect(names).not.toContain("upsert_kb_article");
   expect(names).not.toContain("archive_kb_article");
 
+  // Nothing by grant or by company; a collection on the public site is open to every key, so only those.
   const collections = await callTool(request, "list_kb_collections", {}, repoKey);
-  expect(collections.structuredContent.count).toBe(0);
+  const ids = collections.structuredContent.collections.map((row: { collection_id: string }) => row.collection_id);
+  expect(ids).not.toContain(collectionId);
+  for (const id of ids) expect(psql(`select public_access from kb_collections where id='${id}';`)).toBe("t");
 
   // Calling a tool it was never offered is calling one that does not exist.
   const response = await request.post("/api/mcp", {
@@ -675,9 +678,9 @@ test("a key granted read may read and may not write", async ({ page, request }) 
   await grant(page, REPO_KEY_NAME, "read");
 
   const collections = await callTool(request, "list_kb_collections", {}, repoKey);
-  expect(collections.structuredContent.collections).toEqual([
+  expect(collections.structuredContent.collections).toContainEqual(
     expect.objectContaining({ collection_id: collectionId, writable: false }),
-  ]);
+  );
   expect(await toolNames(request, repoKey)).not.toContain("upsert_kb_article");
 });
 
@@ -857,8 +860,11 @@ test("withdrawing the grant applies to the key's next request", async ({ page, r
   await grant(page, REPO_KEY_NAME, "none");
 
   expect(await toolNames(request, repoKey)).not.toContain("upsert_kb_article");
+  // Nothing by grant or by company; a collection on the public site is open to every key, so only those.
   const collections = await callTool(request, "list_kb_collections", {}, repoKey);
-  expect(collections.structuredContent.count).toBe(0);
+  const ids = collections.structuredContent.collections.map((row: { collection_id: string }) => row.collection_id);
+  expect(ids).not.toContain(collectionId);
+  for (const id of ids) expect(psql(`select public_access from kb_collections where id='${id}';`)).toBe("t");
 });
 
 test("a collection closed to MCP is gone from MCP and still in the interface", async ({ page, request }) => {

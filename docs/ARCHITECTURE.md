@@ -391,6 +391,13 @@ appears in the documentation search.
   id. The page draws the steps as a checklist that forgets on reload. `kind`
   comes from frontmatter, the MCP and REST upserts, or the in-app editor, and
   filters `list_kb_articles` and `search_kb`.
+- **Grants to keys, at once**: a key's grant row carries `can_read`,
+  `can_write`, and `reactions` (on by default), and Admin → Knowledge base →
+  API access sets every collection for one key in one transaction with one
+  audit entry listing the changes. A collection on the public site is open to
+  every key as the public sees it, since it is open to the world; a grant adds
+  what is held back, or writing. A revoked key may be deleted; the audit trail
+  keeps its name.
 - **Grants to people**: `user_kb_collections` has the shape of a key's grant,
   and `readable()` counts it the same way: a person reads a collection their
   companies give them, or one granted to them by name, and writes where the

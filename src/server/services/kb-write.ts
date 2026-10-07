@@ -76,7 +76,7 @@ export function readerFor(writer: Pick<KbWriter, "scope" | "grants"> & { via?: K
     scope: writer.scope,
     // A key reads by its grants; only the MCP door is one a collection can close.
     via: writer.via ?? "mcp",
-    granted: writer.grants.map((grant) => grant.collectionId),
+    granted: writer.grants.filter((grant) => grant.canRead).map((grant) => grant.collectionId),
   };
 }
 

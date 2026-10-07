@@ -584,3 +584,84 @@ test("a key with the reactions scope keeps favorites and votes for a named reade
   expect(some.data.map((hit: { id: string; source_type: string }) => [hit.id, hit.source_type])).toEqual([[guide.id, "md"]]);
   await page.close();
 });
+
+test("a key's access to every collection is set in one pass, reactions can be closed per collection, and a public collection needs no grant", async ({
+  browser,
+  request,
+}) => {
+  const page = await browser.newPage();
+  await signInAsAdmin(page);
+  const keyName = unique("matrix key");
+  const matrixKey = await createKey(page, keyName, ["read", "reactions"]);
+  setKeyCompanies(keyName, []);
+  const keyId = psql(`select id from api_keys where name='${keyName}';`);
+
+  const make = async (name: string) => {
+    await page.goto("/admin/kb");
+    await page.getByLabel("Collection name").fill(name);
+    await page.getByRole("button", { name: "Create collection" }).click();
+    await expect(page).toHaveURL(/\/admin\/kb\/[0-9a-f-]{36}$/);
+    const id = page.url().split("/").pop() as string;
+    psql(`update kb_collections set all_companies=false where id='${id}';`);
+    return id;
+  };
+  const guides = await make(unique("Matrix Guides"));
+  const internal = await make(unique("Matrix Internal"));
+  const open = await make(unique("Matrix Public"));
+  psql(`update kb_collections set public_access=true where id='${open}';`);
+  for (const [c, ext] of [[guides, "g"], [internal, "i"], [open, "o"]] as const) {
+    psql(`insert into kb_articles (collection_id, source_key, external_id, title, body, source_type, content_hash) values ('${c}', 'id:${ext}', '${ext}', 'Article ${ext}', 'Words.', 'md', '${ext}');`);
+  }
+
+  // Nothing granted: only the public collection, as the public sees it.
+  const seen = async () =>
+    ((await (await request.get("/api/v1/kb/collections", { headers: auth(matrixKey) })).json()).data as { id: string; writable: boolean }[])
+      .filter((row) => [guides, internal, open].includes(row.id));
+  expect((await seen()).map((row) => row.id)).toEqual([open]);
+  psql(`update kb_articles set public_hidden=true, hidden_by='manual' where collection_id='${open}';`);
+  expect((await (await request.get(`/api/v1/kb/articles?collection_id=${open}`, { headers: auth(matrixKey) })).json()).data).toEqual([]);
+
+  // The matrix: everything read, the internal one write, reactions off on the guides.
+  await page.goto(`/admin/kb/access?key=${keyId}`);
+  await expect(page.getByLabel("API key")).toHaveValue(keyId);
+  await page.getByRole("radio", { name: "Every collection: R", exact: true }).check();
+  await page.getByRole("radio", { name: `Access to ${psql(`select name from kb_collections where id='${internal}';`)}: RW`, exact: true }).check();
+  await page.getByRole("checkbox", { name: `Reactions on ${psql(`select name from kb_collections where id='${guides}';`)}` }).uncheck();
+  await page.getByRole("button", { name: "Save access" }).click();
+  await expect(page.getByText(/\d+ collections? changed\./)).toBeVisible();
+
+  const after = await seen();
+  expect(after.map((row) => [row.id, row.writable]).sort()).toEqual([[guides, false], [internal, true], [open, false]].sort());
+  // The public collection's held-back article is in reach now, by grant.
+  expect((await (await request.get(`/api/v1/kb/articles?collection_id=${open}`, { headers: auth(matrixKey) })).json()).data).toHaveLength(1);
+
+  // Reactions follow the per-collection switch.
+  const reader = { ...auth(matrixKey), "X-Trove-Reader": ADMIN.email };
+  const articleIn = (c: string) => psql(`select id from kb_articles where collection_id='${c}';`);
+  expect((await request.put(`/api/v1/kb/articles/${articleIn(internal)}/favorite`, { headers: reader })).status()).toBe(204);
+  expect((await request.put(`/api/v1/kb/articles/${articleIn(guides)}/favorite`, { headers: reader })).status()).toBe(403);
+  expect((await request.get(`/api/v1/kb/articles/${articleIn(guides)}/reactions`, { headers: reader })).status()).toBe(403);
+
+  // The master lever sets every row, and a row changed afterwards stands.
+  psql(`update kb_articles set public_hidden=false, hidden_by=null where collection_id='${open}';`);
+  await page.goto(`/admin/kb/access?key=${keyId}`);
+  await page.getByRole("radio", { name: "Every collection: D", exact: true }).check();
+  await page.getByRole("button", { name: "Save access" }).click();
+  await expect(page.getByText(/\d+ collections? changed\./)).toBeVisible();
+  expect((await seen()).map((row) => row.id)).toEqual([open]);
+  await expect(
+    page.getByRole("checkbox", { name: `Reactions on ${psql(`select name from kb_collections where id='${guides}';`)}` }),
+  ).not.toBeChecked();
+
+  // A revoked key can be deleted; its grants go with it.
+  await page.goto("/admin/api-keys");
+  const row = page.getByRole("listitem").filter({ hasText: keyName });
+  await row.getByRole("button", { name: "Revoke" }).click();
+  await expect(row.getByText("Revoked")).toBeVisible();
+  await row.getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: keyName })).toHaveCount(0);
+  expect(psql(`select count(*) from api_keys where id='${keyId}';`)).toBe("0");
+  expect(psql(`select count(*) from api_key_kb_collections where api_key_id='${keyId}';`)).toBe("0");
+  expect(psql(`select count(*) from audit_log where action='api_key.deleted' and entity_id='${keyId}';`)).toBe("1");
+  await page.close();
+});

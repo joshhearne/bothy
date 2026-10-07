@@ -249,6 +249,16 @@ export default async function KbCollectionAdminPage({
                           : t.admin.apiKeys.neverUsed}
                       </p>
                     </div>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        name="reactions"
+                        defaultChecked={key.reactions}
+                        aria-label={t.admin.kb.accessReactionsFor(key.name)}
+                        className="size-4 accent-[var(--primary)]"
+                      />
+                      {t.admin.kb.reactionsShort}
+                    </label>
                     <Select
                       name="level"
                       defaultValue={key.level}

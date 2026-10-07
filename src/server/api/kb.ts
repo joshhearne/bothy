@@ -23,7 +23,7 @@ export function kbReaderFor(key: AuthenticatedKey, url?: URL): KbReader {
   return {
     scope: key.companies,
     via: "api",
-    granted: key.kbGrants.map((grant) => grant.collectionId),
+    granted: key.kbGrants.filter((grant) => grant.canRead).map((grant) => grant.collectionId),
     ...(url?.searchParams.get("audience") === "public" ? { audience: "public" as const } : {}),
   };
 }
@@ -35,6 +35,17 @@ export function sourceTypesFrom(url: URL): string[] | undefined {
 }
 
 export const READER_HEADER = "X-Trove-Reader";
+
+/** Whether the key may keep a reader's reactions on this collection: on unless an admin turned it off. */
+export function reactionsAllowed(key: AuthenticatedKey, collectionId: string): boolean {
+  const grant = key.kbGrants.find((row) => row.collectionId === collectionId);
+  return grant ? grant.reactions : true;
+}
+
+/** Collections an admin closed to reactions for this key. */
+export function reactionsClosed(key: AuthenticatedKey): string[] {
+  return key.kbGrants.filter((row) => !row.reactions).map((row) => row.collectionId);
+}
 
 /** The body of a vote: helpful, or not. */
 export const voteBodySchema = z.object({ helpful: z.boolean() });

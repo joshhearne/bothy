@@ -6,6 +6,7 @@ import { db } from "@/server/db";
 import { apiKeyCompanies, apiKeys } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/companies";
+import { ForbiddenError } from "@/server/services/errors";
 import { ALL_COMPANIES, only, type CompanyScope } from "@/server/auth/company-scope";
 import { grantsForKey, type KbGrant } from "@/server/services/kb-grants";
 
@@ -181,6 +182,24 @@ export async function revokeApiKey(id: string, actorId: string): Promise<void> {
 
     await writeAudit(
       { userId: actorId, action: "api_key.revoked", entity: "api_key", entityId: id },
+      tx,
+    );
+  });
+}
+
+/** Removes a revoked key's row. The audit trail keeps its name and what it did. */
+export async function deleteRevokedApiKey(id: string, actorId: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ id: apiKeys.id, name: apiKeys.name, revokedAt: apiKeys.revokedAt })
+      .from(apiKeys)
+      .where(eq(apiKeys.id, id))
+      .limit(1);
+    if (!row) throw new NotFoundError("API key");
+    if (!row.revokedAt) throw new ForbiddenError("Revoke the key before deleting it");
+    await tx.delete(apiKeys).where(eq(apiKeys.id, id));
+    await writeAudit(
+      { userId: actorId, action: "api_key.deleted", entity: "api_key", entityId: id, detail: { name: row.name } },
       tx,
     );
   });

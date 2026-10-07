@@ -773,7 +773,11 @@ export const apiKeyKbCollections = pgTable(
     collectionId: uuid("collection_id")
       .notNull()
       .references(() => kbCollections.id, { onDelete: "cascade" }),
+    /** Read by name, whatever companies the collection is kept to. False: only what the key's companies allow. */
+    canRead: boolean("can_read").notNull().default(true),
     canWrite: boolean("can_write").notNull().default(false),
+    /** The key may keep favorites and votes for a named reader here. On unless an admin turns it off. */
+    reactions: boolean("reactions").notNull().default(true),
     grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().default(now),
   },
   (t) => [

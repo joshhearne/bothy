@@ -1,5 +1,5 @@
 import { apiError, json, withApi } from "@/server/api/http";
-import { kbReaderFor, READER_HEADER, readerKeyFrom, serializeFavorite } from "@/server/api/kb";
+import { kbReaderFor, reactionsClosed, READER_HEADER, readerKeyFrom, serializeFavorite } from "@/server/api/kb";
 import { parseLimit } from "@/server/api/pagination";
 import { pageFavorites } from "@/server/services/kb-reactions";
 
@@ -15,5 +15,9 @@ export const GET = withApi("reactions", async ({ key, url, request }) => {
     parseLimit(url.searchParams.get("limit")),
     url.searchParams.get("cursor") ?? undefined,
   );
-  return json({ data: page.favorites.map(serializeFavorite), next_cursor: page.nextCursor });
+  const closed = new Set(reactionsClosed(key));
+  return json({
+    data: page.favorites.filter((row) => !closed.has(row.collectionId)).map(serializeFavorite),
+    next_cursor: page.nextCursor,
+  });
 });

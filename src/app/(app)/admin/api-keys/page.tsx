@@ -6,7 +6,7 @@ import { listCompanies } from "@/server/services/companies";
 import { formatDateTime } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
 import { CreateApiKeyForm } from "../integration-forms";
-import { revokeApiKeyAction } from "../integration-actions";
+import { deleteApiKeyAction, revokeApiKeyAction } from "../integration-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -57,11 +57,18 @@ export default async function ApiKeysPage() {
                       : t.admin.apiKeys.neverUsed}
                   </p>
                 </div>
-                {!key.revokedAt && (
+                {!key.revokedAt ? (
                   <form action={revokeApiKeyAction}>
                     <input type="hidden" name="id" value={key.id} />
                     <Button type="submit" variant="outline" size="sm">
                       {t.admin.apiKeys.revoke}
+                    </Button>
+                  </form>
+                ) : (
+                  <form action={deleteApiKeyAction} title={t.admin.apiKeys.deleteHint}>
+                    <input type="hidden" name="id" value={key.id} />
+                    <Button type="submit" variant="ghost" size="sm">
+                      {t.admin.apiKeys.delete}
                     </Button>
                   </form>
                 )}

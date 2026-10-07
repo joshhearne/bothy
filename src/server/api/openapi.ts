@@ -435,7 +435,7 @@ export function buildOpenApiDocument(baseUrl: string) {
         put: {
           tags: ["Knowledge base"],
           summary: "Grant the collection to an API key",
-          requestBody: body(z.object({ can_write: z.boolean().optional() })),
+          requestBody: body(z.object({ can_write: z.boolean().optional(), reactions: z.boolean().optional() })),
           responses: { "200": ok("The grant"), ...ERRORS },
         },
         delete: {

@@ -681,3 +681,10 @@ UPDATE instance_branding SET
 WHERE scheme = 'dark';
 ALTER TABLE instance_branding ADD COLUMN accent_text text;
 ALTER TABLE instance_branding ADD COLUMN alt_accent_text text;
+
+-- ---------- Key grants: read by name is one choice, reactions another ----------
+-- A grant row used to mean "reads by name"; now it says so with can_read, so a
+-- row can also carry a permission on its own: reactions, which lets the key
+-- keep favorites and votes for a named reader on that collection.
+ALTER TABLE api_key_kb_collections ADD COLUMN can_read boolean NOT NULL DEFAULT true;
+ALTER TABLE api_key_kb_collections ADD COLUMN reactions boolean NOT NULL DEFAULT true;

@@ -5,7 +5,7 @@ import { ZodError } from "zod";
 import { checkbox, text, toFieldErrors, type FormState } from "@/lib/form";
 import { ForbiddenError, requireAdmin, requireRecentMfa } from "@/server/auth/session";
 import { NotFoundError } from "@/server/services/companies";
-import { createApiKey, revokeApiKey } from "@/server/services/api-keys";
+import { createApiKey, deleteRevokedApiKey, revokeApiKey } from "@/server/services/api-keys";
 import {
   createWebhook,
   deleteWebhook,
@@ -55,6 +55,15 @@ export async function revokeApiKeyAction(formData: FormData): Promise<void> {
   const user = await requireAdmin();
     await requireRecentMfa(user);
   await revokeApiKey(id, user.id);
+  revalidatePath("/admin/api-keys");
+}
+
+export async function deleteApiKeyAction(formData: FormData): Promise<void> {
+  const id = text(formData, "id");
+  if (!id) return;
+  const user = await requireAdmin();
+  await requireRecentMfa(user);
+  await deleteRevokedApiKey(id, user.id);
   revalidatePath("/admin/api-keys");
 }
 

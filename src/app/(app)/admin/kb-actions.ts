@@ -12,7 +12,7 @@ import {
   setCollectionArchived,
   updateCollection,
 } from "@/server/services/kb";
-import { setGrant, setUserGrant } from "@/server/services/kb-grants";
+import { setGrant, setGrantMatrix, setUserGrant } from "@/server/services/kb-grants";
 import {
   addHideRules,
   HideRuleError,
@@ -106,6 +106,35 @@ export async function setUserGrantAction(formData: FormData): Promise<void> {
   revalidatePath(`/admin/kb/${collectionId}`);
 }
 
+export type MatrixState = FormState & { changed?: number };
+
+/** The whole matrix for one key, saved at once. */
+export async function setGrantMatrixAction(_prev: MatrixState, formData: FormData): Promise<MatrixState> {
+  const apiKeyId = text(formData, "apiKeyId") ?? "";
+  const ids = formData.getAll("collectionId").filter((v): v is string => typeof v === "string");
+  let changed = 0;
+  try {
+    const user = await requireAdmin();
+    const result = await setGrantMatrix(
+      {
+        apiKeyId,
+        rows: ids.map((collectionId) => ({
+          collectionId,
+          level: (text(formData, `level-${collectionId}`) ?? "none") as "none" | "read" | "write",
+          reactions: checkbox(formData, `reactions-${collectionId}`),
+        })),
+      },
+      { userId: user.id },
+    );
+    changed = result.changed;
+  } catch (err) {
+    return toFormState(err);
+  }
+  revalidatePath("/admin/kb/access");
+  revalidatePath("/admin/kb");
+  return { ok: true, changed };
+}
+
 export async function setGrantAction(formData: FormData): Promise<void> {
   const collectionId = text(formData, "collectionId");
   const apiKeyId = text(formData, "apiKeyId");
@@ -117,6 +146,7 @@ export async function setGrantAction(formData: FormData): Promise<void> {
       collectionId,
       apiKeyId,
       level: (text(formData, "level") ?? "none") as "none" | "read" | "write",
+      reactions: checkbox(formData, "reactions"),
     },
     user.id,
   );

@@ -71,6 +71,12 @@ GET    /kb/articles/:id                                    full body, kind, step
 PUT    /kb/collections/:id/articles/:external_id           upsert { title, body, category?, subcategory?, kind?, source_url?, internal_only? }  (write scope + write grant)
 DELETE /kb/collections/:id/articles/:external_id           archive                                                                    (write scope + write grant)
 ```
+A collection on the public site is readable by every key with no grant, as the
+public sees it (articles held back stay out); a grant adds those, or writing.
+Under Admin → Knowledge base → API access, an administrator sets one key's
+access to every collection at once: D (only what its companies allow, the
+default), R, RW, and whether the key may keep reactions there (on by default).
+
 Grants, with the `admin` scope. A person granted a collection reads it, and
 with `can_write` writes to it in the app, whatever companies it is kept to;
 administrators need no grant. An account can be made ahead of a person's
@@ -81,7 +87,7 @@ GET    /users                                              every account
 POST   /users                 { email, name, role?, all_companies? }   create, or return the existing account (200)
 PUT    /kb/collections/:id/grants/users/:userId  { can_write? }        grant to a person
 DELETE /kb/collections/:id/grants/users/:userId                        withdraw
-PUT    /kb/collections/:id/grants/api-keys/:keyId { can_write? }       grant to a key
+PUT    /kb/collections/:id/grants/api-keys/:keyId { can_write?, reactions? }   grant to a key
 DELETE /kb/collections/:id/grants/api-keys/:keyId                      withdraw
 ```
 Every grant change is an audit entry naming the key that made it.
@@ -103,8 +109,10 @@ Favorites and helpfulness votes are kept under a reader key derived from an
 email, the same key the public site uses when Cloudflare Access names the
 reader, so a favorite made through the API is the one the person sees on the
 public site and the other way round. These routes need the `reactions` scope
-(granted explicitly; `admin` implies it) and the header `X-Trove-Reader:
-<email>`, which names the reader; the email is never stored. No header → 400.
+(granted explicitly; `admin` implies it), the collection not closed to
+reactions for this key (open by default; 403 when closed), and the header
+`X-Trove-Reader: <email>`, which names the reader; the email is never stored.
+No header → 400.
 ```
 GET    /kb/articles/:id/reactions   -> { favorites, helpful_up, helpful_down, helpfulness, mine: { favorite, vote: "up"|"down"|null } }
 PUT    /kb/articles/:id/favorite    -> 204          DELETE -> 204

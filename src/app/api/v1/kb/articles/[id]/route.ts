@@ -1,5 +1,5 @@
 import { json, withApi } from "@/server/api/http";
-import { kbReaderFor, readerKeyFrom, serializeArticle } from "@/server/api/kb";
+import { kbReaderFor, reactionsAllowed, readerKeyFrom, serializeArticle } from "@/server/api/kb";
 import { NotFoundError } from "@/server/services/errors";
 import { getArticle } from "@/server/services/kb";
 
@@ -9,5 +9,5 @@ export const dynamic = "force-dynamic";
 export const GET = withApi<{ id: string }>("read", async ({ key, params, url, request }) => {
   const article = await getArticle(params.id, kbReaderFor(key, url));
   if (!article) throw new NotFoundError("Article");
-  return json(await serializeArticle(article, readerKeyFrom(request)));
+  return json(await serializeArticle(article, reactionsAllowed(key, article.collectionId) ? readerKeyFrom(request) : null));
 });

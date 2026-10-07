@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "@/server/db";
 import { apiKeyKbCollections, apiKeys, kbCollections, userKbCollections, users } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
@@ -17,13 +17,21 @@ import { NotFoundError } from "@/server/services/errors";
 export const GRANT_LEVELS = ["none", "read", "write"] as const;
 export type GrantLevel = (typeof GRANT_LEVELS)[number];
 
-export type KbGrant = { collectionId: string; canWrite: boolean };
+export type KbGrant = {
+  collectionId: string;
+  /** Reads by name. False when the row only carries another permission. */
+  canRead: boolean;
+  canWrite: boolean;
+  /** May keep favorites and votes for a named reader here. On unless turned off. */
+  reactions: boolean;
+};
 
 export type KeyGrantRow = {
   apiKeyId: string;
   name: string;
   prefix: string;
   level: GrantLevel;
+  reactions: boolean;
   lastUsedAt: Date | null;
 };
 
@@ -31,6 +39,7 @@ export const grantInputSchema = z.object({
   apiKeyId: z.uuid(),
   collectionId: z.uuid(),
   level: z.enum(GRANT_LEVELS),
+  reactions: z.boolean().optional(),
 });
 
 /** Read on every authenticated request, so a change never waits on a cache. */
@@ -38,11 +47,121 @@ export async function grantsForKey(apiKeyId: string): Promise<KbGrant[]> {
   return db
     .select({
       collectionId: apiKeyKbCollections.collectionId,
+      canRead: apiKeyKbCollections.canRead,
       canWrite: apiKeyKbCollections.canWrite,
+      reactions: apiKeyKbCollections.reactions,
     })
     .from(apiKeyKbCollections)
     .innerJoin(kbCollections, eq(kbCollections.id, apiKeyKbCollections.collectionId))
     .where(and(eq(apiKeyKbCollections.apiKeyId, apiKeyId), isNull(kbCollections.archivedAt)));
+}
+
+/** What a grant row means as one choice, or its absence. */
+function levelOf(row: { canRead: boolean | null; canWrite: boolean | null } | null | undefined): GrantLevel {
+  if (!row || !row.canRead) return "none";
+  return row.canWrite ? "write" : "read";
+}
+
+/** The row to keep for a choice, or null when everything is at its default: no grant by name, reactions on. */
+function rowFor(level: GrantLevel, reactions: boolean): { canRead: boolean; canWrite: boolean; reactions: boolean } | null {
+  if (level === "none" && reactions) return null;
+  return { canRead: level !== "none", canWrite: level === "write", reactions };
+}
+
+export type GrantMatrixRow = {
+  collectionId: string;
+  name: string;
+  level: GrantLevel;
+  reactions: boolean;
+};
+
+/** Every live collection, with what one key may do on each: the matrix for one key. */
+export async function grantMatrixForKey(apiKeyId: string): Promise<GrantMatrixRow[]> {
+  const rows = await db
+    .select({
+      collectionId: kbCollections.id,
+      name: kbCollections.name,
+      canRead: apiKeyKbCollections.canRead,
+      canWrite: apiKeyKbCollections.canWrite,
+      reactions: apiKeyKbCollections.reactions,
+    })
+    .from(kbCollections)
+    .leftJoin(
+      apiKeyKbCollections,
+      and(eq(apiKeyKbCollections.collectionId, kbCollections.id), eq(apiKeyKbCollections.apiKeyId, apiKeyId)),
+    )
+    .where(isNull(kbCollections.archivedAt))
+    .orderBy(asc(kbCollections.name));
+  return rows.map((row) => ({
+    collectionId: row.collectionId,
+    name: row.name,
+    level: levelOf(row),
+    reactions: row.reactions ?? true,
+  }));
+}
+
+export const grantMatrixInputSchema = z.object({
+  apiKeyId: z.uuid(),
+  rows: z
+    .array(z.object({ collectionId: z.uuid(), level: z.enum(GRANT_LEVELS), reactions: z.boolean().default(true) }))
+    .max(500),
+});
+
+/**
+ * Sets one key's grants on every collection at once, in one transaction with
+ * one audit entry that lists what changed. A row left as it was is not
+ * written; a row set back to the default with nothing else on is removed.
+ */
+export async function setGrantMatrix(
+  input: z.input<typeof grantMatrixInputSchema>,
+  actor: GrantActor,
+): Promise<{ changed: number }> {
+  const data = grantMatrixInputSchema.parse(input);
+  return db.transaction(async (tx) => {
+    const [key] = await tx
+      .select({ id: apiKeys.id, name: apiKeys.name })
+      .from(apiKeys)
+      .where(and(eq(apiKeys.id, data.apiKeyId), isNull(apiKeys.revokedAt)))
+      .limit(1);
+    if (!key) throw new NotFoundError("Active API key");
+
+    const before = new Map((await grantMatrixForKey(key.id)).map((row) => [row.collectionId, row]));
+    const changes: { collection: string; level: GrantLevel; reactions: boolean }[] = [];
+    for (const row of data.rows) {
+      const was = before.get(row.collectionId);
+      if (!was) continue; // Not a live collection; nothing to set.
+      if (was.level === row.level && was.reactions === row.reactions) continue;
+      const wanted = rowFor(row.level, row.reactions);
+      if (!wanted) {
+        await tx
+          .delete(apiKeyKbCollections)
+          .where(and(eq(apiKeyKbCollections.apiKeyId, key.id), eq(apiKeyKbCollections.collectionId, row.collectionId)));
+      } else {
+        await tx
+          .insert(apiKeyKbCollections)
+          .values({ apiKeyId: key.id, collectionId: row.collectionId, ...wanted })
+          .onConflictDoUpdate({
+            target: [apiKeyKbCollections.apiKeyId, apiKeyKbCollections.collectionId],
+            set: { ...wanted, grantedAt: new Date() },
+          });
+      }
+      changes.push({ collection: was.name, level: row.level, reactions: row.reactions });
+    }
+
+    if (changes.length > 0) {
+      await writeAudit(
+        {
+          ...("userId" in actor ? { userId: actor.userId } : {}),
+          action: "kb_grant.matrix_changed",
+          entity: "api_key",
+          entityId: key.id,
+          detail: { apiKeyName: key.name, changes, by: actorFields(actor) },
+        },
+        tx,
+      );
+    }
+    return { changed: changes.length };
+  });
 }
 
 /** Every key that is still in use, and what it may do with this collection. */
@@ -54,7 +173,9 @@ export async function listKeyGrants(collectionId: string): Promise<KeyGrantRow[]
       prefix: apiKeys.prefix,
       lastUsedAt: apiKeys.lastUsedAt,
       granted: apiKeyKbCollections.collectionId,
+      canRead: apiKeyKbCollections.canRead,
       canWrite: apiKeyKbCollections.canWrite,
+      reactions: apiKeyKbCollections.reactions,
     })
     .from(apiKeys)
     .leftJoin(
@@ -72,14 +193,20 @@ export async function listKeyGrants(collectionId: string): Promise<KeyGrantRow[]
     name: row.name,
     prefix: row.prefix,
     lastUsedAt: row.lastUsedAt,
-    level: !row.granted ? "none" : row.canWrite ? "write" : "read",
+    level: row.granted ? levelOf(row) : "none",
+    reactions: row.reactions ?? true,
   }));
 }
 
 /** Every grant a person holds, read on request so a change takes effect at once. */
 export async function grantsForUser(userId: string): Promise<KbGrant[]> {
   return db
-    .select({ collectionId: userKbCollections.collectionId, canWrite: userKbCollections.canWrite })
+    .select({
+      collectionId: userKbCollections.collectionId,
+      canRead: sql<boolean>`true`,
+      canWrite: userKbCollections.canWrite,
+      reactions: sql<boolean>`true`,
+    })
     .from(userKbCollections)
     .innerJoin(kbCollections, eq(kbCollections.id, userKbCollections.collectionId))
     .where(and(eq(userKbCollections.userId, userId), isNull(kbCollections.archivedAt)));
@@ -208,7 +335,14 @@ export async function setGrant(
       .limit(1);
     if (!collection) throw new NotFoundError("Collection");
 
-    if (data.level === "none") {
+    const [current] = await tx
+      .select({ reactions: apiKeyKbCollections.reactions })
+      .from(apiKeyKbCollections)
+      .where(and(eq(apiKeyKbCollections.apiKeyId, key.id), eq(apiKeyKbCollections.collectionId, collection.id)))
+      .limit(1);
+    const reactions = data.reactions ?? current?.reactions ?? true;
+    const wanted = rowFor(data.level, reactions);
+    if (!wanted) {
       await tx
         .delete(apiKeyKbCollections)
         .where(
@@ -218,13 +352,12 @@ export async function setGrant(
           ),
         );
     } else {
-      const canWrite = data.level === "write";
       await tx
         .insert(apiKeyKbCollections)
-        .values({ apiKeyId: key.id, collectionId: collection.id, canWrite })
+        .values({ apiKeyId: key.id, collectionId: collection.id, ...wanted })
         .onConflictDoUpdate({
           target: [apiKeyKbCollections.apiKeyId, apiKeyKbCollections.collectionId],
-          set: { canWrite, grantedAt: new Date() },
+          set: { ...wanted, grantedAt: new Date() },
         });
     }
 
@@ -239,6 +372,7 @@ export async function setGrant(
           apiKeyId: key.id,
           apiKeyName: key.name,
           level: data.level,
+          reactions,
           by: actorFields(by),
         },
       },
