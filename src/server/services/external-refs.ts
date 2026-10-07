@@ -8,7 +8,7 @@ import { assertInScope, isInScope, type CompanyScope } from "@/server/auth/compa
 import { NotFoundError } from "@/server/services/errors";
 
 /**
- * Maps Bothy records to ids in any external system, so a ticket in a PSA can
+ * Maps Trove KB records to ids in any external system, so a ticket in a PSA can
  * find "its" company. See docs/API.md, PSA integration endpoints.
  */
 
@@ -123,7 +123,7 @@ export async function listExternalRefs(
 }
 
 /**
- * Resolves an external id back to the Bothy record it names, or null when the
+ * Resolves an external id back to the Trove KB record it names, or null when the
  * caller may not see that record — the same answer an unmapped id gets, so a
  * deep link cannot be used to probe for companies.
  */

@@ -63,9 +63,9 @@ describe("totp", () => {
   it("makes a seed an app can scan", () => {
     const secret = generateTotpSecret();
     expect(secret).toMatch(/^[A-Z2-7]{32}$/);
-    const url = otpauthUrl(secret, "sam@example.com", "Bothy");
+    const url = otpauthUrl(secret, "sam@example.com", "Trove KB");
     expect(url).toBe(
-      `otpauth://totp/Bothy%3Asam%40example.com?secret=${secret}&issuer=Bothy&algorithm=SHA1&digits=6&period=30`,
+      `otpauth://totp/Trove%20KB%3Asam%40example.com?secret=${secret}&issuer=Trove%20KB&algorithm=SHA1&digits=6&period=30`,
     );
   });
 });

@@ -49,7 +49,7 @@ describe("totpFrom", () => {
   });
 
   it("reads an otpauth URI, which is what most vaults store", () => {
-    const uri = `otpauth://totp/Bothy:admin?secret=${SEED}&issuer=Bothy&digits=8&period=60`;
+    const uri = `otpauth://totp/Trove KB:admin?secret=${SEED}&issuer=Trove KB&digits=8&period=60`;
     const code = totpFrom(uri, { at: 1_600_000_000_000 });
 
     expect(code.code).toMatch(/^\d{8}$/);
@@ -71,7 +71,7 @@ describe("totpFrom", () => {
   });
 
   it("refuses a URI with no secret in it", () => {
-    expect(() => totpFrom("otpauth://totp/Bothy:admin?issuer=Bothy")).toThrow();
+    expect(() => totpFrom("otpauth://totp/Trove KB:admin?issuer=Trove KB")).toThrow();
     expect(() => totpFrom("   ")).toThrow();
   });
 });

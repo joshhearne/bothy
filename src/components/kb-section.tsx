@@ -28,7 +28,7 @@ export function KbSection({
   children: React.ReactNode;
 }) {
   const t = useMessages();
-  const key = `bothy.kb.section.${id}`;
+  const key = `trove.kb.section.${id}`;
   const bodyId = useId();
   const [open, setOpen] = useState(true);
 

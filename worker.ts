@@ -35,7 +35,7 @@ function applyBindings(env: Env): void {
   }
 }
 
-const bothy = {
+const trove-kb = {
   async fetch(request: Request, env: Env, ctx: Context): Promise<Response> {
     applyBindings(env);
     return next.fetch(request, env, ctx);
@@ -45,21 +45,21 @@ const bothy = {
     applyBindings(env);
 
     if (!env.CRON_SECRET) {
-      console.error("bothy: CRON_SECRET is not set, so webhook retries cannot run");
+      console.error("trove-kb: CRON_SECRET is not set, so webhook retries cannot run");
       return;
     }
 
-    const base = (env.APP_URL ?? "https://bothy.invalid").replace(/\/$/, "");
+    const base = (env.APP_URL ?? "https://trove-kb.invalid").replace(/\/$/, "");
     const request = new Request(`${base}/api/internal/webhooks`, {
       method: "POST",
-      headers: { "x-bothy-cron-secret": env.CRON_SECRET },
+      headers: { "x-trove-cron-secret": env.CRON_SECRET },
     });
 
     const response = await next.fetch(request, env, ctx);
     if (!response.ok) {
-      console.error(`bothy: webhook delivery returned ${response.status}`);
+      console.error(`trove-kb: webhook delivery returned ${response.status}`);
     }
   },
 };
 
-export default bothy;
+export default trove-kb;

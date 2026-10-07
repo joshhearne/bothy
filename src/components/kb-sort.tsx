@@ -25,7 +25,7 @@ export function KbSort({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const key = `bothy.kb.sort.${scope}`;
+  const key = `trove.kb.sort.${scope}`;
 
   const labels = t.kb.sorts as Record<string, string>;
 

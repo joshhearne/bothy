@@ -21,10 +21,10 @@ export class R2Driver implements StorageDriver {
   static async create(): Promise<R2Driver> {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
     const context = await getCloudflareContext({ async: true });
-    const bucket = (context.env as unknown as { BOTHY_UPLOADS?: R2Bucket }).BOTHY_UPLOADS;
+    const bucket = (context.env as unknown as { TROVE_UPLOADS?: R2Bucket }).TROVE_UPLOADS;
 
     if (!bucket) {
-      throw new Error("STORAGE_DRIVER is r2 but no BOTHY_UPLOADS bucket is bound");
+      throw new Error("STORAGE_DRIVER is r2 but no TROVE_UPLOADS bucket is bound");
     }
     return new R2Driver(bucket);
   }

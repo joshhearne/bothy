@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "bothy",
+  "name": "trove-kb",
   // The custom entrypoint adds the scheduled handler; it re-exports the
   // generated fetch handler unchanged.
   "main": "worker.ts",
@@ -19,9 +19,9 @@
     "VAULT_MODE": "link"
   },
 
-  "r2_buckets": [{ "binding": "BOTHY_UPLOADS", "bucket_name": "bothy-uploads" }],
+  "r2_buckets": [{ "binding": "TROVE_UPLOADS", "bucket_name": "trove-kb-uploads" }],
 
-  // Created with: wrangler hyperdrive create bothy --connection-string=...
+  // Created with: wrangler hyperdrive create trove-kb --connection-string=...
   "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "replace-with-your-hyperdrive-id" }]
 
   // Secrets, set with `wrangler secret put`:

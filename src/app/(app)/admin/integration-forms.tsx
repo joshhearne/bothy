@@ -144,7 +144,7 @@ export function CreateWebhookForm({ events }: { events: string[] }) {
             type="url"
             required
             maxLength={2000}
-            placeholder="https://psa.example.com/hooks/bothy"
+            placeholder="https://psa.example.com/hooks/trove-kb"
           />
         </Field>
 

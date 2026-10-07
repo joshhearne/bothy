@@ -71,11 +71,11 @@ export default async function KbCollectionAdminPage({
   const endpoint = `${env.APP_URL.replace(/\/+$/, "")}/api/mcp`;
   // One line: a command broken across two loses its second half to whatever
   // pastes it, and what is left connects with no key at all.
-  const connect = `claude mcp add --transport http bothy ${endpoint} --header "Authorization: YOUR_API_KEY"`;
+  const connect = `claude mcp add --transport http trove-kb ${endpoint} --header "Authorization: YOUR_API_KEY"`;
   const instruct = [
     "## Knowledge base",
-    `This application's user documentation lives in Bothy, in the collection "${collection.name}"`,
-    `(collection_id ${collection.id}), reached through the \`bothy\` MCP server.`,
+    `This application's user documentation lives in Trove KB, in the collection "${collection.name}"`,
+    `(collection_id ${collection.id}), reached through the \`trove-kb\` MCP server.`,
     "",
     "After any change that alters what a user sees or does — a screen, a field, a",
     "workflow, a permission, a setting, an error message — update the knowledge base in",

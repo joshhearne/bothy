@@ -52,15 +52,19 @@ export function generateTotpSecret(): string {
 
 /** What the authenticator app scans. */
 export function otpauthUrl(secret: string, account: string, issuer: string): string {
+  // Percent-encoded throughout: an authenticator app reads a "+" in the
+  // issuer as a plus sign, not a space.
   const label = encodeURIComponent(`${issuer}:${account}`);
-  const query = new URLSearchParams({
-    secret,
-    issuer,
-    algorithm: "SHA1",
-    digits: String(TOTP_DIGITS),
-    period: String(TOTP_STEP_SECONDS),
-  });
-  return `otpauth://totp/${label}?${query.toString()}`;
+  const query = [
+    ["secret", secret],
+    ["issuer", issuer],
+    ["algorithm", "SHA1"],
+    ["digits", String(TOTP_DIGITS)],
+    ["period", String(TOTP_STEP_SECONDS)],
+  ]
+    .map(([key, value]) => `${key}=${encodeURIComponent(value ?? "")}`)
+    .join("&");
+  return `otpauth://totp/${label}?${query}`;
 }
 
 export function totpStep(atMs = Date.now()): number {

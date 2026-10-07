@@ -18,7 +18,9 @@ export const API_SCOPES = ["read", "write", "admin", "secrets:reveal"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 
 const PREFIX_LENGTH = 8;
-const KEY_PREFIX = "bothy_";
+const KEY_PREFIX = "trove_";
+/** Keys issued under the product's earlier name go on working as they are. */
+const KEY_PREFIXES = [KEY_PREFIX, "bothy_"];
 
 export const apiKeyInputSchema = z
   .object({
@@ -70,7 +72,7 @@ export function hashKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
 }
 
-/** `bothy_<prefix><secret>`: the prefix is stored, the rest never is. */
+/** `trove_<prefix><secret>`: the prefix is stored, the rest never is. */
 function generateKey(): { key: string; prefix: string } {
   const body = randomBytes(32).toString("base64url");
   return { key: `${KEY_PREFIX}${body}`, prefix: body.slice(0, PREFIX_LENGTH) };
@@ -78,9 +80,8 @@ function generateKey(): { key: string; prefix: string } {
 
 /** Strips the marker from a presented key, if it carries one. */
 export function splitKey(presented: string): { marker: string; body: string } {
-  return presented.startsWith(KEY_PREFIX)
-    ? { marker: KEY_PREFIX, body: presented.slice(KEY_PREFIX.length) }
-    : { marker: "", body: presented };
+  const marker = KEY_PREFIXES.find((candidate) => presented.startsWith(candidate));
+  return marker ? { marker, body: presented.slice(marker.length) } : { marker: "", body: presented };
 }
 
 export async function listApiKeys(): Promise<ApiKeyRow[]> {

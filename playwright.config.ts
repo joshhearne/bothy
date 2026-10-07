@@ -1,8 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Drives a running Bothy instance. Start one first, for example:
- *   ENV_FILE=.env.test APP_PORT=3090 docker compose -p bothy-test up -d
+ * Drives a running Trove KB instance. Start one first, for example:
+ *   ENV_FILE=.env.test APP_PORT=3090 docker compose -p trove-kb-test up -d
  * then: ENV_FILE=.env.test E2E_BASE_URL=http://127.0.0.1:3090 npm run test:e2e
  *
  * ENV_FILE matters to the run too: the OIDC test recreates the app container.

@@ -2,7 +2,7 @@ import "server-only";
 import { env } from "@/lib/env";
 
 /**
- * Outgoing mail, which Bothy sends only when SMTP_URL is set and only for one
+ * Outgoing mail, which Trove KB sends only when SMTP_URL is set and only for one
  * thing so far: a password reset link. Loaded lazily so the mail library never
  * reaches a bundle that will not send anything.
  */

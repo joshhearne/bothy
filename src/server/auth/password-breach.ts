@@ -27,7 +27,7 @@ export async function checkPasswordBreach(
 
   try {
     const response = await fetcher(`${RANGE_URL}${prefix}`, {
-      headers: { "Add-Padding": "true", "User-Agent": "Bothy" },
+      headers: { "Add-Padding": "true", "User-Agent": "Trove KB" },
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!response.ok) return { breached: false, checked: false };

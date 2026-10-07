@@ -1133,7 +1133,7 @@ test("readers' favorites and votes order the lists, and the visitor sees the cou
 });
 
 test("the public site answers only on the hostname it is published at", async ({ request }) => {
-  const elsewhere = { "X-Real-IP": ON_SITE, Host: "bothy.example.com" };
+  const elsewhere = { "X-Real-IP": ON_SITE, Host: "trove-kb.example.com" };
   expect((await request.get("/pub/kb", { headers: elsewhere })).status()).toBe(404);
   expect((await request.get(`/pub/kb/${collectionId}`, { headers: elsewhere })).status()).toBe(404);
   // The same request on the published hostname is answered.

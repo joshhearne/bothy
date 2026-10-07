@@ -8,7 +8,7 @@ import {
 } from "@/server/vault/types";
 
 /**
- * The default mode: Bothy holds a deep link and nothing else. Also what
+ * The default mode: Trove KB holds a deep link and nothing else. Also what
  * bw_serve degrades to when the sidecar is down or locked.
  */
 export class LinkVaultProvider implements VaultProvider {

@@ -10,7 +10,7 @@ import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:cr
 const VERSION = "v1";
 
 function keyFor(secret: string, purpose: string): Buffer {
-  return Buffer.from(hkdfSync("sha256", secret, "bothy", purpose, 32));
+  return Buffer.from(hkdfSync("sha256", secret, "trove-kb", purpose, 32));
 }
 
 export function seal(plain: string, secret: string, purpose: string): string {

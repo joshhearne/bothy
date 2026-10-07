@@ -43,7 +43,7 @@ export const startUploadSchema = z.object({
 });
 
 function scratch(): string {
-  return env.KB_IMPORT_DIR ?? join(tmpdir(), "bothy-kb-imports");
+  return env.KB_IMPORT_DIR ?? join(tmpdir(), "trove-kb-kb-imports");
 }
 
 function pathFor(importId: string): string {

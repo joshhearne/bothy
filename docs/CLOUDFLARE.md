@@ -1,9 +1,9 @@
-# Running Bothy on Cloudflare
+# Running Trove KB on Cloudflare
 
 Two ways, and they are not the same thing:
 
-- **The container behind a Cloudflare Tunnel.** Bothy keeps running in Docker on
-  your own host; Cloudflare publishes it at `https://bothy.yourdomain.com` with
+- **The container behind a Cloudflare Tunnel.** Trove KB keeps running in Docker on
+  your own host; Cloudflare publishes it at `https://trove-kb.yourdomain.com` with
   no port open to the internet. Start here — it is the least that can go wrong.
 - **[A Cloudflare Worker](#running-as-a-worker).** No server at all, but the
   database moves to Hyperdrive, attachments to R2, and the vault sidecar needs a
@@ -24,7 +24,7 @@ browser -> Cloudflare edge -> tunnel -> cloudflared (this host) -> 127.0.0.1:308
 **1. Point `APP_URL` at the hostname people will type.**
 
 ```bash
-APP_URL=https://bothy.yourdomain.com
+APP_URL=https://trove-kb.yourdomain.com
 ```
 
 This is the setting to get right. Session cookies are marked `Secure` as soon as
@@ -38,23 +38,23 @@ Trust → Networks → Tunnels →** your tunnel **→ Public Hostname → Add**
 
 | Field | Value |
 |---|---|
-| Subdomain / Domain | `bothy` / `yourdomain.com` |
+| Subdomain / Domain | `trove-kb` / `yourdomain.com` |
 | Path | leave empty |
 | Type | HTTP |
 | URL | `127.0.0.1:3080` |
 
 Plain HTTP over loopback is the point: the encrypted hop is the tunnel itself.
-Leave **HTTP Host Header** empty — Bothy needs the browser's own `Host`, which
+Leave **HTTP Host Header** empty — Trove KB needs the browser's own `Host`, which
 is what tells Next.js a form post came from where it says it did. Saving the
 hostname creates the DNS record for you.
 
 If instead your tunnel runs from `/etc/cloudflared/config.yml`, the same thing
 in that file, followed by
-`cloudflared tunnel route dns <tunnel> bothy.yourdomain.com`:
+`cloudflared tunnel route dns <tunnel> trove-kb.yourdomain.com`:
 
 ```yaml
 ingress:
-  - hostname: bothy.yourdomain.com
+  - hostname: trove-kb.yourdomain.com
     service: http://127.0.0.1:3080
   - service: http_status:404
 ```
@@ -75,7 +75,7 @@ back over an insecure origin.
 **4. Check it end to end**, from somewhere that is not this host:
 
 ```bash
-curl https://bothy.yourdomain.com/api/health     # {"status":"ok"}
+curl https://trove-kb.yourdomain.com/api/health     # {"status":"ok"}
 ```
 
 Then sign in through the hostname. If sign-in returns you to the sign-in page,
@@ -85,10 +85,10 @@ Then sign in through the hostname. If sign-in returns you to the sign-in page,
 
 **Uploads** pass through Cloudflare, which caps a request body at 100 MB on the
 free and Pro plans. `MAX_UPLOAD_MB` defaults to 25; keep it under your plan's
-limit or the upload fails at the edge, before Bothy sees it.
+limit or the upload fails at the edge, before Trove KB sees it.
 
 **Cloudflare Access** can sit in front of the hostname for a second gate, and it
-composes with Bothy's own sign-in rather than replacing it. If you add it, leave
+composes with Trove KB's own sign-in rather than replacing it. If you add it, leave
 `/api/*` out of the policy or scope it to a service token: an Access login page
 is HTML, and an API client or an MCP client presenting a bearer token has
 nowhere to put it.
@@ -96,7 +96,7 @@ nowhere to put it.
 **The public knowledge base** is the one place Access does more than gate.
 Put an Access application on its hostname and name the team and the
 application's audience tag under Admin → Settings → Public knowledge base, and
-readers can keep favorites and vote on articles: Bothy checks the token Access
+readers can keep favorites and vote on articles: Trove KB checks the token Access
 adds to each request against the team's published keys and knows the reader by
 a hash, with no account of its own. The audience tag is on the application's
 Overview page in Zero Trust, and appears as `aud` in the token. With Access
@@ -104,7 +104,7 @@ deciding who gets in, set "Who may read it" to anyone who can reach it; an
 address list on top of it only shuts out staff who are away from a site.
 
 **Single sign-on** redirect URIs move with the hostname. Register
-`https://bothy.yourdomain.com/api/auth/callback/oidc` with your identity
+`https://trove-kb.yourdomain.com/api/auth/callback/oidc` with your identity
 provider.
 
 **The vault sidecar** does not change. It stays on the internal Docker network
@@ -114,7 +114,7 @@ with no published port, exactly as in [VAULT_INTEGRATION.md](VAULT_INTEGRATION.m
 
 The public knowledge base (`/pub/kb`) is for readers who have not signed in. It
 belongs on a hostname of its own, such as `kb.yourdomain.com`, so that the
-policy in front of it can differ from the one in front of Bothy itself, and so
+policy in front of it can differ from the one in front of Trove KB itself, and so
 the proxy can refuse everything that is not the knowledge base.
 
 **1. A proxy that passes the knowledge base and nothing else.** With nginx on
@@ -150,7 +150,7 @@ hostname at all.
 **2. Publish the hostname** on the tunnel, as above: `kb.yourdomain.com` to
 `http://localhost:80`.
 
-**3. Decide who is admitted, in both places.** In Bothy, under Admin →
+**3. Decide who is admitted, in both places.** In Trove KB, under Admin →
 Settings → Public knowledge base, choose *Only visitors from the addresses
 below* and list the public addresses your sites reach the internet from. In
 Cloudflare Zero Trust, add a self-hosted Access application for the hostname
@@ -178,15 +178,15 @@ by default. An article can be held back from its own page.
 ### Deploy
 
 ```bash
-npx wrangler hyperdrive create bothy --connection-string="postgres://…"
-npx wrangler r2 bucket create bothy-uploads
+npx wrangler hyperdrive create trove-kb --connection-string="postgres://…"
+npx wrangler r2 bucket create trove-kb-uploads
 ```
 
 Put the Hyperdrive id into `wrangler.jsonc`, then set the secrets:
 
 ```bash
 npx wrangler secret put AUTH_SECRET      # openssl rand -base64 32
-npx wrangler secret put APP_URL          # https://bothy.yourdomain.com
+npx wrangler secret put APP_URL          # https://trove-kb.yourdomain.com
 npx wrangler secret put CRON_SECRET      # openssl rand -base64 32
 ```
 
@@ -198,7 +198,7 @@ DATABASE_URL="postgres://…" npm run db:seed    # optional starter doc types
 npm run cf:deploy
 ```
 
-Point `bothy.yourdomain.com` at the Worker with a route in `wrangler.jsonc` or a
+Point `trove-kb.yourdomain.com` at the Worker with a route in `wrangler.jsonc` or a
 custom domain in the dashboard. `APP_URL` must match the hostname people
 actually use, or single sign-on fails its state check.
 
@@ -209,7 +209,7 @@ process; a Worker has no process to hold one. The trigger in `wrangler.jsonc`
 fires every five minutes and calls `/api/internal/webhooks`, which stays inert
 unless `CRON_SECRET` is set. Backoff and the eight-attempt limit are unchanged.
 
-**Attachments go to R2** through the `BOTHY_UPLOADS` binding, with
+**Attachments go to R2** through the `TROVE_UPLOADS` binding, with
 `STORAGE_DRIVER=r2`. No credentials to carry.
 
 **Each request gets its own database connection.** A Worker may not reuse a
@@ -222,7 +222,7 @@ The vault sidecar cannot run on Workers: `bw serve` is a long-lived process
 holding an unlocked vault, and there is nowhere to put it. Two options.
 
 **Link mode** (the default, nothing to run). Secret fields store a deep link
-into your web vault. No brokering, no reveal inside Bothy.
+into your web vault. No brokering, no reveal inside Trove KB.
 
 **Keep the sidecar on your own network and reach it through a tunnel.** You
 still run `bw-serve` where you control it — an office machine, a VM, the same
@@ -251,12 +251,12 @@ is a credential worth protecting like any other.
 ### Local development against the Workers build
 
 ```bash
-docker run -d --name bothy-pg -p 55432:5432 \
-  -e POSTGRES_USER=bothy -e POSTGRES_DB=bothy -e POSTGRES_PASSWORD=dev postgres:16-alpine
-DATABASE_URL="postgres://bothy:dev@127.0.0.1:55432/bothy" npm run db:migrate
+docker run -d --name trove-kb-pg -p 55432:5432 \
+  -e POSTGRES_USER=trove-kb -e POSTGRES_DB=trove-kb -e POSTGRES_PASSWORD=dev postgres:16-alpine
+DATABASE_URL="postgres://trove-kb:dev@127.0.0.1:55432/trove-kb" npm run db:migrate
 
 npm run cf:build
-WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://bothy:dev@127.0.0.1:55432/bothy" \
+WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="postgres://trove-kb:dev@127.0.0.1:55432/trove-kb" \
   npx wrangler dev --local
 ```
 

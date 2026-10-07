@@ -106,7 +106,7 @@ test("a key that is wrong, or in a scheme that is not ours, is refused", async (
   const refused: Record<string, string>[] = [
     { Authorization: `${apiKey}x` },
     { Authorization: `Basic ${Buffer.from(`user:${apiKey}`).toString("base64")}` },
-    { "X-API-Key": "bothy_not-a-real-key-at-all" },
+    { "X-API-Key": "trove_not-a-real-key-at-all" },
   ];
   for (const headers of refused) {
     const response = await request.post("/api/mcp", { headers, data: ping });
@@ -123,7 +123,7 @@ test("it negotiates a protocol version and declares its tools", async ({ request
 
   expect(body.result.protocolVersion).toBe("2025-06-18");
   expect(body.result.capabilities.tools).toBeTruthy();
-  expect(body.result.serverInfo.name).toBe("bothy");
+  expect(body.result.serverInfo.name).toBe("trove-kb");
 
   // An older client keeps the version it asked for.
   const older = await rpc(request, "initialize", { protocolVersion: "2024-11-05" });

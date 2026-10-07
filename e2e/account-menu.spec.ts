@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
 test("the top bar holds nothing but the wordmark and the account button", async ({ page }) => {
   const banner = page.getByRole("banner");
 
-  await expect(banner.getByRole("link", { name: "Bothy" })).toBeVisible();
+  await expect(banner.getByRole("link", { name: "Trove KB" })).toBeVisible();
   await expect(banner.getByRole("button", { name: /^Account menu for / })).toBeVisible();
 
   // Settings are not on show until asked for.

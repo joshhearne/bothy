@@ -13,7 +13,7 @@ import { totpFrom } from "@/server/vault/totp";
  *
  * Connect is the same shape as the Bitwarden sidecar: it runs on the
  * operator's own network, holds the credentials that reach 1Password, and
- * answers a REST API with a bearer token. Bothy stores a reference to an item
+ * answers a REST API with a bearer token. Trove KB stores a reference to an item
  * and asks for the secret only when somebody clicks reveal.
  *
  * A 1Password item is addressed by vault *and* id, so an item id here is

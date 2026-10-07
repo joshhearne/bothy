@@ -442,7 +442,7 @@ export async function runConnector(id: string, actorId: string | null): Promise<
     const message =
       error instanceof FetchRefusedError ? error.message : "The connector stopped unexpectedly";
     if (!(error instanceof FetchRefusedError)) {
-      console.error("bothy: knowledge base connector failed", error);
+      console.error("trove-kb: knowledge base connector failed", error);
     }
     return run.finish(actorId, message);
   }
@@ -590,7 +590,7 @@ export async function runDueConnectors(): Promise<number> {
 
   for (const connector of due) {
     await runConnector(connector.id, null).catch((error) => {
-      console.error("bothy: knowledge base connector failed", error);
+      console.error("trove-kb: knowledge base connector failed", error);
     });
   }
   return due.length;

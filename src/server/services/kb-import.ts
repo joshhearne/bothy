@@ -424,7 +424,7 @@ export class ImportRun {
       this.pictures.set(path, contentHash);
       this.summary.images += 1;
     } catch (error) {
-      console.error(`bothy: knowledge base import could not store ${path}`, error);
+      console.error(`trove-kb: knowledge base import could not store ${path}`, error);
       await this.fail(path, "The image could not be stored");
     }
   }
@@ -491,7 +491,7 @@ export class ImportRun {
     try {
       original = await keepOriginal(this.collectionId, path, bytes, article.sourceType, contentHash);
     } catch (error) {
-      console.error(`bothy: knowledge base import could not keep the file ${path}`, error);
+      console.error(`trove-kb: knowledge base import could not keep the file ${path}`, error);
     }
     const withFile = original ? { ...article, metadata: { ...article.metadata, original } } : article;
     await this.article(path, withFile, contentHash, true);
@@ -549,7 +549,7 @@ export class ImportRun {
         await this.fail(path, error.message);
         return;
       }
-      console.error(`bothy: knowledge base import could not store ${path}`, error);
+      console.error(`trove-kb: knowledge base import could not store ${path}`, error);
       await this.fail(path, "The article could not be stored");
     }
   }
@@ -748,7 +748,7 @@ export async function importArchive(options: {
     const message =
       error instanceof ArchiveError ? error.message : "The import stopped unexpectedly";
     if (!(error instanceof ArchiveError)) {
-      console.error("bothy: knowledge base import failed", error);
+      console.error("trove-kb: knowledge base import failed", error);
     }
 
     if (run) return run.finish(options.actorId, message);

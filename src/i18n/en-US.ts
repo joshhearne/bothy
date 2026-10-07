@@ -4,7 +4,7 @@
  */
 export const enUS = {
   app: {
-    name: "Bothy",
+    name: "Trove KB",
     signOut: "Sign out",
     openNavigation: "Open navigation",
     closeNavigation: "Close navigation",
@@ -76,7 +76,7 @@ export const enUS = {
   },
 
   setup: {
-    heading: "Welcome to Bothy",
+    heading: "Welcome to Trove KB",
     description: "Create the first administrator account. This is the only time sign-up is open.",
     yourName: "Your name",
     email: "Email",
@@ -90,7 +90,7 @@ export const enUS = {
   },
 
   signIn: {
-    heading: "Sign in to Bothy",
+    heading: "Sign in to Trove KB",
     localOnly: "Use your local account.",
     withSso: "Use single sign-on or a local account.",
     email: "Email",
@@ -743,7 +743,7 @@ export const enUS = {
       copyNow: "Copy this key now",
       newApiKey: "New API key",
       storedNote: (prefix: string) =>
-        `Only the prefix ${prefix} is stored. Bothy keeps a SHA-256 hash, so this value cannot be shown again.`,
+        `Only the prefix ${prefix} is stored. Trove KB keeps a SHA-256 hash, so this value cannot be shown again.`,
       lastUsed: (when: string) => `last used ${when}`,
       neverUsed: "never used",
     },
@@ -760,7 +760,7 @@ export const enUS = {
       disable: "Disable",
       signingSecret: "Signing secret",
       secretLabel: "Webhook signing secret",
-      secretHint: "Verify X-Bothy-Signature as sha256=HMAC-SHA256(secret, raw body).",
+      secretHint: "Verify X-Trove-Signature as sha256=HMAC-SHA256(secret, raw body).",
       delivered: (when: string) => `delivered ${when}`,
       retrying: (when: string) => `retrying after ${when}`,
       notDelivered: "not delivered",
@@ -768,7 +768,7 @@ export const enUS = {
     vault: {
       title: "Vault",
       subtitle:
-        "Bothy stores references, never passwords. Credentials stay in the vault they already live in.",
+        "Trove KB stores references, never passwords. Credentials stay in the vault they already live in.",
       providers: "Providers",
       provider: "Vault",
       companyVault: "Which vault holds this client's secrets",
@@ -1018,7 +1018,7 @@ export const enUS = {
       setup: "Connecting a repository",
       setupHint:
         "Do this once in the repository. Afterwards its AI tooling reads and updates this collection without being asked.",
-      setupConnect: "1. Add Bothy as an MCP server, with a key that has access above",
+      setupConnect: "1. Add Trove KB as an MCP server, with a key that has access above",
       setupInstruct: "2. Tell the tooling when to update, in the repository's CLAUDE.md or equivalent",
 
       connectors: "Connectors",

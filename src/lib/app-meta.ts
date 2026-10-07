@@ -4,7 +4,7 @@
  * stays, because AGPL-3.0 §13 asks that people using it over a network can get
  * at the source.
  */
-export const PRODUCT_NAME = "Bothy";
+export const PRODUCT_NAME = "Trove KB";
 /** Who makes it. This credit travels with the software, whoever runs it. */
 export const VENDOR = "Hearne Technologies";
 export const VENDOR_URL = "https://hearnetech.com";
@@ -16,4 +16,4 @@ export const VENDOR_URL = "https://hearnetech.com";
 export const VENDOR_LOGO_LIGHT = "/vendor/hearne-technologies-light.png";
 export const VENDOR_LOGO_DARK = "/vendor/hearne-technologies-dark.png";
 export const LICENSE = "AGPL-3.0";
-export const SOURCE_URL = "https://github.com/joshhearne/bothy";
+export const SOURCE_URL = "https://github.com/joshhearne/trove-kb";

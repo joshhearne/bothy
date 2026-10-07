@@ -103,7 +103,7 @@ for. `instance_settings` is a single row holding what an operator chooses once
   key. `companies.accent` / `companies.logo_key` hold the same per client.
 - The name replaces the product name in the top bar, the tab title, and the
   sign-in page.
-- The footer credit ("Powered by Bothy | Hearne Technologies") names the
+- The footer credit ("Powered by Trove KB | Hearne Technologies") names the
   product and its maker, is the same on every install, and is optional:
   `instance_branding.show_powered_by`, on by default. The AGPL notice and the
   source link beside it are not optional, since §13 asks for them.
@@ -400,7 +400,7 @@ appears in the documentation search.
   report that they are unavailable. Reading and search work anywhere.
 
 ## Accounts and second factors
-Bothy has accounts of its own, so it has a second step of its own: single
+Trove KB has accounts of its own, so it has a second step of its own: single
 sign-on in front of it, or Cloudflare Access, is not a substitute.
 
 - **Passwords** (`src/server/auth/password-policy.ts`): 8 to 128 characters
@@ -454,6 +454,6 @@ sign-on in front of it, or Cloudflare Access, is not a substitute.
 ## Security baseline
 - Argon2id for local passwords
 - API keys: random 32 bytes, shown once, stored as SHA-256 hash, looked up by prefix
-- Webhooks signed with HMAC-SHA256 in `X-Bothy-Signature`
+- Webhooks signed with HMAC-SHA256 in `X-Trove-Signature`
 - Server-side HTML sanitization for richtext (DOMPurify via jsdom or sanitize-html)
 - CSRF protection on session routes, rate limiting on auth and API

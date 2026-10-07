@@ -38,7 +38,7 @@ export async function handleMessage(
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
         instructions:
-          "Bothy holds structured IT documentation: companies, their locations, and " +
+          "Trove KB holds structured IT documentation: companies, their locations, and " +
           "documents built from templates. Search first, then read the document you " +
           "need. Credentials are never returned; a secret field only says that one " +
           "exists. Knowledge base collections hold reference articles from outside " +
@@ -78,7 +78,7 @@ export async function handleMessage(
       } catch (error) {
         // A failure inside a tool is a result, not a protocol error, so the
         // model can read it. The message never carries internals.
-        console.error(`bothy: MCP tool ${name} failed`, error);
+        console.error(`trove-kb: MCP tool ${name} failed`, error);
         return success(id, toolError(`The ${name} tool failed. Check the server logs.`));
       }
     }

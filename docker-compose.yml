@@ -41,8 +41,8 @@ services:
     restart: unless-stopped
     environment:
       # Overridable for deployments with their own naming rules.
-      POSTGRES_USER: ${POSTGRES_USER:-bothy}
-      POSTGRES_DB: ${POSTGRES_DB:-bothy}
+      POSTGRES_USER: ${POSTGRES_USER:-trove}
+      POSTGRES_DB: ${POSTGRES_DB:-trove}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes: ["pgdata:/var/lib/postgresql/data"]
     networks: [internal]
@@ -52,7 +52,7 @@ services:
           cpus: "${DB_CPUS:-2}"
           memory: ${DB_MEMORY:-1g}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bothy}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trove}"]
       interval: 5s
       retries: 10
 

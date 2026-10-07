@@ -12,7 +12,7 @@
 # Moving an existing instance: stop the stack, copy what is already in the
 # volume onto the share, then start with this file.
 #
-#   docker run --rm -v bothy_uploads:/from -v /mnt/nas/bothy/uploads:/to \
+#   docker run --rm -v trove-kb_uploads:/from -v /mnt/nas/trove-kb/uploads:/to \
 #     alpine sh -c 'cp -a /from/. /to/'
 services:
   app:

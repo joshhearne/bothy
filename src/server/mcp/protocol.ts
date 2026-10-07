@@ -1,13 +1,13 @@
 /**
- * The slice of MCP that Bothy speaks: Streamable HTTP with plain JSON
- * responses. SSE is optional in the spec and Bothy never pushes to a client,
+ * The slice of MCP that Trove KB speaks: Streamable HTTP with plain JSON
+ * responses. SSE is optional in the spec and Trove KB never pushes to a client,
  * so the endpoint answers every request with one JSON object.
  */
 
 export const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"] as const;
 export const LATEST_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
 
-export const SERVER_INFO = { name: "bothy", title: "Bothy", version: "1.0.0" } as const;
+export const SERVER_INFO = { name: "trove-kb", title: "Trove KB", version: "1.0.0" } as const;
 
 export type JsonRpcId = string | number | null;
 

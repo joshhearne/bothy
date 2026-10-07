@@ -34,7 +34,7 @@ export const oidcConfigured = Boolean(
 );
 
 export const auth = betterAuth({
-  appName: "Bothy",
+  appName: "Trove KB",
   baseURL: env.APP_URL,
   secret: env.AUTH_SECRET,
 
@@ -70,7 +70,7 @@ export const auth = betterAuth({
           sendResetPassword: async ({ user, url }) => {
             await sendMail({
               to: user.email,
-              subject: "Reset your Bothy password",
+              subject: "Reset your Trove KB password",
               text:
                 `Somebody asked to reset the password for ${user.email}.\n\n` +
                 `Open this link within an hour to choose a new one:\n${url}\n\n` +

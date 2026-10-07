@@ -16,7 +16,7 @@ type Run = { done: Set<string>; toggle: (id: string) => void; total: number };
 const RunContext = createContext<Run>({ done: new Set(), toggle: () => {}, total: 0 });
 
 /**
- * One reading of a runbook. The ticks live in this page alone: Bothy keeps
+ * One reading of a runbook. The ticks live in this page alone: Trove KB keeps
  * no record of a run, so nothing here is sent anywhere, and a reload starts
  * over. Wraps every checklist the runbook has, so the count is one count.
  */

@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 /**
  * The MCP endpoint, Streamable HTTP with plain JSON responses.
  *
- * Bothy never pushes to a client, so SSE is not offered and GET answers 405,
+ * Trove KB never pushes to a client, so SSE is not offered and GET answers 405,
  * which the spec allows. Authentication is an API key with the read scope —
  * the same keys the REST API uses, so access can be revoked in one place.
  * Writing to a knowledge base collection is a grant on the key, not a scope.

@@ -19,7 +19,7 @@ export function KbView({ view }: { view: KbViewKind }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
-  const key = "bothy.kb.view";
+  const key = "trove.kb.view";
 
   function go(next: KbViewKind) {
     const query = new URLSearchParams(params.toString());

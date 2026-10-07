@@ -229,7 +229,7 @@ export const TOOLS: ToolDefinition[] = [
           doc_type: link.docTypeName,
           field: link.fieldLabel,
         })),
-        note: "Secret fields are omitted. Reveal a credential in Bothy, where it is audited.",
+        note: "Secret fields are omitted. Reveal a credential in Trove KB, where it is audited.",
       });
     },
   },
@@ -309,7 +309,7 @@ export const TOOLS: ToolDefinition[] = [
     title: "List doc types",
     description:
       "The templates documents are built from, with their fields. Useful for knowing " +
-      "what information Bothy expects to hold about a firewall, a circuit, and so on.",
+      "what information Trove KB expects to hold about a firewall, a circuit, and so on.",
     inputSchema: { type: "object", properties: {} },
     async run() {
       const docTypes = await listDocTypes();

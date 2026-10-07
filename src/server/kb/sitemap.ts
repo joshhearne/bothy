@@ -77,8 +77,10 @@ export function disallowedPaths(robots: string, product: string): string[] {
     }
   }
 
-  const name = product.toLowerCase();
-  const own = [...groups.entries()].find(([agent]) => agent !== "*" && name.includes(agent));
+  // "Trove KB" in the user agent, "trove-kb" or "trovekb" in a robots file: the same name.
+  const fold = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const name = fold(product);
+  const own = [...groups.entries()].find(([agent]) => agent !== "*" && agent.trim() !== "" && name.includes(fold(agent)));
   return own?.[1] ?? groups.get("*") ?? [];
 }
 

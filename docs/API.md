@@ -103,7 +103,7 @@ Payload:
 ```json
 { "event": "document.updated", "occurred_at": "...", "data": { ... resolved document ... } }
 ```
-Headers: `X-Bothy-Event`, `X-Bothy-Delivery`, `X-Bothy-Signature: sha256=<hmac>`.
+Headers: `X-Trove-Event`, `X-Trove-Delivery`, `X-Trove-Signature: sha256=<hmac>`.
 Retries with exponential backoff, up to 8 attempts.
 
 ## MCP
@@ -132,10 +132,10 @@ An article with `kind: "runbook"` is a procedure. Its `steps` are read from the
 body on every save: the items of every top-level list that is a procedure, in
 order across headings (a numbered list, a task list, or a bullet list whose
 items carry ids), each as `{ id, text, note?, canned? }`. The `id` is stable: write it yourself at the end
-of the item as `{#my-id}` (`[a-z0-9-]{1,40}`), or let Bothy mint one on first
+of the item as `{#my-id}` (`[a-z0-9-]{1,40}`), or let Trove KB mint one on first
 save, after which it is in the stored body and kept across edits. A system that
 tracks progress through a runbook keys its state by `id` and keeps that state on
-its own side; Bothy stores none. `note` is whatever was nested under the item,
+its own side; Trove KB stores none. `note` is whatever was nested under the item,
 Markdown; `canned` is the name in the first `@canned:[Name]` token of the step.
 Two steps with one id are refused.
 

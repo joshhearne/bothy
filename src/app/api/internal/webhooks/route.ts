@@ -20,7 +20,7 @@ function authorized(request: Request): boolean {
   const secret = env.CRON_SECRET;
   if (!secret) return false;
 
-  const presented = request.headers.get("x-bothy-cron-secret") ?? "";
+  const presented = request.headers.get("x-trove-cron-secret") ?? "";
   const a = Buffer.from(presented);
   const b = Buffer.from(secret);
   return a.length === b.length && timingSafeEqual(a, b);

@@ -3,7 +3,7 @@
 Guidance for Claude Code working in this repo. Read docs/ARCHITECTURE.md and docs/API.md first.
 
 ## Project
-Bothy: self-hosted, AGPL-3.0 structured IT documentation (Hudu/IT Glue alternative).
+Trove KB: self-hosted, AGPL-3.0 structured IT documentation (Hudu/IT Glue alternative).
 Standalone product. Integrates with any PSA through the REST API, external refs, and webhooks.
 No coupling to any specific PSA in core code.
 
@@ -104,7 +104,7 @@ archive extractors, a browser-side exporter) and every stored body is held to th
 - A section title the source numbers (`<ol><li><h2>`, `<p class="h2">`) is a heading, not an
   empty list item with its text on the next line.
 - A source site's own in-page navigation is never kept: breadcrumbs, "MENU" / "Contents" lists
-  of `#anchor` links, print and share buttons. Bothy builds its own outline from the article's
+  of `#anchor` links, print and share buttons. Trove KB builds its own outline from the article's
   headings (`src/server/kb/outline.ts`, `KbOutline`): on the right of the text on a wide
   screen, a button at the foot of the screen on a narrow one, and only when there are headings.
 - Pictures and files come along: `images/` and `files/` folders in an archive are attachments,

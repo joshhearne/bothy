@@ -3,9 +3,9 @@ import { hash as nativeHash, verify as nativeVerify } from "@node-rs/argon2";
 import { hashPassword, parseHash, verifyPassword } from "./password";
 
 /**
- * Bothy hashes in plain JavaScript so one implementation serves both the
+ * Trove KB hashes in plain JavaScript so one implementation serves both the
  * container and Workers. Argon2id is a standard, so hashes must travel in both
- * directions between Bothy and any other implementation. This runs the native
+ * directions between Trove KB and any other implementation. This runs the native
  * binding for real to prove it, rather than trusting the format by eye.
  */
 

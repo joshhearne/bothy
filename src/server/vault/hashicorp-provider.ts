@@ -187,7 +187,7 @@ export class HashicorpVaultProvider implements VaultProvider {
   async createItem(): Promise<VaultItemSummary> {
     // Writing into somebody's KV tree is a decision for whoever owns the
     // policies, not for a documentation tool.
-    throw new Error("This vault is read-only from Bothy");
+    throw new Error("This vault is read-only from Trove KB");
   }
 
   async sync(): Promise<void> {

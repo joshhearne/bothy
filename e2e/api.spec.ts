@@ -34,7 +34,7 @@ async function createKey(page: Page, name: string, scopes: string[]): Promise<st
   await page.getByRole("radio", { name: "Every company" }).check();
   await page.getByRole("button", { name: "Create key" }).click();
   const revealed = page.getByRole("status", { name: "New API key" });
-  await expect(revealed).toContainText("bothy_");
+  await expect(revealed).toContainText("trove_");
   return (await revealed.textContent()) as string;
 }
 
@@ -62,7 +62,7 @@ test("the API refuses anonymous and bad keys", async ({ request }) => {
   expect((await anonymous.json()).error.code).toBe("unauthorized");
 
   const wrong = await request.get("/api/v1/companies", {
-    headers: auth("bothy_not-a-real-key-at-all"),
+    headers: auth("trove_not-a-real-key-at-all"),
   });
   expect(wrong.status()).toBe(401);
 });
@@ -262,7 +262,7 @@ test("a queued webhook is delivered, signed, and recorded", async ({ request, br
 
   // The receiver runs on the stack's network: the app container has no route
   // back to the host running these tests.
-  const network = process.env.E2E_DOCKER_NETWORK ?? "bothy-test_public";
+  const network = process.env.E2E_DOCKER_NETWORK ?? "trove-kb-test_public";
   // A webhook left behind by an earlier run would deliver the same event with
   // a different secret, so start from one endpoint only.
   psql("delete from webhooks;");
@@ -297,11 +297,11 @@ test("a queued webhook is delivered, signed, and recorded", async ({ request, br
     const delivery = readReceived()[0];
     if (!delivery) throw new Error("no delivery captured");
 
-    expect(delivery.headers["x-bothy-event"]).toBe("company.created");
-    expect(delivery.headers["x-bothy-delivery"]).toBeTruthy();
+    expect(delivery.headers["x-trove-event"]).toBe("company.created");
+    expect(delivery.headers["x-trove-delivery"]).toBeTruthy();
 
     const expected = `sha256=${createHmac("sha256", secret).update(delivery.body).digest("hex")}`;
-    expect(delivery.headers["x-bothy-signature"]).toBe(expected);
+    expect(delivery.headers["x-trove-signature"]).toBe(expected);
 
     const payload = JSON.parse(delivery.body);
     expect(payload.event).toBe("company.created");
@@ -508,7 +508,7 @@ test("an endpoint that never answers does not hold up another", async ({ request
 
   const started = Date.now();
   const pass = await request.post("/api/internal/webhooks", {
-    headers: { "x-bothy-cron-secret": cronSecret },
+    headers: { "x-trove-cron-secret": cronSecret },
     timeout: 60_000,
   });
   const took = Date.now() - started;

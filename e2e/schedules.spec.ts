@@ -127,7 +127,7 @@ test("what is due is announced once, not on every pass", async ({ page, request 
 
   // The endpoint the Worker deployment's cron calls, which runs exactly what
   // the container's timer runs. Driving it directly beats waiting on a clock.
-  const headers = { "x-bothy-cron-secret": CRON_SECRET };
+  const headers = { "x-trove-cron-secret": CRON_SECRET };
   const first = await request.post("/api/internal/webhooks", { headers });
   expect(first.status()).toBe(200);
   expect((await first.json()).announced).toBeGreaterThan(0);

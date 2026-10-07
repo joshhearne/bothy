@@ -1,9 +1,9 @@
-# Bothy
+# Trove KB
 
 Self-hosted, open-source structured IT documentation for internal IT teams and MSPs.
 A lightweight alternative to Hudu and IT Glue.
 
-> A bothy is a simple shelter in the hills, left unlocked and kept stocked by
+> A trove-kb is a simple shelter in the hills, left unlocked and kept stocked by
 > whoever passes through, for whoever comes next. That is what good client
 > documentation is: not a record you keep for yourself, but something you
 > maintain for the person who picks up the ticket after you.
@@ -15,7 +15,7 @@ A lightweight alternative to Hudu and IT Glue.
 - Link documents to each other, with backlinks on the target
 - Full-text search across every document, no extra service
 - Attachments on a local volume or any S3-compatible bucket
-- Credentials stay in your own Bitwarden or Vaultwarden; Bothy brokers access
+- Credentials stay in your own Bitwarden or Vaultwarden; Trove KB brokers access
 - Local accounts or OIDC single sign-on, with an append-only audit trail
 - en-US and en-GB interface, switchable per reader
 - MCP endpoint so AI assistants can read your documentation, never your secrets
@@ -48,19 +48,19 @@ The spec is generated from the same Zod schemas the endpoints validate with and
 served at `/api/v1/openapi.json`.
 
 ```bash
-curl -H "Authorization: Bearer $BOTHY_KEY" http://localhost:3080/api/v1/companies
-curl -H "Authorization: Bearer $BOTHY_KEY" \
+curl -H "Authorization: Bearer $TROVE_KEY" http://localhost:3080/api/v1/companies
+curl -H "Authorization: Bearer $TROVE_KEY" \
   "http://localhost:3080/api/v1/lookup?system=halopsa&entity=company&external_id=123"
 ```
 
-Webhooks are signed with HMAC-SHA256 in `X-Bothy-Signature` (`sha256=<hex>` over
+Webhooks are signed with HMAC-SHA256 in `X-Trove-Signature` (`sha256=<hex>` over
 the raw body) and retried with exponential backoff up to 8 attempts by a worker
-inside the app container. Set `BOTHY_DISABLE_WEBHOOK_WORKER=true` to turn that
+inside the app container. Set `TROVE_DISABLE_WEBHOOK_WORKER=true` to turn that
 worker off, for example on a second replica.
 
 ## Secrets
 
-Bothy never stores a password, TOTP seed, or secure note. A `secret_ref` field
+Trove KB never stores a password, TOTP seed, or secure note. A `secret_ref` field
 holds a reference plus non-secret metadata; the value itself is fetched live
 from your own Bitwarden or Vaultwarden when someone with `can_reveal_secrets`
 asks for it, and every reveal is audited.
@@ -76,21 +76,21 @@ If the sidecar is locked or unreachable, secret fields degrade to link mode and
 say so.
 
 **Worth being plain about:** in `bw_serve` mode, anyone who fully compromises
-the Bothy host can read everything the service account can read. That is the
+the Trove KB host can read everything the service account can read. That is the
 same tradeoff Hudu and IT Glue make. Scope the service account to the
-collections Bothy should see, keep the sidecar internal, and stay on `link`
+collections Trove KB should see, keep the sidecar internal, and stay on `link`
 mode if that risk is unacceptable. See `docs/VAULT_INTEGRATION.md`.
 
 ## AI access (MCP)
 
-Bothy speaks the [Model Context Protocol](https://modelcontextprotocol.io) at
+Trove KB speaks the [Model Context Protocol](https://modelcontextprotocol.io) at
 `/api/mcp`, so an assistant can answer "what is the firewall admin URL for this
 client?" from your documentation rather than guessing. It uses the same API
 keys as the REST API, so access is granted and revoked in one place.
 
 ```bash
-claude mcp add --transport http bothy https://bothy.example.com/api/mcp \
-  --header "Authorization: Bearer $BOTHY_KEY"
+claude mcp add --transport http trove-kb https://trove-kb.example.com/api/mcp \
+  --header "Authorization: Bearer $TROVE_KEY"
 ```
 
 Five read-only tools: `search_documents`, `get_document`, `list_companies`,
@@ -98,13 +98,13 @@ Five read-only tools: `search_documents`, `get_document`, `list_companies`,
 
 **No assistant can read a credential.** Secret fields are stripped from every
 MCP response, and there is deliberately no reveal tool — revealing a credential
-stays a decision a person makes in Bothy, where it is audited. Nothing exposed
+stays a decision a person makes in Trove KB, where it is audited. Nothing exposed
 over MCP can change a record either; the tools are read-only by construction.
 
 ## Running it on Cloudflare
 
 Two ways. Put the container behind a **Cloudflare Tunnel** and it is published
-at `https://bothy.yourdomain.com` with no port open to the internet: install
+at `https://trove-kb.yourdomain.com` with no port open to the internet: install
 `cloudflared` on the host, point a public hostname at `127.0.0.1:3080`, set
 `APP_URL` to the hostname, and set `APP_BIND=127.0.0.1` so nothing but the
 tunnel can reach it. Everything else — the vault sidecar included — stays as it
@@ -157,7 +157,7 @@ where, with the documented items linked.
 
 Colour comes from the kind of equipment. Set it once for every client, and let
 a client override it where their own conventions differ; the key says which
-colours are overrides and what the default was. Bothy also says when two
+colours are overrides and what the default was. Trove KB also says when two
 colours are too close to tell apart in print, when an override has landed on a
 colour already in use in that rack, and when two things claim the same unit.
 
@@ -233,7 +233,7 @@ branding, so it stays clear which portal you are looking at.
 
 Branding says which mode it was drawn for, because a logo made for a white
 background disappears on a dark one. Say whether your set is for light or dark,
-and Bothy offers the other: a second logo and, if you want it, a second color,
+and Trove KB offers the other: a second logo and, if you want it, a second color,
 so the portal stays on brand in both. A color you state for a mode is used in
 that mode exactly as you gave it; a mode you leave empty gets one derived from
 the other, adjusted until it is readable. The branding screen previews both
@@ -244,7 +244,7 @@ Logos are PNG, JPEG, or WebP — SVG is refused, because an SVG can carry script
 and a logo is drawn on every page.
 
 The footer carries two things that are not the same. The credit — "Powered by
-Bothy | Hearne Technologies" — names the product and who makes it, and an
+Trove KB | Hearne Technologies" — names the product and who makes it, and an
 operator who would rather not show it can turn it off in Admin → Branding. The
 licence and the link to the source stay either way: AGPL-3.0 §13 asks that
 anyone using this over a network can get at the source, which is not an
@@ -279,7 +279,7 @@ byte of HTML — no script, and no flash of the wrong colors on load.
 
 ## Accounts, passwords, and the second step
 
-Bothy has accounts of its own, so it has a second sign-in step of its own.
+Trove KB has accounts of its own, so it has a second sign-in step of its own.
 Single sign-on in front of it, or Cloudflare Access, does not stand in for it.
 
 Passwords are 8 to 128 characters with an uppercase letter, a lowercase
@@ -327,10 +327,10 @@ End-to-end tests drive the inline editing flows in a real browser against a
 running instance:
 
 ```bash
-APP_PORT=3090 docker compose -p bothy-test up -d     # a throwaway stack
+APP_PORT=3090 docker compose -p trove-kb-test up -d     # a throwaway stack
 npx playwright install chromium                       # first time only
 E2E_BASE_URL=http://127.0.0.1:3090 npm run test:e2e
-docker compose -p bothy-test down -v
+docker compose -p trove-kb-test down -v
 ```
 
 The tests read the database directly. If your `.env` sets a database role

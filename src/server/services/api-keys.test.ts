@@ -73,17 +73,17 @@ describe("apiKeyInputSchema", () => {
 
 describe("hashKey", () => {
   it("is a hex sha256", () => {
-    expect(hashKey("bothy_abc")).toMatch(/^[0-9a-f]{64}$/);
+    expect(hashKey("trove_abc")).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it("never contains the key", () => {
-    expect(hashKey("bothy_secret")).not.toContain("secret");
+    expect(hashKey("trove_secret")).not.toContain("secret");
   });
 });
 
 describe("splitKey", () => {
   it("recognizes a key with its marker", () => {
-    expect(splitKey("bothy_abc123")).toEqual({ marker: "bothy_", body: "abc123" });
+    expect(splitKey("trove_abc123")).toEqual({ marker: "trove_", body: "abc123" });
   });
 
   it("treats anything else as a bare body", () => {

@@ -8,7 +8,7 @@
  * it, the archive's top folder names the category of articles that have none.
  * --ignore-manifest opens every file and judges it by its content, for an
  * export whose files changed without their dates changing. --force writes
- * every article again whether or not it changed, for when what Bothy
+ * every article again whether or not it changed, for when what Trove KB
  * derives from a body (a runbook's steps, say) has changed.
  *
  * The collection is created if it does not exist. Running it again with a

@@ -15,4 +15,4 @@ export function isTheme(value: unknown): value is Theme {
 }
 
 /** The cookie a reader's own choice is remembered in. */
-export const THEME_COOKIE = "bothy-theme";
+export const THEME_COOKIE = "trove-kb-theme";

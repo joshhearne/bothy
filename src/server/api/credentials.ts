@@ -1,5 +1,5 @@
 /**
- * Finding the API key in a request. The key is what Bothy handed out, and it
+ * Finding the API key in a request. The key is what Trove KB handed out, and it
  * is accepted as it was handed out: with the `Bearer` scheme in front, which
  * is what the HTTP convention asks for, or on its own, which is what people
  * paste. An `X-API-Key` header is read when there is no `Authorization`.

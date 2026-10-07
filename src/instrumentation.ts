@@ -12,7 +12,7 @@ const SCHEDULE_INTERVAL_MS =
   Number(process.env.SCHEDULE_POLL_SECONDS ?? 900) * 1000 || 15 * 60_000;
 
 declare global {
-  var __bothyWebhookWorker: NodeJS.Timeout | undefined;
+  var __troveWebhookWorker: NodeJS.Timeout | undefined;
 }
 
 export async function register(): Promise<void> {
@@ -21,8 +21,8 @@ export async function register(): Promise<void> {
   // to hold a timer.
   const { isWorkers } = await import("@/lib/runtime");
   if (isWorkers()) return;
-  if (process.env.BOTHY_DISABLE_WEBHOOK_WORKER === "true") return;
-  if (globalThis.__bothyWebhookWorker) return;
+  if (process.env.TROVE_DISABLE_WEBHOOK_WORKER === "true") return;
+  if (globalThis.__troveWebhookWorker) return;
 
   const { deliverDueWebhooks } = await import("@/server/services/webhooks");
   const { announceDue } = await import("@/server/services/schedules");
@@ -34,7 +34,7 @@ export async function register(): Promise<void> {
     try {
       await deliverDueWebhooks();
     } catch (error) {
-      console.error("bothy: webhook worker failed", error);
+      console.error("trove-kb: webhook worker failed", error);
     } finally {
       running = false;
     }
@@ -47,7 +47,7 @@ export async function register(): Promise<void> {
     try {
       await announceDue();
     } catch (error) {
-      console.error("bothy: schedule worker failed", error);
+      console.error("trove-kb: schedule worker failed", error);
     } finally {
       announcing = false;
     }
@@ -60,7 +60,7 @@ export async function register(): Promise<void> {
   const { runDueConnectors } = await import("@/server/services/kb-connectors");
   void failInterruptedImports()
     .then(() => clearScratch())
-    .catch((error) => console.error("bothy: knowledge base cleanup failed", error));
+    .catch((error) => console.error("trove-kb: knowledge base cleanup failed", error));
 
   let crawling = false;
   const crawl = async () => {
@@ -69,7 +69,7 @@ export async function register(): Promise<void> {
     try {
       await runDueConnectors();
     } catch (error) {
-      console.error("bothy: knowledge base connectors failed", error);
+      console.error("trove-kb: knowledge base connectors failed", error);
     } finally {
       crawling = false;
     }
@@ -85,10 +85,10 @@ export async function register(): Promise<void> {
   // Never hold the process open just for the pollers.
   timer.unref();
   scheduleTimer.unref();
-  globalThis.__bothyWebhookWorker = timer;
+  globalThis.__troveWebhookWorker = timer;
 
   // Once at boot, so a fresh container does not wait a quarter of an hour.
   void announce();
 
-  console.log("bothy: webhook worker started");
+  console.log("trove-kb: webhook worker started");
 }

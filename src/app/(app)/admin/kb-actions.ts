@@ -171,7 +171,7 @@ export async function runConnectorAction(formData: FormData): Promise<void> {
   const user = await requireAdmin();
 
   void runConnector(id, user.id).catch((error) => {
-    console.error("bothy: knowledge base connector failed", error);
+    console.error("trove-kb: knowledge base connector failed", error);
   });
 
   // Long enough for the run to have recorded itself before the page reloads.

@@ -97,7 +97,7 @@ export function buildOpenApiDocument(baseUrl: string) {
   return {
     openapi: "3.1.0",
     info: {
-      title: "Bothy API",
+      title: "Trove KB API",
       version: "1.0.0",
       description:
         "Self-hosted structured IT documentation. Authenticate with an API key as a bearer token.",
@@ -458,7 +458,7 @@ export function buildOpenApiDocument(baseUrl: string) {
         post: {
           summary: "Sent when a document is saved",
           description:
-            "Signed with HMAC-SHA256 in X-Bothy-Signature, with X-Bothy-Event and X-Bothy-Delivery alongside.",
+            "Signed with HMAC-SHA256 in X-Trove-Signature, with X-Trove-Event and X-Trove-Delivery alongside.",
           requestBody: {
             content: {
               "application/json": {

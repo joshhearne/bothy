@@ -139,7 +139,7 @@ export function InstanceBrandingForm({
         error={fieldErrors.name}
         hint={t.admin.branding.portalNameHint}
       >
-        <Input id="name" name="name" defaultValue={name ?? ""} maxLength={60} placeholder="Bothy" />
+        <Input id="name" name="name" defaultValue={name ?? ""} maxLength={60} placeholder="Trove KB" />
       </Field>
 
       <SchemeChoice scheme={scheme} onChange={setChosen} />

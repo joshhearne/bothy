@@ -35,7 +35,7 @@ describe("robots.txt", () => {
     Disallow: /private/
     Disallow: /*.pdf$
 
-    User-agent: bothy
+    User-agent: trove-kb
     Disallow: /drafts/
   `;
 
@@ -44,11 +44,11 @@ describe("robots.txt", () => {
   });
 
   it("prefers the rules that name the product", () => {
-    expect(disallowedPaths(robots, "Bothy")).toEqual(["/drafts/"]);
+    expect(disallowedPaths(robots, "Trove KB")).toEqual(["/drafts/"]);
   });
 
   it("allows everything when nothing is disallowed", () => {
-    expect(disallowedPaths("User-agent: *\nDisallow:\n", "Bothy")).toEqual([]);
+    expect(disallowedPaths("User-agent: *\nDisallow:\n", "Trove KB")).toEqual([]);
   });
 
   it("matches by prefix and by pattern", () => {

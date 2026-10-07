@@ -19,7 +19,7 @@ import { createCompany, createDocType, createDocument, signInAsAdmin, unique } f
  * a deep link rather than an error.
  */
 
-const PROJECT = process.env.E2E_COMPOSE_PROJECT ?? "bothy-test";
+const PROJECT = process.env.E2E_COMPOSE_PROJECT ?? "trove-kb-test";
 const NETWORK = process.env.E2E_DOCKER_NETWORK_INTERNAL ?? `${PROJECT}_internal`;
 const REPO = process.env.E2E_REPO ?? process.cwd();
 

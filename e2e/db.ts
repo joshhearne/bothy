@@ -1,8 +1,8 @@
 import { execFileSync } from "node:child_process";
 
-const PROJECT = process.env.E2E_COMPOSE_PROJECT ?? "bothy-test";
+const PROJECT = process.env.E2E_COMPOSE_PROJECT ?? "trove-kb-test";
 /** The role the test stack's database was created with. */
-const DB_USER = process.env.E2E_DB_USER ?? "bothy";
+const DB_USER = process.env.E2E_DB_USER ?? "trove";
 const CWD = process.env.E2E_REPO ?? process.cwd();
 
 /** Runs SQL against the stack under test. Used for assertions the UI cannot show. */

@@ -224,11 +224,11 @@ test("the footer credits the product and who makes it", async ({ page }) => {
   // Verbatim, and the same on every install: this credit is not the operator's
   // name, it is the software's.
   const footer = page.getByRole("contentinfo");
-  await expect(footer).toContainText("Powered by Bothy | Hearne Technologies");
+  await expect(footer).toContainText("Powered by Trove KB | Hearne Technologies");
   await expect(footer).toContainText("AGPL-3.0");
   await expect(footer.getByRole("link", { name: "Source code" })).toHaveAttribute(
     "href",
-    "https://github.com/joshhearne/bothy",
+    "https://github.com/joshhearne/trove-kb",
   );
 });
 
@@ -252,7 +252,7 @@ test("an operator may turn the credit off, but not the licence", async ({ page }
   await page.goto("/admin/branding");
   await page.getByRole("checkbox", { name: /Powered by/ }).check();
   await page.getByRole("button", { name: "Save branding" }).click();
-  await expect(page.getByRole("contentinfo")).toContainText("Powered by Bothy | Hearne Technologies");
+  await expect(page.getByRole("contentinfo")).toContainText("Powered by Trove KB | Hearne Technologies");
 });
 
 /* ---------- Per theme ---------- */

@@ -1,5 +1,5 @@
 /**
- * Bothy runs in two places: a Node container (the primary, fully featured
+ * Trove KB runs in two places: a Node container (the primary, fully featured
  * deployment) and Cloudflare Workers. A handful of seams differ between them,
  * and each one checks here rather than guessing.
  */

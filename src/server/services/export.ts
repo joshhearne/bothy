@@ -11,7 +11,7 @@ import { DEFAULT_LOCALE, type Locale } from "@/i18n/locales";
 
 /**
  * Per-company export, JSON or markdown. A secret_ref exports as the reference
- * and its non-secret metadata; the password and TOTP are not in Bothy to
+ * and its non-secret metadata; the password and TOTP are not in Trove KB to
  * export (CLAUDE.md).
  */
 
@@ -88,7 +88,7 @@ export async function buildCompanyExport(
     },
     locations: companyLocations,
     documents: exported,
-    note: "Secret fields export as a vault reference. Passwords and TOTP seeds are never stored by Bothy.",
+    note: "Secret fields export as a vault reference. Passwords and TOTP seeds are never stored by Trove KB.",
   };
 }
 
@@ -194,5 +194,5 @@ export function exportFilename(companyName: string, extension: "json" | "md"): s
       .replace(/^-|-$/g, "")
       .slice(0, 60) || "company";
   const stamp = new Date().toISOString().slice(0, 10);
-  return `bothy-${slug}-${stamp}.${extension}`;
+  return `trove-kb-${slug}-${stamp}.${extension}`;
 }

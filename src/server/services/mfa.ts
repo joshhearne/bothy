@@ -46,7 +46,7 @@ const ATTEMPTS_PER_MINUTE = 5;
 const PENDING_MINUTES = 10;
 
 const TOTP_PURPOSE = "mfa-totp";
-const ISSUER = "Bothy";
+const ISSUER = "Trove KB";
 
 export type PasskeyRow = {
   id: string;

@@ -29,7 +29,7 @@ test("a new key can be copied with a click, and says that it was", async ({ page
 
   const shown = page.getByRole("status", { name: "New API key" });
   const key = (await shown.textContent()) as string;
-  expect(key).toMatch(/^bothy_[A-Za-z0-9_-]{20,}$/);
+  expect(key).toMatch(/^trove_[A-Za-z0-9_-]{20,}$/);
 
   await page.getByRole("button", { name: "Copy", exact: true }).click();
   await expect(page.getByRole("button", { name: "Copied!" })).toBeVisible();
@@ -48,12 +48,12 @@ test("clicking the text itself copies it too", async ({ page }) => {
   collectionPath = new URL(page.url()).pathname;
 
   await page.getByText("Connecting a repository").click();
-  const command = page.getByRole("status", { name: /Add Bothy as an MCP server/ });
+  const command = page.getByRole("status", { name: /Add Trove KB as an MCP server/ });
   await command.click();
   await expect(page.getByRole("button", { name: "Copied!" })).toBeVisible();
 
   const copied = await page.evaluate(() => navigator.clipboard.readText());
-  expect(copied).toContain("claude mcp add --transport http bothy");
+  expect(copied).toContain("claude mcp add --transport http trove-kb");
   expect(copied).toContain("/api/mcp");
 
   const instructions = page.getByRole("status", { name: /Tell the tooling when to update/ });

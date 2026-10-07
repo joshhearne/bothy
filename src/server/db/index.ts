@@ -10,7 +10,7 @@ type Database = NodePgDatabase<typeof schema>;
 
 declare global {
   // Reuse the pool across dev hot reloads instead of leaking a pool per reload.
-  var __bothyPool: Pool | undefined;
+  var __trovePool: Pool | undefined;
 }
 
 /* ---------- Node: one pool for the life of the process ---------- */
@@ -20,8 +20,8 @@ let nodeDatabase: Database | undefined;
 function nodeDb(): Database {
   if (nodeDatabase) return nodeDatabase;
 
-  const pool = globalThis.__bothyPool ?? new Pool({ connectionString: env.DATABASE_URL, max: 10 });
-  if (env.NODE_ENV !== "production") globalThis.__bothyPool = pool;
+  const pool = globalThis.__trovePool ?? new Pool({ connectionString: env.DATABASE_URL, max: 10 });
+  if (env.NODE_ENV !== "production") globalThis.__trovePool = pool;
 
   nodeDatabase = drizzle(pool, { schema });
   return nodeDatabase;

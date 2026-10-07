@@ -1,7 +1,7 @@
 # Vault integration: Bitwarden and Vaultwarden
 
-Bothy never stores passwords. Credentials live in the admin's own Bitwarden or Vaultwarden.
-Bothy stores references and brokers access.
+Trove KB never stores passwords. Credentials live in the admin's own Bitwarden or Vaultwarden.
+Trove KB stores references and brokers access.
 
 ## Why this approach
 - Bitwarden vault data is end-to-end encrypted. No server-side API returns plaintext items.
@@ -35,7 +35,7 @@ the same company without colliding.
    `OP_CONNECT_URL=http://op-connect-api:8080` and `VAULT_MODE=op_connect`.
 3. Start it: `docker compose --profile onepassword up -d`. Connect runs on the
    internal network and never publishes a port, exactly like bw-serve.
-4. In Bothy, **Admin → Vault**, add a provider with mode `op_connect`, then map
+4. In Trove KB, **Admin → Vault**, add a provider with mode `op_connect`, then map
    each company to the 1Password **vault id** its secrets live in. A vault id
    is the `id` from `GET /v1/vaults` on Connect, or `op vault list --format
    json` with the CLI.
@@ -60,23 +60,23 @@ but has no end-to-end test and has not met a live Vault. Treat it as unproven.
 
 ## Architecture (bw_serve)
 ```
-browser -> Bothy app -> (internal docker network only) -> bw-serve sidecar -> Bitwarden/Vaultwarden
+browser -> Trove KB app -> (internal docker network only) -> bw-serve sidecar -> Bitwarden/Vaultwarden
 ```
 
 Running on Cloudflare, the sidecar stays on the operator's own network and the
 Worker reaches it through a tunnel that only Cloudflare Access can traverse:
 ```
-browser -> Bothy Worker -> Cloudflare Access (service token) -> tunnel -> bw-serve -> Bitwarden/Vaultwarden
+browser -> Trove KB Worker -> Cloudflare Access (service token) -> tunnel -> bw-serve -> Bitwarden/Vaultwarden
 ```
 Access does the job the private network does above: `bw serve` is never
 reachable without the service token. See docs/CLOUDFLARE.md.
 - Sidecar runs the official `@bitwarden/cli`, logs in with a dedicated service account (API key), unlocks, and runs `bw serve`.
 - `bw serve` has NO authentication. It must never publish a port. Internal network only.
-- Bothy calls `/sync` on a schedule (default 5 min) and before item creation.
+- Trove KB calls `/sync` on a schedule (default 5 min) and before item creation.
 
 ## Service account
 - A dedicated Bitwarden/Vaultwarden user, member of the MSP org.
-- Access only to client collections Bothy should see. "Can view" unless item creation is enabled.
+- Access only to client collections Trove KB should see. "Can view" unless item creation is enabled.
 - Login via API key (`BW_CLIENTID`/`BW_CLIENTSECRET`). Master password via Docker secret file, not a plain env var.
 
 ## Data model
@@ -98,6 +98,6 @@ reachable without the service token. See docs/CLOUDFLARE.md.
 - If the sidecar is down or locked, secret fields degrade to `link` mode and show a warning.
 
 ## Honest risk statement (put in the docs)
-In `bw_serve` mode, anyone who fully compromises the Bothy host can read everything the service account can read.
+In `bw_serve` mode, anyone who fully compromises the Trove KB host can read everything the service account can read.
 That is the same tradeoff Hudu and IT Glue make. Scope the service account tightly, keep the sidecar internal,
 and use `link` mode if that risk is unacceptable.
