@@ -1,11 +1,31 @@
 import type { CSSProperties, ReactNode } from "react";
 import { brandTokens } from "@/lib/brand-color";
+import { FACETS } from "@/lib/trove-mark";
 import type { Branding } from "@/server/services/branding";
 
 /**
+ * The product's own mark, drawn in the accent in force. Decorative: the name
+ * beside it is what reads.
+ */
+export function TroveMark({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      aria-hidden
+      data-brand-mark
+      className={`shrink-0 fill-[var(--primary)] ${className}`}
+    >
+      {FACETS.map((facet) => (
+        <path key={facet.d} d={facet.d} fillOpacity={facet.opacity} />
+      ))}
+    </svg>
+  );
+}
+
+/**
  * The wordmark: an operator's logo and name in place of ours. The name falls
- * back to the product name, so an instance with no branding looks exactly as
- * it did before anyone set any.
+ * back to the product name and the logo to the product mark, so an instance
+ * with no branding still looks like something.
  */
 export function BrandMark({
   branding,
@@ -32,6 +52,7 @@ export function BrandMark({
  * and it keeps up when the reader's own machine flips to dark at sunset.
  *
  * With only one logo, it is shown in both themes: a faint logo beats a gap.
+ * With none, the product mark stands, in whatever accent is in force.
  */
 export function BrandLogo({
   branding,
@@ -40,7 +61,7 @@ export function BrandLogo({
   branding: Branding;
   className?: string;
 }) {
-  if (!branding.logoUrl && !branding.altLogoUrl) return null;
+  if (!branding.logoUrl && !branding.altLogoUrl) return <TroveMark className={className} />;
 
   const other = branding.scheme === "light" ? "dark" : "light";
   const slots: { scheme: "light" | "dark"; url: string | null }[] = [

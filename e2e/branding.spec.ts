@@ -112,6 +112,28 @@ test("the portal name replaces the product name everywhere it shows", async ({ p
   await anonymous.close();
 });
 
+test("without a logo, the product mark stands, in the header and in the tab", async ({ page, request }) => {
+  await signInAsAdmin(page);
+  await page.goto("/companies");
+  await expect(page.getByRole("banner").locator("svg[data-brand-mark]")).toBeVisible();
+
+  const icon = page.locator('link[rel="icon"]');
+  await expect(icon).toHaveAttribute("href", /\/api\/branding\/icon\?v=[0-9a-f]{6}/);
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", /format=png&size=180/);
+
+  // Public, and in whatever colour the instance has chosen: here the default.
+  const href = (await icon.getAttribute("href")) as string;
+  const svg = await request.get(href);
+  expect(svg.status()).toBe(200);
+  expect(svg.headers()["content-type"]).toBe("image/svg+xml");
+  expect(await svg.text()).toContain('fill="#0f766e"');
+
+  const png = await request.get("/api/branding/icon?format=png&size=64");
+  expect(png.status()).toBe(200);
+  expect(png.headers()["content-type"]).toBe("image/png");
+  expect((await png.body()).subarray(0, 4)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+});
+
 test("a logo is uploaded, served, and shown", async ({ page, request }) => {
   await signInAsAdmin(page);
   await page.goto("/admin/branding");
@@ -128,6 +150,9 @@ test("a logo is uploaded, served, and shown", async ({ page, request }) => {
   await expect(logo).toBeVisible();
   const src = (await logo.getAttribute("src")) as string;
   expect(src).toContain("/api/branding/logo");
+  // The operator's logo takes the mark's place, and the tab's.
+  await expect(page.getByRole("banner").locator("svg[data-brand-mark]")).toHaveCount(0);
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", /\/api\/branding\/logo/);
 
   // The instance logo is public: the sign-in page has to be able to draw it.
   const served = await request.get(src);

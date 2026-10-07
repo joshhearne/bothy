@@ -22,7 +22,8 @@
 
 /**
  * Both palettes are named once, then aliased through light-dark(), which
- * resolves against the used color-scheme. The reader's choice sets that
+ * resolves against the used color-scheme. The accent is a teal, the one the
+ * product mark is cut in; Admin → Branding replaces it per instance. The reader's choice sets that
  * scheme on <html>, so every token flips without a single dark: utility.
  */
 :root {
@@ -34,10 +35,10 @@
   --light-card-foreground: oklch(0.21 0.02 258);
   --light-muted: oklch(0.968 0.006 258);
   --light-muted-foreground: oklch(0.55 0.02 258);
-  --light-primary: oklch(0.45 0.13 250);
+  --light-primary: oklch(0.51 0.1 186);
   --light-primary-foreground: oklch(0.985 0 0);
   --light-border: oklch(0.922 0.006 258);
-  --light-ring: oklch(0.45 0.13 250);
+  --light-ring: oklch(0.51 0.1 186);
   --light-destructive: oklch(0.58 0.21 27);
   --light-success: oklch(0.47 0.13 150);
   --light-success-muted: oklch(0.95 0.05 150);
@@ -48,7 +49,7 @@
   /* A second neutral layer, so navigation reads as chrome, not content. */
   --light-sidebar: oklch(0.979 0.004 258);
   --light-sidebar-border: oklch(0.915 0.006 258);
-  --light-selection: oklch(0.45 0.13 250 / 0.18);
+  --light-selection: oklch(0.51 0.1 186 / 0.18);
 
   --dark-background: oklch(0.18 0.015 258);
   --dark-foreground: oklch(0.97 0.005 258);
@@ -56,10 +57,10 @@
   --dark-card-foreground: oklch(0.97 0.005 258);
   --dark-muted: oklch(0.27 0.017 258);
   --dark-muted-foreground: oklch(0.72 0.015 258);
-  --dark-primary: oklch(0.72 0.12 245);
+  --dark-primary: oklch(0.78 0.14 182);
   --dark-primary-foreground: oklch(0.18 0.015 258);
   --dark-border: oklch(0.32 0.017 258);
-  --dark-ring: oklch(0.72 0.12 245);
+  --dark-ring: oklch(0.78 0.14 182);
   --dark-destructive: oklch(0.65 0.19 27);
   --dark-success: oklch(0.78 0.16 150);
   --dark-success-muted: oklch(0.3 0.06 150);
@@ -69,7 +70,7 @@
   --dark-info-muted: oklch(0.3 0.05 245);
   --dark-sidebar: oklch(0.215 0.016 258);
   --dark-sidebar-border: oklch(0.3 0.017 258);
-  --dark-selection: oklch(0.72 0.12 245 / 0.28);
+  --dark-selection: oklch(0.78 0.14 182 / 0.28);
 }
 
 /*

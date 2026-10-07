@@ -103,6 +103,12 @@ for. `instance_settings` is a single row holding what an operator chooses once
   key. `companies.accent` / `companies.logo_key` hold the same per client.
 - The name replaces the product name in the top bar, the tab title, and the
   sign-in page.
+- With no logo, the product mark stands (`src/lib/trove-mark.ts`, a gem in six
+  facets): inline SVG in `var(--primary)` beside the name, and the tab icon
+  from `/api/branding/icon`, a tile in the instance's accent — SVG, or PNG
+  with `format=png&size=N` for the touch icon. The icon address carries the
+  accent (`?v=`), so it caches hard and changes when the accent does. The
+  default palette is a teal (`globals.css`, hex twins in `trove-mark.ts`).
 - The footer credit ("Powered by Trove KB | Hearne Technologies") names the
   product and its maker, is the same on every install, and is optional:
   `instance_branding.show_powered_by`, on by default. The AGPL notice and the

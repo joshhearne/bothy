@@ -263,6 +263,10 @@ nobody has to read a compose file to see how their instance is running.
 replaces the product name in the top bar, the browser tab, and on the sign-in
 page; the logo appears beside it and doubles as the tab icon.
 
+Until you set any of that, the portal wears its own: a teal accent, and a cut
+gem as the mark beside the name and in the tab. Change only the accent and the
+mark and the tab icon follow it; upload a logo and they step aside.
+
 Each company can carry a logo and accent of its own, set on its edit page, and
 they show on that company's pages and its documents. The shell keeps your
 branding, so it stays clear which portal you are looking at.
