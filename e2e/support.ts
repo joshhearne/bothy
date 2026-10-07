@@ -1,10 +1,21 @@
 import { expect, type Page } from "@playwright/test";
+import { psql } from "./db";
 
 export const ADMIN = {
   email: "e2e-admin@example.com",
   password: "Correct horse battery 7!",
   name: "E2E Admin",
 };
+
+/**
+ * Clears the instance's chosen language, so en-US is what renders. Any spec
+ * that asserts US spelling needs this: the setting is instance-wide, one
+ * database serves the whole run, and a spec that exercises the dropdown leaves
+ * its last choice behind.
+ */
+export function clearInstanceLocale(): void {
+  psql("update instance_settings set default_locale = '';");
+}
 
 /** A suffix that keeps each run's records apart in a database that persists. */
 export function unique(prefix: string): string {

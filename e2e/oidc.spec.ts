@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import { psql } from "./db";
-import { openAccountMenu, signInAsAdmin } from "./support";
+import { ADMIN, openAccountMenu, signInAsAdmin } from "./support";
 import { CLIENT_ID, ISSUER, startMockOidc, stopMockOidc } from "./mock-oidc";
 
 /**
@@ -168,8 +168,9 @@ test("an SSO user gets the permissions of their role, nothing more", async ({ pa
 
 test("the local sign-in form still works alongside SSO", async ({ page }) => {
   await page.goto("/sign-in");
-  await page.getByLabel("Email").fill("e2e-admin@example.com");
-  await page.getByLabel("Password", { exact: true }).fill("an-e2e-admin-password");
+  // The one account every spec shares, so a change to its password reaches here too.
+  await page.getByLabel("Email").fill(ADMIN.email);
+  await page.getByLabel("Password", { exact: true }).fill(ADMIN.password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/companies/);
 });

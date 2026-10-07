@@ -1,7 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { zipSync } from "fflate";
 import { createUser, psql, setKeyCompanies, setUserCompanies } from "./db";
-import { createCompany, signInAs, signInAsAdmin, unique } from "./support";
+import { clearInstanceLocale, createCompany, signInAs, signInAsAdmin, unique } from "./support";
 
 /**
  * The knowledge base: an archive goes in through the browser, comes out as
@@ -121,13 +121,20 @@ async function importArchive(page: Page, name: string, buffer: Buffer, category?
 
 /** The four numbers the summary shows, by their labels. */
 async function summary(page: Page): Promise<Record<string, number>> {
+  const labels = ["Added", "Updated", "Skipped", "Failed"];
+  // Wait for the whole block first. Reading label by label means the first
+  // read carries the wait, and a block that never arrives — a label renamed by
+  // another language, a run that failed before it painted — hangs until the
+  // test times out and says only "textContent".
+  const rows = page.locator("dl div").filter({ has: page.getByText(/^(Added|Updated|Skipped|Failed)$/) });
+  await expect(rows).toHaveCount(labels.length, { timeout: 30_000 });
+
   const counts: Record<string, number> = {};
-  for (const label of ["Added", "Updated", "Skipped", "Failed"]) {
-    const value = await page
-      .locator("dl div")
+  for (const label of labels) {
+    const value = await rows
       .filter({ has: page.getByText(label, { exact: true }) })
       .locator("dd")
-      .textContent();
+      .textContent({ timeout: 10_000 });
     counts[label] = Number(value);
   }
   return counts;
@@ -161,6 +168,9 @@ async function callTool(
 
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(120_000);
+  // "Uncategorized" below is US spelling, so the instance must not be left on
+  // another language by whatever ran before this file.
+  clearInstanceLocale();
   const page = await browser.newPage();
   await signInAsAdmin(page);
 
@@ -963,9 +973,15 @@ async function visitor(browser: import("@playwright/test").Browser, address?: st
   return { context, page: await context.newPage() };
 }
 
-test("the public site is off until somebody turns it on", async ({ browser }) => {
-  const { context, page } = await visitor(browser, ON_SITE);
-  expect((await page.goto("/pub/kb"))?.status()).toBe(404);
+test("the public site is off until somebody turns it on", async ({ page, browser }) => {
+  // Off is the state being tested, not a state to be inherited: the setting is
+  // instance-wide, and a later test here turns the site on and leaves it on for
+  // whatever reads this database next.
+  await setPublicSite(page, "off");
+  expect(psql("select kb_public_mode from instance_settings;")).toBe("off");
+
+  const { context, page: reader } = await visitor(browser, ON_SITE);
+  expect((await reader.goto("/pub/kb"))?.status()).toBe(404);
   await context.close();
 });
 
@@ -979,6 +995,9 @@ test("naming no address is refused rather than read as off", async ({ page }) =>
 });
 
 test("on, it shows only the collections marked for it", async ({ page, browser }) => {
+  // An earlier run's collections are still in this database, and any one of
+  // them left on the site would make the empty state below unreachable.
+  psql("update kb_collections set public_access = false;");
   await setPublicSite(page, "addresses", "203.0.113.0/24");
   await expect(page.getByText("Saved.")).toBeVisible();
 
@@ -1093,6 +1112,9 @@ test("readers' favorites and votes order the lists, and the visitor sees the cou
   await onSite.context.close();
 
   // Cloudflare Access is named on the settings page, both halves or neither.
+  // Both are instance-wide, so an earlier run's pair has to go first or the
+  // half filled in below is not the only half there is.
+  psql("update instance_settings set kb_public_access_team = null, kb_public_access_aud = null;");
   await page.goto("/admin/settings");
   await page.getByLabel("Team").fill("calder-ridge");
   await page.getByRole("button", { name: "Update public site" }).click();
@@ -1225,29 +1247,33 @@ test("keyword rules and category visibility hold articles back from the public s
 
   // The preview counts as the patterns are typed, before anything is saved.
   await page.reload();
-  const patterns = page.getByLabel("Patterns");
-  const counts = page.getByRole("status").filter({ hasText: /hold back|matches|pattern|expression/ });
+  // Scoped to the form: the page also lists the collection's companies as tick
+  // boxes, and a company named after what a scope is called — "Files Co" — is
+  // a second match for the same accessible name.
+  const ruleForm = page.locator("form").filter({ has: page.getByLabel("Patterns") });
+  const patterns = ruleForm.getByLabel("Patterns");
+  const counts = ruleForm.getByRole("status").filter({ hasText: /hold back|matches|pattern|expression/ });
   await patterns.fill("admin");
   await expect(counts).toContainText("Would hold back 1 article");
   await expect(counts).toContainText("1 by title");
-  await page.getByRole("checkbox", { name: /^Categories\b/ }).check();
+  await ruleForm.getByRole("checkbox", { name: /^Categories\b/ }).check();
   await patterns.fill("admin, internal\n*.pdf");
   await expect(counts).toContainText("3 patterns");
   await expect(counts).toContainText("Would hold back 2 articles");
-  await page.getByRole("checkbox", { name: /^Files\b/ }).check();
+  await ruleForm.getByRole("checkbox", { name: /^Files\b/ }).check();
   await expect(counts).toContainText("Would hold back 3 articles");
   await expect(counts).toContainText("1 by file");
 
   // A bad regular expression is said so, and cannot be saved.
-  await page.getByRole("checkbox", { name: "Regular expressions" }).check();
+  await ruleForm.getByRole("checkbox", { name: "Regular expressions" }).check();
   await patterns.fill("admin(");
   await expect(counts).toContainText("not a valid regular expression");
-  await expect(page.getByRole("button", { name: "Add rules" })).toBeDisabled();
-  await page.getByRole("checkbox", { name: "Regular expressions" }).uncheck();
+  await expect(ruleForm.getByRole("button", { name: "Add rules" })).toBeDisabled();
+  await ruleForm.getByRole("checkbox", { name: "Regular expressions" }).uncheck();
 
   await patterns.fill("admin, internal\n*.pdf");
   await expect(counts).toContainText("Would hold back 3 articles");
-  await page.getByRole("button", { name: "Add rules" }).click();
+  await ruleForm.getByRole("button", { name: "Add rules" }).click();
   await expect(page.getByText("Rules added")).toBeVisible();
   await expect(page.getByRole("listitem").filter({ hasText: "*.pdf" })).toContainText("holds back 1 article");
   await expect(page.getByRole("listitem").filter({ hasText: "internal" })).toContainText("holds back 1 article");

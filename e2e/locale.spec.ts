@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openAccountMenu, signInAsAdmin } from "./support";
+import { clearInstanceLocale, openAccountMenu, signInAsAdmin } from "./support";
 
 /**
  * The interface ships en-US and offers en-GB as a translation. Switching is a
@@ -7,6 +7,9 @@ import { openAccountMenu, signInAsAdmin } from "./support";
  */
 
 test.describe.configure({ mode: "serial" });
+
+// What the instance was last set to is not this file's subject.
+test.beforeAll(clearInstanceLocale);
 
 test.beforeEach(async ({ page }) => {
   await signInAsAdmin(page);

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { psql } from "./db";
 import { signInAsAdmin, unique } from "./support";
 
 /**
@@ -88,11 +89,21 @@ test("a dropdown still shows what was chosen once it is saved", async ({ page })
 test("so do a form's other dropdowns and its tick boxes", async ({ page }) => {
   await page.goto("/admin/settings");
   const language = page.getByLabel("Default language");
+  const stored = () => psql("select default_locale from instance_settings;");
+
   await language.selectOption("en-GB");
   await page.getByRole("button", { name: "Save", exact: true }).click();
+  // The save revalidates and the dropdown is uncontrolled, so it remounts on
+  // whatever was stored. Changing it again before that lands means choosing on
+  // a control that is about to be replaced — and the second save then writes
+  // the first value back, which leaves en-GB on the instance every other spec
+  // reads.
+  await expect.poll(stored).toBe("en-GB");
   await expect(language).toHaveValue("en-GB");
-  await language.selectOption({ index: 0 });
+
+  await language.selectOption("");
   await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect.poll(stored).toBe("");
   await expect(language).toHaveValue("");
 
   await page.goto(collectionPath);
