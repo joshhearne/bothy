@@ -95,6 +95,7 @@ function Suggestion({
   value,
   current,
   option,
+  formal = false,
 }: {
   documentId: string;
   role: "expiry" | "registrar" | "dns_host";
@@ -103,6 +104,12 @@ function Suggestion({
   current: string | null;
   /** The field is a dropdown, so a name can also rename the option it matched. */
   option: boolean;
+  /**
+   * The value is the formal name from an authority (a registry), worth
+   * renaming an option to. A name read off a hostname is a guess, and a
+   * guess never renames what somebody wrote.
+   */
+  formal?: boolean;
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(
     applyDomainSuggestionAction,
@@ -119,9 +126,18 @@ function Suggestion({
     );
   }
 
-  // The same name in different words ("Cloudflare, Inc." beside "Cloudflare"):
-  // either becomes its own option, or the existing one takes the new name.
-  const sameName = Boolean(current && option && namesAgree(current, value));
+  // The same name in different words ("Cloudflare, Inc." beside "Cloudflare").
+  // From an authority, either becomes its own option or the existing one takes
+  // the new name; from a guess, it is simply the same thing.
+  const agree = Boolean(current && namesAgree(current, value));
+  if (agree && current && !(option && formal)) {
+    return (
+      <p className="text-sm text-[var(--muted-foreground)]">
+        {label}: {value} — {t.documents.domain.matchesAs(current)}
+      </p>
+    );
+  }
+  const sameName = agree && option;
 
   return (
     <form
@@ -720,6 +736,7 @@ export function DomainPanel({
                     value={result.rdap.data.registrar}
                     current={current.registrar}
                     option={current.options.registrar}
+                    formal
                   />
                 )}
                 {result.rdap.data.expires && state.targets.expiry && (
