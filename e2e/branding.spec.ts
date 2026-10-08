@@ -55,7 +55,9 @@ async function setInstanceName(page: Page, name: string) {
  */
 async function primaryToken(page: Page): Promise<string> {
   return page.evaluate(() => {
-    const carriers = [...document.querySelectorAll<HTMLElement>("[style]")].filter(
+    const carriers = [
+      ...document.querySelectorAll<HTMLElement>("[style]"),
+    ].filter(
       (el) =>
         el.style.getPropertyValue("--primary") &&
         // Not one of the branding screen's per-theme previews, which carry a
@@ -77,10 +79,17 @@ test.beforeAll(async ({ browser }) => {
   const page = await browser.newPage();
   await signInAsAdmin(page);
 
-  await createDocType(page, DOC_TYPE, [{ label: "Support Phone", type: "text" }]);
+  await createDocType(page, DOC_TYPE, [
+    { label: "Support Phone", type: "text" },
+  ]);
   companyId = await createCompany(page, COMPANY);
   plainId = await createCompany(page, PLAIN);
-  documentId = await createDocument(page, companyId, DOC_TYPE, unique("Branded firewall"));
+  documentId = await createDocument(
+    page,
+    companyId,
+    DOC_TYPE,
+    unique("Branded firewall"),
+  );
 
   await page.close();
 });
@@ -94,12 +103,16 @@ test.afterAll(() => {
   );
 });
 
-test("the portal name replaces the product name everywhere it shows", async ({ page }) => {
+test("the portal name replaces the product name everywhere it shows", async ({
+  page,
+}) => {
   await signInAsAdmin(page);
   await setInstanceName(page, PORTAL);
 
   await page.goto("/companies");
-  await expect(page.getByRole("banner").getByRole("link", { name: PORTAL })).toBeVisible();
+  await expect(
+    page.getByRole("banner").getByRole("link", { name: PORTAL }),
+  ).toBeVisible();
   await expect(page).toHaveTitle(PORTAL);
 
   // Including the page nobody has signed in to yet.
@@ -112,15 +125,28 @@ test("the portal name replaces the product name everywhere it shows", async ({ p
   await anonymous.close();
 });
 
-test("without a logo, the product mark stands, in the header and in the tab", async ({ page, request }) => {
+test("without a logo, the product mark stands, in the header and in the tab", async ({
+  page,
+  request,
+}) => {
   await signInAsAdmin(page);
   await page.goto("/companies");
-  await expect(page.getByRole("banner").locator("svg[data-brand-mark]")).toBeVisible();
+  await expect(
+    page.getByRole("banner").locator("svg[data-brand-mark]"),
+  ).toBeVisible();
 
   const icon = page.locator('link[rel="icon"][type="image/svg+xml"]');
-  await expect(icon).toHaveAttribute("href", /\/api\/branding\/icon\?v=[0-9a-f]{12}-[0-9a-f]{12}$/);
-  await expect(page.locator('link[rel="icon"][type="image/png"]')).toHaveAttribute("href", /format=png&size=32/);
-  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", /format=png&size=180/);
+  await expect(icon).toHaveAttribute(
+    "href",
+    /\/api\/branding\/icon\?v=[0-9a-f]{12}-[0-9a-f]{12}$/,
+  );
+  await expect(
+    page.locator('link[rel="icon"][type="image/png"]'),
+  ).toHaveAttribute("href", /format=png&size=32/);
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
+    "href",
+    /format=png&size=180/,
+  );
 
   // Public, and in whatever colour the instance has chosen: here the default.
   const href = (await icon.getAttribute("href")) as string;
@@ -130,15 +156,22 @@ test("without a logo, the product mark stands, in the header and in the tab", as
   // The default palette has an accent per mode, so the icon switches with the browser.
   const body = await svg.text();
   expect(body).toContain('fill="#0f766e"');
-  expect(body).toContain("@media (prefers-color-scheme: dark){.t{fill:#2dd4bf}");
+  expect(body).toContain(
+    "@media (prefers-color-scheme: dark){.t{fill:#2dd4bf}",
+  );
 
   const png = await request.get("/api/branding/icon?format=png&size=64");
   expect(png.status()).toBe(200);
   expect(png.headers()["content-type"]).toBe("image/png");
-  expect((await png.body()).subarray(0, 4)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  expect((await png.body()).subarray(0, 4)).toEqual(
+    Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+  );
 });
 
-test("the tab icon takes each mode's accent, and is one icon when they are the same", async ({ page, request }) => {
+test("the tab icon takes each mode's accent, and is one icon when they are the same", async ({
+  page,
+  request,
+}) => {
   await signInAsAdmin(page);
   await page.goto("/admin/branding");
   await page.getByLabel("Accent color for light mode").first().fill("#1f6feb");
@@ -149,28 +182,46 @@ test("the tab icon takes each mode's accent, and is one icon when they are the s
   // The head is rendered by the layout the save revalidates, so the new
   // address is the signal that it landed.
   const icon = page.locator('link[rel="icon"][type="image/svg+xml"]');
-  await expect(icon).toHaveAttribute("href", /\?v=1f6feb[0-9a-f]{6}-7c3aed[0-9a-f]{6}$/);
+  await expect(icon).toHaveAttribute(
+    "href",
+    /\?v=1f6feb[0-9a-f]{6}-7c3aed[0-9a-f]{6}$/,
+  );
   const svg = await request.get((await icon.getAttribute("href")) as string);
   const body = await svg.text();
   expect(body).toContain('fill="#1f6feb"');
-  expect(body).toContain("@media (prefers-color-scheme: dark){.t{fill:#7c3aed}");
+  expect(body).toContain(
+    "@media (prefers-color-scheme: dark){.t{fill:#7c3aed}",
+  );
 
   // A pinned mode is that mode only; the touch icon stays light.
-  expect(await (await request.get("/api/branding/icon?mode=dark")).text()).not.toContain("prefers-color-scheme");
-  expect(await (await request.get("/api/branding/icon?mode=dark")).text()).toContain('fill="#7c3aed"');
-  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute("href", /v=1f6feb[0-9a-f]{6}$/);
+  expect(
+    await (await request.get("/api/branding/icon?mode=dark")).text(),
+  ).not.toContain("prefers-color-scheme");
+  expect(
+    await (await request.get("/api/branding/icon?mode=dark")).text(),
+  ).toContain('fill="#7c3aed"');
+  await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
+    "href",
+    /v=1f6feb[0-9a-f]{6}$/,
+  );
 
   // Each preview shows the icon its mode would get.
-  await expect(page.locator("img[src*='/api/branding/icon?mode=light']")).toHaveCount(1);
-  await expect(page.locator("img[src*='/api/branding/icon?mode=dark']")).toHaveCount(1);
+  await expect(
+    page.locator("img[src*='/api/branding/icon?mode=light']"),
+  ).toHaveCount(1);
+  await expect(
+    page.locator("img[src*='/api/branding/icon?mode=dark']"),
+  ).toHaveCount(1);
 
   // The same accent in both modes is one icon, with nothing to switch.
   await page.getByLabel("Accent color for dark mode").first().fill("#1f6feb");
   await page.getByRole("button", { name: "Save branding" }).click();
   await expect(icon).toHaveAttribute("href", /\?v=1f6feb[0-9a-f]{6}$/);
-  expect(await (await request.get((await icon.getAttribute("href")) as string)).text()).not.toContain(
-    "prefers-color-scheme",
-  );
+  expect(
+    await (
+      await request.get((await icon.getAttribute("href")) as string)
+    ).text(),
+  ).not.toContain("prefers-color-scheme");
 });
 
 test("a logo is uploaded, served, and shown", async ({ page, request }) => {
@@ -181,7 +232,10 @@ test("a logo is uploaded, served, and shown", async ({ page, request }) => {
     mimeType: "image/png",
     buffer: PNG,
   });
-  await page.getByRole("button", { name: /Upload logo|Replace logo/ }).first().click();
+  await page
+    .getByRole("button", { name: /Upload logo|Replace logo/ })
+    .first()
+    .click();
 
   await expect(page.getByRole("button", { name: "Remove logo" })).toBeVisible();
 
@@ -190,8 +244,12 @@ test("a logo is uploaded, served, and shown", async ({ page, request }) => {
   const src = (await logo.getAttribute("src")) as string;
   expect(src).toContain("/api/branding/logo");
   // The operator's logo takes the mark's place in the header; the tab keeps the mark.
-  await expect(page.getByRole("banner").locator("svg[data-brand-mark]")).toHaveCount(0);
-  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute("href", /\/api\/branding\/icon/);
+  await expect(
+    page.getByRole("banner").locator("svg[data-brand-mark]"),
+  ).toHaveCount(0);
+  await expect(
+    page.locator('link[rel="icon"][type="image/svg+xml"]'),
+  ).toHaveAttribute("href", /\/api\/branding\/icon/);
 
   // The instance logo is public: the sign-in page has to be able to draw it.
   const served = await request.get(src);
@@ -200,18 +258,27 @@ test("a logo is uploaded, served, and shown", async ({ page, request }) => {
   expect(served.headers()["x-content-type-options"]).toBe("nosniff");
 });
 
-test("a logo has to be an image, whatever the file is called", async ({ page }) => {
+test("a logo has to be an image, whatever the file is called", async ({
+  page,
+}) => {
   await signInAsAdmin(page);
   await page.goto("/admin/branding");
 
   await page.getByLabel("Logo for light mode").setInputFiles({
     name: "logo.png",
     mimeType: "image/png",
-    buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'),
+    buffer: Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+    ),
   });
-  await page.getByRole("button", { name: /Upload logo|Replace logo/ }).first().click();
+  await page
+    .getByRole("button", { name: /Upload logo|Replace logo/ })
+    .first()
+    .click();
 
-  await expect(page.getByText("A logo must be a PNG, JPEG, or WebP image")).toBeVisible();
+  await expect(
+    page.getByText("A logo must be a PNG, JPEG, or WebP image"),
+  ).toBeVisible();
 });
 
 test("the accent color reaches the interface", async ({ page }) => {
@@ -219,7 +286,10 @@ test("the accent color reaches the interface", async ({ page }) => {
   await page.goto("/admin/branding");
 
   const before = await primaryToken(page);
-  await page.getByLabel("Accent color for light mode").first().fill(INSTANCE_ACCENT);
+  await page
+    .getByLabel("Accent color for light mode")
+    .first()
+    .fill(INSTANCE_ACCENT);
   await page.getByRole("button", { name: "Save branding" }).click();
 
   // Wait for the saved color to reach the page before going anywhere.
@@ -232,17 +302,24 @@ test("the accent color reaches the interface", async ({ page }) => {
   expect(after).toBe("rgb(124, 58, 237)");
 });
 
-test("a company's own branding shows on its pages and its documents", async ({ page }) => {
+test("a company's own branding shows on its pages and its documents", async ({
+  page,
+}) => {
   await signInAsAdmin(page);
   await page.goto(`/companies/${companyId}/edit`);
 
-  await page.getByLabel("Accent color for light mode").first().fill(COMPANY_ACCENT);
+  await page
+    .getByLabel("Accent color for light mode")
+    .first()
+    .fill(COMPANY_ACCENT);
   await page.getByLabel("Logo for light mode").setInputFiles({
     name: "client.png",
     mimeType: "image/png",
     buffer: PNG,
   });
-  await page.getByRole("button", { name: /Save branding|Replace logo/ }).click();
+  await page
+    .getByRole("button", { name: /Save branding|Replace logo/ })
+    .click();
   await expect(page.getByRole("button", { name: "Remove logo" })).toBeVisible();
 
   await page.goto(`/companies/${companyId}`);
@@ -288,15 +365,18 @@ test("the footer credits the product and who makes it", async ({ page }) => {
   // Verbatim, and the same on every install: this credit is not the operator's
   // name, it is the software's.
   const footer = page.getByRole("contentinfo");
-  await expect(footer).toContainText("Powered by Trove KB | Hearne Technologies");
-  await expect(footer).toContainText("AGPL-3.0");
-  await expect(footer.getByRole("link", { name: "Source code" })).toHaveAttribute(
-    "href",
-    "https://github.com/joshhearne/trove-kb",
+  await expect(footer).toContainText(
+    "Powered by Trove KB | Hearne Technologies",
   );
+  await expect(footer).toContainText("AGPL-3.0");
+  await expect(
+    footer.getByRole("link", { name: "Source code" }),
+  ).toHaveAttribute("href", "https://github.com/joshhearne/trove-kb");
 });
 
-test("an operator may turn the credit off, but not the licence", async ({ page }) => {
+test("an operator may turn the credit off, but not the licence", async ({
+  page,
+}) => {
   await signInAsAdmin(page);
   await page.goto("/admin/branding");
 
@@ -316,7 +396,9 @@ test("an operator may turn the credit off, but not the licence", async ({ page }
   await page.goto("/admin/branding");
   await page.getByRole("checkbox", { name: /Powered by/ }).check();
   await page.getByRole("button", { name: "Save branding" }).click();
-  await expect(page.getByRole("contentinfo")).toContainText("Powered by Trove KB | Hearne Technologies");
+  await expect(page.getByRole("contentinfo")).toContainText(
+    "Powered by Trove KB | Hearne Technologies",
+  );
 });
 
 /* ---------- Per theme ---------- */
@@ -332,9 +414,9 @@ async function themeOf(page: Page, theme: "light" | "dark") {
     const host = document.querySelector(`[data-theme="${mode}"]`);
     if (!host) return null;
 
-    const shown = [...host.querySelectorAll<HTMLImageElement>("img:not([data-tab-icon])")].filter(
-      (img) => getComputedStyle(img).display !== "none",
-    );
+    const shown = [
+      ...host.querySelectorAll<HTMLImageElement>("img:not([data-tab-icon])"),
+    ].filter((img) => getComputedStyle(img).display !== "none");
     const probe = document.createElement("div");
     probe.style.backgroundColor = "var(--primary)";
     (host.querySelector("[style*='--primary']") ?? host).append(probe);
@@ -344,12 +426,16 @@ async function themeOf(page: Page, theme: "light" | "dark") {
     return {
       background: getComputedStyle(host).backgroundColor,
       accent,
-      logos: shown.map((img) => new URL(img.src).searchParams.get("variant") ?? "primary"),
+      logos: shown.map(
+        (img) => new URL(img.src).searchParams.get("variant") ?? "primary",
+      ),
     };
   }, theme);
 }
 
-test("the branding screen shows both themes, each really rendered", async ({ page }) => {
+test("the branding screen shows both themes, each really rendered", async ({
+  page,
+}) => {
   await signInAsAdmin(page);
   await page.goto("/admin/branding");
 
@@ -359,11 +445,16 @@ test("the branding screen shows both themes, each really rendered", async ({ pag
   expect(light?.background).not.toBe(dark?.background);
 });
 
-test("a color given for a mode is used in that mode exactly as given", async ({ page }) => {
+test("a color given for a mode is used in that mode exactly as given", async ({
+  page,
+}) => {
   await signInAsAdmin(page);
   await page.goto("/admin/branding");
 
-  await page.getByLabel("Accent color for light mode").first().fill(INSTANCE_ACCENT);
+  await page
+    .getByLabel("Accent color for light mode")
+    .first()
+    .fill(INSTANCE_ACCENT);
   await page.getByLabel("Accent color for dark mode").first().fill(DARK_ACCENT);
   await page.getByRole("button", { name: "Save branding" }).click();
   await expect
@@ -374,7 +465,9 @@ test("a color given for a mode is used in that mode exactly as given", async ({ 
   expect((await themeOf(page, "light"))?.accent).toBe("rgb(124, 58, 237)");
 });
 
-test("text on the accent can be stated per mode, and Auto gives it back", async ({ page }) => {
+test("text on the accent can be stated per mode, and Auto gives it back", async ({
+  page,
+}) => {
   await signInAsAdmin(page);
   await page.goto("/admin/branding");
 
@@ -389,8 +482,14 @@ test("text on the accent can be stated per mode, and Auto gives it back", async 
       return color;
     }, mode);
 
-  await page.getByLabel("Text on the accent for light mode").first().fill("#101317");
-  await page.getByLabel("Text on the accent for dark mode").first().fill("#ffff00");
+  await page
+    .getByLabel("Text on the accent for light mode")
+    .first()
+    .fill("#101317");
+  await page
+    .getByLabel("Text on the accent for dark mode")
+    .first()
+    .fill("#ffff00");
   await page.getByRole("button", { name: "Save branding" }).click();
   await expect.poll(() => onAccent("light")).toBe("rgb(16, 19, 23)");
   expect(await onAccent("dark")).toBe("rgb(255, 255, 0)");
@@ -413,16 +512,26 @@ test("each theme shows the logo drawn for it", async ({ page }) => {
     mimeType: "image/png",
     buffer: PNG,
   });
-  await page.getByRole("button", { name: /Upload logo|Replace logo/ }).first().click();
-  await expect(page.getByRole("button", { name: "Remove logo" }).first()).toBeVisible();
+  await page
+    .getByRole("button", { name: /Upload logo|Replace logo/ })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Remove logo" }).first(),
+  ).toBeVisible();
 
   await page.getByLabel("Logo for dark mode").setInputFiles({
     name: "dark.png",
     mimeType: "image/png",
     buffer: ALT_PNG,
   });
-  await page.getByRole("button", { name: /Upload logo|Replace logo/ }).last().click();
-  await expect(page.getByRole("button", { name: "Remove logo" })).toHaveCount(2);
+  await page
+    .getByRole("button", { name: /Upload logo|Replace logo/ })
+    .last()
+    .click();
+  await expect(page.getByRole("button", { name: "Remove logo" })).toHaveCount(
+    2,
+  );
 
   await page.reload();
   expect((await themeOf(page, "light"))?.logos).toEqual(["primary"]);
@@ -444,14 +553,65 @@ test("each theme shows the logo drawn for it", async ({ page }) => {
   await expect(banner.locator("img[data-brand-logo='dark']")).toBeHidden();
 });
 
-test("one logo is shown in both themes rather than leaving a gap", async ({ page }) => {
+test("one logo is shown in both themes rather than leaving a gap", async ({
+  page,
+}) => {
   await signInAsAdmin(page);
   await page.goto("/admin/branding");
 
   // Drop the dark one; the light one has to stand in for both.
   await page.getByRole("button", { name: "Remove logo" }).last().click();
-  await expect(page.getByRole("button", { name: "Remove logo" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Remove logo" })).toHaveCount(
+    1,
+  );
 
   expect((await themeOf(page, "light"))?.logos).toEqual(["primary"]);
   expect((await themeOf(page, "dark"))?.logos).toEqual(["primary"]);
+});
+
+test("the public knowledge base may carry the operator's own credit, and the app keeps the vendor's", async ({
+  page,
+  browser,
+}) => {
+  await signInAsAdmin(page);
+  await page.goto("/admin/branding");
+  await page.getByRole("checkbox", { name: /Powered by/ }).check();
+  await page
+    .getByLabel("Your name on the public knowledge base")
+    .fill("Calder Ridge IT");
+  await page.getByRole("button", { name: "Save branding" }).click();
+  await expect
+    .poll(() => psql("select kb_powered_by_name from instance_branding;"))
+    .toBe("Calder Ridge IT");
+
+  // The app's own footer is unchanged.
+  await page.goto("/companies");
+  await expect(page.getByRole("contentinfo")).toContainText(
+    "Powered by Trove KB | Hearne Technologies",
+  );
+
+  // The public site reads the operator's name, with the licence still there.
+  await page.goto("/admin/settings");
+  await page.getByLabel("Who may read it").selectOption("open");
+  await page
+    .getByLabel("Where it is published")
+    .fill(process.env.E2E_BASE_URL ?? "http://127.0.0.1:3090");
+  await page.getByRole("button", { name: "Update public site" }).click();
+  await expect(page.getByText("Saved.")).toBeVisible();
+
+  const context = await browser.newContext({
+    extraHTTPHeaders: { "X-Real-IP": "198.51.100.9" },
+  });
+  const reader = await context.newPage();
+  await reader.goto("/pub/kb");
+  const footer = reader.getByRole("contentinfo");
+  await expect(footer).toContainText("Powered by Trove KB | Calder Ridge IT");
+  await expect(footer).not.toContainText("Hearne Technologies");
+  await expect(footer).toContainText("AGPL-3.0");
+  // Nobody placed this visitor, so there is no company logo for them.
+  expect((await reader.goto("/pub/kb/company-logo"))?.status()).toBe(404);
+  await context.close();
+
+  psql("update instance_branding set kb_powered_by_name = null;");
+  psql("update instance_settings set kb_public_mode = 'off';");
 });

@@ -809,3 +809,8 @@ CREATE TABLE company_sign_in_domains (
   PRIMARY KEY (company_id, domain)
 );
 CREATE UNIQUE INDEX company_sign_in_domains_domain_idx ON company_sign_in_domains (domain);
+
+-- ---------- The public knowledge base's own credit ----------
+-- An MSP may put its own name and logo on the public site's "Powered by"
+-- line in place of the vendor's. The licence and the source link stay.
+ALTER TABLE instance_branding ADD COLUMN kb_powered_by_name text;

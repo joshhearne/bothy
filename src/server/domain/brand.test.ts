@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { iconSize, isRasterIcon, parseBrandHtml, parseManifest, pickIcon, toHex } from "./brand";
+import {
+  iconSize,
+  isRasterIcon,
+  parseBrandHtml,
+  parseManifest,
+  pickIcon,
+  toHex,
+} from "./brand";
 
 const PAGE = "https://www.example.com/";
 
@@ -39,14 +46,27 @@ describe("parseBrandHtml", () => {
   });
 
   it("copes with a page that has nothing", () => {
-    expect(parseBrandHtml("", PAGE)).toEqual({ pageUrl: PAGE, title: null, colors: [], icons: [], manifestUrl: null });
+    expect(parseBrandHtml("", PAGE)).toEqual({
+      pageUrl: PAGE,
+      title: null,
+      colors: [],
+      icons: [],
+      manifestUrl: null,
+    });
   });
 });
 
 describe("parseManifest", () => {
   it("adds the manifest's colours and icons, relative to the manifest", () => {
     const got = parseManifest(
-      { theme_color: "rgb(10, 127, 90)", background_color: "#FFF", icons: [{ src: "icon-512.png", sizes: "512x512", type: "image/png" }, { src: "x.svg" }] },
+      {
+        theme_color: "rgb(10, 127, 90)",
+        background_color: "#FFF",
+        icons: [
+          { src: "icon-512.png", sizes: "512x512", type: "image/png" },
+          { src: "x.svg" },
+        ],
+      },
       "https://www.example.com/site.webmanifest",
     );
     expect(got.colors).toEqual(["#0a7f5a", "#ffffff"]);
@@ -75,7 +95,9 @@ describe("toHex", () => {
 });
 
 describe("pickIcon", () => {
-  const icon = (over: Partial<ReturnType<typeof parseBrandHtml>["icons"][number]>) => ({
+  const icon = (
+    over: Partial<ReturnType<typeof parseBrandHtml>["icons"][number]>,
+  ) => ({
     url: "https://x/a.png",
     source: "icon" as const,
     sizes: null,
@@ -87,15 +109,27 @@ describe("pickIcon", () => {
     const chosen = pickIcon([
       icon({ url: "https://x/f.ico", type: "image/x-icon" }),
       icon({ url: "https://x/f32.png", sizes: "32x32" }),
-      icon({ url: "https://x/t.png", source: "apple-touch-icon", sizes: "180x180" }),
+      icon({
+        url: "https://x/t.png",
+        source: "apple-touch-icon",
+        sizes: "180x180",
+      }),
       icon({ url: "https://x/m.png", source: "manifest", sizes: "180x180" }),
       icon({ url: "https://x/og.jpg", source: "og:image" }),
     ]);
     expect(chosen?.url).toBe("https://x/t.png");
   });
 
-  it("is null when only an SVG or an ICO is offered", () => {
-    expect(pickIcon([icon({ url: "https://x/a.svg" }), icon({ url: "https://x/f.ico", type: "image/x-icon" })])).toBeNull();
+  it("is null when only an ICO is offered, and takes an SVG over a small raster", () => {
+    expect(
+      pickIcon([icon({ url: "https://x/f.ico", type: "image/x-icon" })]),
+    ).toBeNull();
+    expect(
+      pickIcon([
+        icon({ url: "https://x/f32.png", sizes: "32x32" }),
+        icon({ url: "https://x/a.svg" }),
+      ])?.url,
+    ).toBe("https://x/a.svg");
   });
 
   it("reads sizes and raster-ness", () => {

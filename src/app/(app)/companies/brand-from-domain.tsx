@@ -55,10 +55,14 @@ function Candidate({
     .map((icon, index) => ({ icon, index }))
     .filter(({ icon }) =>
       icon.type
-        ? ["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(
-            icon.type,
-          )
-        : /\.(png|jpe?g|webp)(\?|$)/i.test(icon.url),
+        ? [
+            "image/png",
+            "image/jpeg",
+            "image/jpg",
+            "image/webp",
+            "image/svg+xml",
+          ].includes(icon.type)
+        : /\.(png|jpe?g|webp|svg)(\?|$)/i.test(icon.url),
     );
 
   return (

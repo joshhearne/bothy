@@ -260,6 +260,13 @@
       "when": 1791474356028,
       "tag": "0036_company_sign_in_domains",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1791474895677,
+      "tag": "0037_kb_powered_by",
+      "breakpoints": true
     }
   ]
 }

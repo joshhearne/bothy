@@ -23,11 +23,18 @@ import { normalizeHex } from "@/lib/brand-color";
 export const MAX_LOGO_BYTES = 1024 * 1024;
 
 /** Raster formats every browser draws, identified by their own first bytes. */
-const SIGNATURES: { mime: string; extension: string; matches: (bytes: Buffer) => boolean }[] = [
+const SIGNATURES: {
+  mime: string;
+  extension: string;
+  matches: (bytes: Buffer) => boolean;
+}[] = [
   {
     mime: "image/png",
     extension: "png",
-    matches: (b) => b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
+    matches: (b) =>
+      b
+        .subarray(0, 8)
+        .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])),
   },
   {
     mime: "image/jpeg",
@@ -37,11 +44,15 @@ const SIGNATURES: { mime: string; extension: string; matches: (bytes: Buffer) =>
   {
     mime: "image/webp",
     extension: "webp",
-    matches: (b) => b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WEBP",
+    matches: (b) =>
+      b.subarray(0, 4).toString("ascii") === "RIFF" &&
+      b.subarray(8, 12).toString("ascii") === "WEBP",
   },
 ];
 
-export const LOGO_ACCEPT = SIGNATURES.map((signature) => signature.mime).join(",");
+export const LOGO_ACCEPT = SIGNATURES.map((signature) => signature.mime).join(
+  ",",
+);
 
 export class UnsupportedLogoError extends Error {
   constructor() {
@@ -52,13 +63,17 @@ export class UnsupportedLogoError extends Error {
 
 export class LogoTooLargeError extends Error {
   constructor() {
-    super(`A logo must be smaller than ${Math.round(MAX_LOGO_BYTES / 1024)} KB`);
+    super(
+      `A logo must be smaller than ${Math.round(MAX_LOGO_BYTES / 1024)} KB`,
+    );
     this.name = "LogoTooLargeError";
   }
 }
 
 /** The type a file actually is, or null. The declared type is not consulted. */
-export function sniffImage(bytes: Buffer): { mime: string; extension: string } | null {
+export function sniffImage(
+  bytes: Buffer,
+): { mime: string; extension: string } | null {
   const found = SIGNATURES.find((signature) => signature.matches(bytes));
   return found ? { mime: found.mime, extension: found.extension } : null;
 }
@@ -79,6 +94,7 @@ export const brandingInputSchema = z.object({
   accentText: hexColor,
   altAccentText: hexColor,
   showPoweredBy: z.boolean().default(true),
+  kbPoweredByName: z.string().trim().max(60).optional().nullable(),
 });
 
 export type BrandingInput = z.input<typeof brandingInputSchema>;
@@ -97,6 +113,8 @@ export type Branding = {
   altAccentText: string | null;
   /** Whether the "Powered by" credit is shown. */
   showPoweredBy: boolean;
+  /** The operator's own name on the public knowledge base's credit, or null for the vendor's. */
+  kbPoweredByName: string | null;
   /** Ready to put in an img src, with a version so a replaced logo shows up. */
   logoUrl: string | null;
   /** The logo for the other mode, when one was uploaded. */
@@ -112,11 +130,17 @@ export function otherScheme(scheme: BrandScheme): BrandScheme {
 
 /** A key's own uuid doubles as the cache-busting version: a new upload, a new key. */
 function version(logoKey: string | null): string {
-  return logoKey ? logoKey.split("/").pop()?.split(".")[0]?.slice(0, 12) ?? "1" : "1";
+  return logoKey
+    ? (logoKey.split("/").pop()?.split(".")[0]?.slice(0, 12) ?? "1")
+    : "1";
 }
 
 export async function getInstanceBranding(): Promise<Branding> {
-  const [row] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
+  const [row] = await db
+    .select()
+    .from(instanceBranding)
+    .where(eq(instanceBranding.id, true))
+    .limit(1);
   if (!row) {
     return {
       name: null,
@@ -126,6 +150,7 @@ export async function getInstanceBranding(): Promise<Branding> {
       accentText: null,
       altAccentText: null,
       showPoweredBy: true,
+      kbPoweredByName: null,
       logoUrl: null,
       altLogoUrl: null,
     };
@@ -139,14 +164,20 @@ export async function getInstanceBranding(): Promise<Branding> {
     accentText: row.accentText,
     altAccentText: row.altAccentText,
     showPoweredBy: row.showPoweredBy,
-    logoUrl: row.logoKey ? `/api/branding/logo?v=${version(row.logoKey)}` : null,
+    kbPoweredByName: row.kbPoweredByName,
+    logoUrl: row.logoKey
+      ? `/api/branding/logo?v=${version(row.logoKey)}`
+      : null,
     altLogoUrl: row.altLogoKey
       ? `/api/branding/logo?variant=alt&v=${version(row.altLogoKey)}`
       : null,
   };
 }
 
-export async function setInstanceBranding(input: BrandingInput, actorId: string): Promise<void> {
+export async function setInstanceBranding(
+  input: BrandingInput,
+  actorId: string,
+): Promise<void> {
   const data = brandingInputSchema.parse(input);
 
   const values = {
@@ -158,6 +189,7 @@ export async function setInstanceBranding(input: BrandingInput, actorId: string)
     accentText: data.accentText,
     altAccentText: data.altAccentText,
     showPoweredBy: data.showPoweredBy,
+    kbPoweredByName: data.kbPoweredByName || null,
   };
 
   await db.transaction(async (tx) => {
@@ -182,8 +214,12 @@ export async function setInstanceBranding(input: BrandingInput, actorId: string)
   });
 }
 
-async function storeLogo(prefix: string, file: File): Promise<{ key: string; mime: string }> {
-  if (file.size === 0 || file.size > MAX_LOGO_BYTES) throw new LogoTooLargeError();
+async function storeLogo(
+  prefix: string,
+  file: File,
+): Promise<{ key: string; mime: string }> {
+  if (file.size === 0 || file.size > MAX_LOGO_BYTES)
+    throw new LogoTooLargeError();
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const kind = sniffImage(bytes);
@@ -211,7 +247,11 @@ export async function setInstanceLogo(
   actorId: string,
   slot: BrandSlot = "primary",
 ): Promise<void> {
-  const [existing] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(instanceBranding)
+    .where(eq(instanceBranding.id, true))
+    .limit(1);
   const stored = await storeLogo("instance", file);
 
   const values =
@@ -240,14 +280,20 @@ export async function setInstanceLogo(
     );
   });
 
-  await forget((slot === "alt" ? existing?.altLogoKey : existing?.logoKey) ?? null);
+  await forget(
+    (slot === "alt" ? existing?.altLogoKey : existing?.logoKey) ?? null,
+  );
 }
 
 export async function clearInstanceLogo(
   actorId: string,
   slot: BrandSlot = "primary",
 ): Promise<void> {
-  const [existing] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
+  const [existing] = await db
+    .select()
+    .from(instanceBranding)
+    .where(eq(instanceBranding.id, true))
+    .limit(1);
   const key = slot === "alt" ? existing?.altLogoKey : existing?.logoKey;
   if (!key) return;
 
@@ -281,12 +327,18 @@ export async function clearInstanceLogo(
 export async function readInstanceLogo(
   slot: BrandSlot = "primary",
 ): Promise<{ body: Buffer; mime: string } | null> {
-  const [row] = await db.select().from(instanceBranding).where(eq(instanceBranding.id, true)).limit(1);
+  const [row] = await db
+    .select()
+    .from(instanceBranding)
+    .where(eq(instanceBranding.id, true))
+    .limit(1);
   const key = slot === "alt" ? row?.altLogoKey : row?.logoKey;
   if (!key) return null;
 
   const storage = await getStorage();
-  const mime = (slot === "alt" ? row?.altLogoMime : row?.logoMime) ?? "application/octet-stream";
+  const mime =
+    (slot === "alt" ? row?.altLogoMime : row?.logoMime) ??
+    "application/octet-stream";
   return { body: await storage.get(key), mime };
 }
 
@@ -318,8 +370,11 @@ export async function getCompanyBranding(
     altAccent: row.altAccent,
     accentText: null,
     altAccentText: null,
+    kbPoweredByName: null,
     showPoweredBy: true,
-    logoUrl: row.logoKey ? `/api/companies/${companyId}/logo?v=${version(row.logoKey)}` : null,
+    logoUrl: row.logoKey
+      ? `/api/companies/${companyId}/logo?v=${version(row.logoKey)}`
+      : null,
     altLogoUrl: row.altLogoKey
       ? `/api/companies/${companyId}/logo?variant=alt&v=${version(row.altLogoKey)}`
       : null,
@@ -398,7 +453,9 @@ export async function setCompanyLogo(
     );
   });
 
-  await forget((slot === "alt" ? existing.altLogoKey : existing.logoKey) ?? null);
+  await forget(
+    (slot === "alt" ? existing.altLogoKey : existing.logoKey) ?? null,
+  );
 }
 
 export async function clearCompanyLogo(
@@ -418,7 +475,9 @@ export async function clearCompanyLogo(
   if (!key) return;
 
   const cleared =
-    slot === "alt" ? { altLogoKey: null, altLogoMime: null } : { logoKey: null, logoMime: null };
+    slot === "alt"
+      ? { altLogoKey: null, altLogoMime: null }
+      : { logoKey: null, logoMime: null };
 
   await db.transaction(async (tx) => {
     await tx.update(companies).set(cleared).where(eq(companies.id, companyId));
@@ -461,6 +520,8 @@ export async function readCompanyLogo(
   if (!key) return null;
 
   const storage = await getStorage();
-  const mime = (slot === "alt" ? row?.altLogoMime : row?.logoMime) ?? "application/octet-stream";
+  const mime =
+    (slot === "alt" ? row?.altLogoMime : row?.logoMime) ??
+    "application/octet-stream";
   return { body: await storage.get(key), mime };
 }

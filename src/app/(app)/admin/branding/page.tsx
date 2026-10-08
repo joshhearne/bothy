@@ -21,15 +21,35 @@ export const dynamic = "force-dynamic";
  * so this really is the other theme rather than a picture of it — an admin on
  * light can see what someone on dark gets.
  */
-function Preview({ theme, branding, t }: { theme: BrandScheme; branding: Branding; t: Messages }) {
+function Preview({
+  theme,
+  branding,
+  t,
+}: {
+  theme: BrandScheme;
+  branding: Branding;
+  t: Messages;
+}) {
   return (
-    <div data-theme={theme} className="rounded-lg border bg-[var(--background)] p-4">
+    <div
+      data-theme={theme}
+      className="rounded-lg border bg-[var(--background)] p-4"
+    >
       <p className="mb-3 text-xs uppercase tracking-wide text-[var(--muted-foreground)]">
-        {theme === "light" ? t.admin.branding.lightMode : t.admin.branding.darkMode}
+        {theme === "light"
+          ? t.admin.branding.lightMode
+          : t.admin.branding.darkMode}
       </p>
 
-      <BrandAccent brand={branding} className="flex flex-wrap items-center justify-between gap-4">
-        <BrandMark branding={branding} fallbackName={t.app.name} className="text-lg" />
+      <BrandAccent
+        brand={branding}
+        className="flex flex-wrap items-center justify-between gap-4"
+      >
+        <BrandMark
+          branding={branding}
+          fallbackName={t.app.name}
+          className="text-lg"
+        />
         <Button type="button">{t.admin.branding.previewButton}</Button>
       </BrandAccent>
 
@@ -63,7 +83,9 @@ function LogoPanel({
   url: string | null;
   t: Messages;
 }) {
-  const mode = (theme === "light" ? t.admin.branding.lightMode : t.admin.branding.darkMode).toLowerCase();
+  const mode = (
+    theme === "light" ? t.admin.branding.lightMode : t.admin.branding.darkMode
+  ).toLowerCase();
   return (
     <div className="flex flex-col gap-3">
       <LogoForm
@@ -71,7 +93,11 @@ function LogoPanel({
         hasLogo={url !== null}
         slot={slot}
         label={t.admin.branding.logoFor(mode)}
-        hint={theme === "light" ? t.admin.branding.logoHint : t.admin.branding.altLogoHint(mode)}
+        hint={
+          theme === "light"
+            ? t.admin.branding.logoHint
+            : t.admin.branding.altLogoHint(mode)
+        }
       />
       {url ? (
         <>
@@ -81,7 +107,11 @@ function LogoPanel({
           >
             {/* Our own route, serving an image of unknown dimensions. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt={t.admin.branding.currentLogo(mode)} className="h-12 w-auto max-w-full object-contain" />
+            <img
+              src={url}
+              alt={t.admin.branding.currentLogo(mode)}
+              className="h-12 w-auto max-w-full object-contain"
+            />
           </div>
           <form action={removeLogoAction}>
             <input type="hidden" name="slot" value={slot} />
@@ -91,7 +121,9 @@ function LogoPanel({
           </form>
         </>
       ) : (
-        <p className="text-sm text-[var(--muted-foreground)]">{t.admin.branding.noLogo}</p>
+        <p className="text-sm text-[var(--muted-foreground)]">
+          {t.admin.branding.noLogo}
+        </p>
       )}
     </div>
   );
@@ -101,13 +133,20 @@ export default async function BrandingPage() {
   const user = await requireUser();
   if (!canManageIntegrations(user.role)) redirect("/companies");
 
-  const [branding, t] = await Promise.all([getInstanceBranding(), getMessages()]);
+  const [branding, t] = await Promise.all([
+    getInstanceBranding(),
+    getMessages(),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t.admin.branding.title}</h1>
-        <p className="text-sm text-[var(--muted-foreground)]">{t.admin.branding.subtitle}</p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {t.admin.branding.title}
+        </h1>
+        <p className="text-sm text-[var(--muted-foreground)]">
+          {t.admin.branding.subtitle}
+        </p>
       </div>
 
       <InstanceBrandingForm
@@ -117,13 +156,26 @@ export default async function BrandingPage() {
         accentText={branding.accentText}
         altAccentText={branding.altAccentText}
         showPoweredBy={branding.showPoweredBy}
+        kbPoweredByName={branding.kbPoweredByName}
         previews={[
           <Preview key="light" theme="light" branding={branding} t={t} />,
           <Preview key="dark" theme="dark" branding={branding} t={t} />,
         ]}
         logos={[
-          <LogoPanel key="light" theme="light" slot="primary" url={branding.logoUrl} t={t} />,
-          <LogoPanel key="dark" theme="dark" slot="alt" url={branding.altLogoUrl} t={t} />,
+          <LogoPanel
+            key="light"
+            theme="light"
+            slot="primary"
+            url={branding.logoUrl}
+            t={t}
+          />,
+          <LogoPanel
+            key="dark"
+            theme="dark"
+            slot="alt"
+            url={branding.altLogoUrl}
+            t={t}
+          />,
         ]}
       />
     </div>

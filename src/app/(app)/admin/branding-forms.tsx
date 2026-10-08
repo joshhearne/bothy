@@ -9,7 +9,11 @@ import { FormError } from "@/components/ui/alert";
 import { useMessages } from "@/i18n/client";
 import type { FormState } from "@/lib/form";
 import type { BrandScheme } from "@/server/services/branding";
-import { saveBrandingAction, saveCompanyBrandingAction, uploadLogoAction } from "./branding-actions";
+import {
+  saveBrandingAction,
+  saveCompanyBrandingAction,
+  uploadLogoAction,
+} from "./branding-actions";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -67,7 +71,13 @@ function AccentField({
           className="size-9 shrink-0 cursor-pointer rounded-md border bg-transparent"
         />
         {(value !== "" || clearLabel) && (
-          <Button type="button" variant="outline" size="sm" disabled={value === ""} onClick={() => setValue("")}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={value === ""}
+            onClick={() => setValue("")}
+          >
             {clearLabel ?? t.common.clear}
           </Button>
         )}
@@ -103,11 +113,15 @@ function SchemeChoice({
               onChange={() => onChange(option)}
               className="size-4"
             />
-            {option === "light" ? t.admin.branding.lightMode : t.admin.branding.darkMode}
+            {option === "light"
+              ? t.admin.branding.lightMode
+              : t.admin.branding.darkMode}
           </label>
         ))}
       </div>
-      <p className="text-xs text-[var(--muted-foreground)]">{t.admin.branding.schemeHint}</p>
+      <p className="text-xs text-[var(--muted-foreground)]">
+        {t.admin.branding.schemeHint}
+      </p>
     </fieldset>
   );
 }
@@ -119,6 +133,7 @@ export function InstanceBrandingForm({
   accentText,
   altAccentText,
   showPoweredBy,
+  kbPoweredByName,
   previews,
   logos,
 }: {
@@ -130,12 +145,17 @@ export function InstanceBrandingForm({
   accentText: string | null;
   altAccentText: string | null;
   showPoweredBy: boolean;
+  /** The operator's name on the public knowledge base's credit, or null for the vendor's. */
+  kbPoweredByName: string | null;
   /** The two theme previews, light then dark, drawn by the page. */
   previews: [React.ReactNode, React.ReactNode];
   /** The two logo panels, light then dark, drawn by the page. */
   logos: [React.ReactNode, React.ReactNode];
 }) {
-  const [state, formAction] = useActionState<FormState, FormData>(saveBrandingAction, {});
+  const [state, formAction] = useActionState<FormState, FormData>(
+    saveBrandingAction,
+    {},
+  );
   const fieldErrors = state.fieldErrors ?? {};
   const t = useMessages();
   const light = t.admin.branding.lightMode.toLowerCase();
@@ -164,11 +184,16 @@ export function InstanceBrandingForm({
           />
         </Field>
 
-        <p className="text-sm text-[var(--muted-foreground)]">{t.admin.branding.colorsHint}</p>
+        <p className="text-sm text-[var(--muted-foreground)]">
+          {t.admin.branding.colorsHint}
+        </p>
 
         {/* Light on the left, dark on the right; one under the other on a phone. */}
         <div className="grid gap-6 sm:grid-cols-2">
-          <section aria-label={t.admin.branding.lightSection} className="flex flex-col gap-4">
+          <section
+            aria-label={t.admin.branding.lightSection}
+            className="flex flex-col gap-4"
+          >
             {previews[0]}
             <AccentField
               name="accent"
@@ -188,7 +213,10 @@ export function InstanceBrandingForm({
             />
           </section>
 
-          <section aria-label={t.admin.branding.darkSection} className="flex flex-col gap-4">
+          <section
+            aria-label={t.admin.branding.darkSection}
+            className="flex flex-col gap-4"
+          >
             {previews[1]}
             <AccentField
               name="altAccent"
@@ -233,6 +261,20 @@ export function InstanceBrandingForm({
             </span>
           </span>
         </label>
+        <Field
+          id="kb-powered-by-name"
+          label={t.admin.branding.kbPoweredBy}
+          hint={t.admin.branding.kbPoweredByHint}
+        >
+          <Input
+            id="kb-powered-by-name"
+            name="kbPoweredByName"
+            form={formId}
+            defaultValue={kbPoweredByName ?? ""}
+            maxLength={60}
+            placeholder={t.admin.branding.kbPoweredByPlaceholder}
+          />
+        </Field>
         <div>
           <Button type="submit" form={formId}>
             {t.admin.branding.save}
@@ -257,7 +299,10 @@ export function LogoForm({
   label: string;
   hint: string;
 }) {
-  const [state, formAction] = useActionState<FormState, FormData>(uploadLogoAction, {});
+  const [state, formAction] = useActionState<FormState, FormData>(
+    uploadLogoAction,
+    {},
+  );
   const t = useMessages();
   const id = `logo-${slot}`;
 
@@ -278,7 +323,9 @@ export function LogoForm({
       </Field>
 
       <div>
-        <Submit label={hasLogo ? t.admin.branding.replace : t.admin.branding.upload} />
+        <Submit
+          label={hasLogo ? t.admin.branding.replace : t.admin.branding.upload}
+        />
       </div>
     </form>
   );
@@ -300,7 +347,10 @@ export function CompanyBrandingForm({
   accept: string;
   hasLogo: boolean;
 }) {
-  const [state, formAction] = useActionState<FormState, FormData>(saveCompanyBrandingAction, {});
+  const [state, formAction] = useActionState<FormState, FormData>(
+    saveCompanyBrandingAction,
+    {},
+  );
   const [chosen, setChosen] = useState<BrandScheme>(scheme);
   const t = useMessages();
 
@@ -339,7 +389,13 @@ export function CompanyBrandingForm({
         error={state.fieldErrors?.logo}
         hint={t.admin.branding.logoHint}
       >
-        <input id="company-logo" name="logo" type="file" accept={accept} className={fileClass} />
+        <input
+          id="company-logo"
+          name="logo"
+          type="file"
+          accept={accept}
+          className={fileClass}
+        />
       </Field>
 
       <Field
@@ -347,11 +403,19 @@ export function CompanyBrandingForm({
         label={t.admin.branding.logoFor(modeName(other).toLowerCase())}
         hint={t.admin.branding.altLogoHint(modeName(other).toLowerCase())}
       >
-        <input id="company-alt-logo" name="altLogo" type="file" accept={accept} className={fileClass} />
+        <input
+          id="company-alt-logo"
+          name="altLogo"
+          type="file"
+          accept={accept}
+          className={fileClass}
+        />
       </Field>
 
       <div>
-        <Submit label={hasLogo ? t.admin.branding.replace : t.admin.branding.save} />
+        <Submit
+          label={hasLogo ? t.admin.branding.replace : t.admin.branding.save}
+        />
       </div>
     </form>
   );

@@ -15,6 +15,10 @@ const CLIENT = unique("Customer Co");
 const OTHER = unique("Other Customer Co");
 const PUBLIC_URL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3090";
 
+const STAMP = Date.now().toString(36);
+const DOMAIN = `customer-${STAMP}.example`;
+const SUB = `mail.customer-${STAMP}.example`;
+
 let clientId = "";
 let otherId = "";
 let keptId = "";
@@ -71,20 +75,20 @@ test("a company lists the email domains that place its people, and a domain belo
   ).toBeVisible();
   await page
     .getByLabel("Sign-in email domains")
-    .fill(" Customer.example, @mail.customer.example\nnot a domain!");
+    .fill(` ${DOMAIN.toUpperCase()}, @${SUB}\nnot a domain!`);
   await page.getByRole("button", { name: "Update sign-in domains" }).click();
   await expect(page.getByText("Not a domain: not, a, domain!")).toBeVisible();
   expect(
     psql(
       `select string_agg(domain, ',' order by domain) from company_sign_in_domains where company_id = '${clientId}';`,
     ),
-  ).toBe("customer.example,mail.customer.example");
+  ).toBe(`${DOMAIN},${SUB}`);
 
   await page.goto(`/companies/${otherId}/edit`);
-  await page.getByLabel("Sign-in email domains").fill("customer.example");
+  await page.getByLabel("Sign-in email domains").fill(DOMAIN);
   await page.getByRole("button", { name: "Update sign-in domains" }).click();
   await expect(
-    page.getByText(`“customer.example” already places people with ${CLIENT}`),
+    page.getByText(`“${DOMAIN}” already places people with ${CLIENT}`),
   ).toBeVisible();
   expect(
     psql(
@@ -94,14 +98,14 @@ test("a company lists the email domains that place its people, and a domain belo
 
   // Trimming the list removes what is gone and keeps what stays.
   await page.goto(`/companies/${clientId}/edit`);
-  await page.getByLabel("Sign-in email domains").fill("customer.example");
+  await page.getByLabel("Sign-in email domains").fill(DOMAIN);
   await page.getByRole("button", { name: "Update sign-in domains" }).click();
   await expect(page.getByRole("status")).toContainText(/Saved/);
   expect(
     psql(
       `select string_agg(domain, ',') from company_sign_in_domains where company_id = '${clientId}';`,
     ),
-  ).toBe("customer.example");
+  ).toBe(DOMAIN);
 });
 
 test("a collection kept to a company is not on the public site for a visitor nobody named", async ({

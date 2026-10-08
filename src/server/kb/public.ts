@@ -6,6 +6,8 @@ import { isListed } from "@/server/kb/addresses";
 import { only } from "@/server/auth/company-scope";
 import { publicIdentity } from "@/server/kb/identity";
 import { companiesForEmail } from "@/server/services/company-domains";
+import { getCompanyBranding } from "@/server/services/branding";
+import { getCompany } from "@/server/services/companies";
 import type { KbReader } from "@/server/services/kb";
 
 /**
@@ -109,6 +111,33 @@ async function onPublishedHost(settings: {
   } catch {
     return true;
   }
+}
+
+export type VisitorCompany = {
+  id: string;
+  name: string;
+  logoVersion: string | null;
+};
+
+/**
+ * The company a named visitor is placed with, for the corner of the page:
+ * its name, and whether it has a logo to draw there. Null for a visitor
+ * nobody named or placed. Read after the gate, never instead of it.
+ */
+export async function visitorCompany(): Promise<VisitorCompany | null> {
+  const identity = await publicIdentity();
+  if (!identity) return null;
+  const [companyId] = await companiesForEmail(identity.email);
+  if (!companyId) return null;
+  const scope = only([companyId]);
+  const [branding, company] = await Promise.all([
+    getCompanyBranding(companyId, scope),
+    getCompany(companyId, scope),
+  ]);
+  const version = branding.logoUrl
+    ? new URL(branding.logoUrl, "http://x").searchParams.get("v")
+    : null;
+  return { id: companyId, name: company?.name ?? "", logoVersion: version };
 }
 
 /** Admits the visitor or answers "not found". Every public page starts here. */

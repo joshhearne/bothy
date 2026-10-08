@@ -257,6 +257,12 @@ export const instanceBranding = pgTable(
     scheme: text("scheme").notNull().default("light"),
     /** The "Powered by" credit. On unless an operator turns it off. */
     showPoweredBy: boolean("show_powered_by").notNull().default(true),
+    /**
+     * On the public knowledge base the credit may carry the operator's own
+     * name and logo in place of the vendor's: "Powered by Trove KB | <name>".
+     * Null keeps the vendor's credit there too.
+     */
+    kbPoweredByName: text("kb_powered_by_name"),
     accent: text("accent"),
     /** An exact color for the other mode. Derived from `accent` when null. */
     altAccent: text("alt_accent"),

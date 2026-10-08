@@ -16,11 +16,12 @@ import {
 import { assertInScope, type CompanyScope } from "@/server/auth/company-scope";
 import { fetchPublic, FetchRefusedError } from "@/server/kb/fetch";
 import {
-  isRasterIcon,
+  isUsableIcon,
   pickIcon,
   type BrandIcon,
   type BrandSummary,
 } from "@/server/domain/brand";
+import { looksLikeSvg, svgToPng } from "@/server/domain/svg";
 import type { DomainCheckResult } from "@/server/domain/run";
 
 /**
@@ -117,8 +118,8 @@ export async function brandIconFor(
 
 /**
  * Fetches one of a record's icons the safe way, and says what it is from its
- * bytes. A logo may be PNG, JPEG or WebP; an ICO or SVG is refused here as
- * it is at upload.
+ * bytes. A logo may be PNG, JPEG or WebP; an SVG is rendered to PNG with its
+ * transparency; an ICO is refused, as it is at upload.
  */
 export async function fetchBrandIcon(
   icon: BrandIcon,
@@ -143,8 +144,15 @@ export async function fetchBrandIcon(
     throw new LogoTooLargeError();
   }
   const kind = sniffImage(page.body);
-  if (!kind) throw new UnsupportedLogoError();
-  return { bytes: page.body, ...kind };
+  if (kind) return { bytes: page.body, ...kind };
+
+  // An SVG is rendered to PNG, transparency kept: the look without the document.
+  if (looksLikeSvg(page.body)) {
+    const png = await svgToPng(page.body);
+    if (png.byteLength > MAX_LOGO_BYTES) throw new LogoTooLargeError();
+    return { bytes: png, mime: "image/png", extension: "png" };
+  }
+  throw new UnsupportedLogoError();
 }
 
 /**
@@ -168,7 +176,7 @@ export async function applyDomainBranding(
     input.icon === null ? null : (candidate.brand.icons[input.icon] ?? null);
   if (input.icon !== null && !icon)
     throw new BrandApplyError("That icon is not one the site offered.");
-  if (icon && !isRasterIcon(icon)) throw new UnsupportedLogoError();
+  if (icon && !isUsableIcon(icon)) throw new UnsupportedLogoError();
   const color = input.color;
   if (color !== null && !candidate.brand.colors.includes(color)) {
     throw new BrandApplyError("That colour is not one the site published.");

@@ -20,6 +20,9 @@ const nextConfig: NextConfig = {
       // the runtime specifier, so the whole chain is named here.
       "./node_modules/heic-convert/**",
       "./node_modules/heic-decode/**",
+      // sharp rasterises an SVG icon to PNG; its native builds live under @img.
+      "./node_modules/sharp/**",
+      "./node_modules/@img/**",
       "./node_modules/libheif-js/**",
       "./node_modules/jpeg-js/**",
       "./node_modules/pngjs/**",

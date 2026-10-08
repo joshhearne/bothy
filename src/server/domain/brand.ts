@@ -35,11 +35,13 @@ const MAX_ICONS = 12;
 
 function attrs(tag: string): Record<string, string> {
   const out: Record<string, string> = {};
-  const pattern = /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
+  const pattern =
+    /([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(tag)) !== null) {
     const name = match[1]?.toLowerCase();
-    if (name && !(name in out)) out[name] = (match[2] ?? match[3] ?? match[4] ?? "").trim();
+    if (name && !(name in out))
+      out[name] = (match[2] ?? match[3] ?? match[4] ?? "").trim();
   }
   return out;
 }
@@ -71,9 +73,12 @@ export function toHex(value: string | undefined): string | null {
   if (!value) return null;
   const hex = normalizeHex(value);
   if (hex) return hex;
-  const rgb = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i.exec(value.trim());
+  const rgb = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i.exec(
+    value.trim(),
+  );
   if (!rgb) return null;
-  const part = (n: string) => Math.min(255, Number(n)).toString(16).padStart(2, "0");
+  const part = (n: string) =>
+    Math.min(255, Number(n)).toString(16).padStart(2, "0");
   return `#${part(rgb[1]!)}${part(rgb[2]!)}${part(rgb[3]!)}`;
 }
 
@@ -111,10 +116,23 @@ export function parseBrandHtml(html: string, pageUrl: string): BrandSummary {
     if (!href) continue;
     if (rel.includes("manifest")) {
       manifestUrl ??= href;
-    } else if (rel.includes("apple-touch-icon") || rel.includes("apple-touch-icon-precomposed")) {
-      push({ url: href, source: "apple-touch-icon", sizes: a.sizes ?? null, type: a.type?.toLowerCase() ?? null });
+    } else if (
+      rel.includes("apple-touch-icon") ||
+      rel.includes("apple-touch-icon-precomposed")
+    ) {
+      push({
+        url: href,
+        source: "apple-touch-icon",
+        sizes: a.sizes ?? null,
+        type: a.type?.toLowerCase() ?? null,
+      });
     } else if (rel.includes("icon")) {
-      push({ url: href, source: "icon", sizes: a.sizes ?? null, type: a.type?.toLowerCase() ?? null });
+      push({
+        url: href,
+        source: "icon",
+        sizes: a.sizes ?? null,
+        type: a.type?.toLowerCase() ?? null,
+      });
     }
   }
 
@@ -123,7 +141,11 @@ export function parseBrandHtml(html: string, pageUrl: string): BrandSummary {
     const name = (a.name ?? a.property ?? "").toLowerCase();
     if (name === "theme-color") addColor(a.content);
     else if (name === "msapplication-tilecolor") addColor(a.content);
-    else if (name === "og:image" || name === "og:image:url" || name === "twitter:image") {
+    else if (
+      name === "og:image" ||
+      name === "og:image:url" ||
+      name === "twitter:image"
+    ) {
       const url = a.content ? resolve(a.content, pageUrl) : null;
       if (url) push({ url, source: "og:image", sizes: null, type: null });
     }
@@ -133,7 +155,10 @@ export function parseBrandHtml(html: string, pageUrl: string): BrandSummary {
 }
 
 /** What a web app manifest adds: its colours and its icons. Tolerant of anything. */
-export function parseManifest(json: unknown, manifestUrl: string): { colors: string[]; icons: BrandIcon[] } {
+export function parseManifest(
+  json: unknown,
+  manifestUrl: string,
+): { colors: string[]; icons: BrandIcon[] } {
   const colors: string[] = [];
   const icons: BrandIcon[] = [];
   if (!json || typeof json !== "object") return { colors, icons };
@@ -147,7 +172,8 @@ export function parseManifest(json: unknown, manifestUrl: string): { colors: str
     for (const entry of m.icons.slice(0, MAX_ICONS)) {
       if (!entry || typeof entry !== "object") continue;
       const icon = entry as Record<string, unknown>;
-      const url = typeof icon.src === "string" ? resolve(icon.src, manifestUrl) : null;
+      const url =
+        typeof icon.src === "string" ? resolve(icon.src, manifestUrl) : null;
       if (!url || icons.some((seen) => seen.url === url)) continue;
       icons.push({
         url,
@@ -173,8 +199,27 @@ export function iconSize(icon: BrandIcon): number {
 
 /** True for a format a logo may be: PNG, JPEG or WebP by declared type or extension. */
 export function isRasterIcon(icon: BrandIcon): boolean {
-  if (icon.type) return ["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(icon.type);
+  if (icon.type)
+    return ["image/png", "image/jpeg", "image/jpg", "image/webp"].includes(
+      icon.type,
+    );
   return /\.(png|jpe?g|webp)(\?|$)/i.test(icon.url);
+}
+
+/** An SVG, which is rendered to PNG when applied. */
+export function isSvgIcon(icon: BrandIcon): boolean {
+  if (icon.type) return icon.type === "image/svg+xml";
+  return /\.svg(\?|$)/i.test(icon.url);
+}
+
+/** What can become a logo: a raster, or an SVG rendered to one. */
+export function isUsableIcon(icon: BrandIcon): boolean {
+  return isRasterIcon(icon) || isSvgIcon(icon);
+}
+
+/** How large the icon reads for choosing: its declared size, or, for an SVG, as large as it is rendered. */
+function effectiveSize(icon: BrandIcon): number {
+  return isSvgIcon(icon) ? 512 : iconSize(icon);
 }
 
 /**
@@ -183,8 +228,18 @@ export function isRasterIcon(icon: BrandIcon): boolean {
  * a social image, which is often a photo.
  */
 export function pickIcon(icons: BrandIcon[]): BrandIcon | null {
-  const rank: Record<IconSource, number> = { "apple-touch-icon": 3, manifest: 2, icon: 1, "og:image": 0 };
-  const usable = icons.filter(isRasterIcon);
+  const rank: Record<IconSource, number> = {
+    "apple-touch-icon": 3,
+    manifest: 2,
+    icon: 1,
+    "og:image": 0,
+  };
+  const usable = icons.filter(isUsableIcon);
   if (usable.length === 0) return null;
-  return [...usable].sort((a, b) => iconSize(b) - iconSize(a) || rank[b.source] - rank[a.source])[0] ?? null;
+  return (
+    [...usable].sort(
+      (a, b) =>
+        effectiveSize(b) - effectiveSize(a) || rank[b.source] - rank[a.source],
+    )[0] ?? null
+  );
 }

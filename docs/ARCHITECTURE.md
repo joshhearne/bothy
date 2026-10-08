@@ -119,7 +119,13 @@ for. `instance_settings` is a single row holding what an operator chooses once
 - The footer credit ("Powered by Trove KB | Hearne Technologies") names the
   product and its maker, is the same on every install, and is optional:
   `instance_branding.show_powered_by`, on by default. The AGPL notice and the
-  source link beside it are not optional, since §13 asks for them.
+  source link beside it are not optional, since §13 asks for them. On the
+  public knowledge base alone, an operator may put their own name on the
+  credit (`kb_powered_by_name`): "Powered by Trove KB | <name>" beside the
+  instance logo, in front of their customers; the product stays named and
+  the licence stays put. A visitor placed with a company by their address
+  sees that company's logo in the corner before the knowledge base's name,
+  served by `/pub/kb/company-logo` to that visitor alone.
 - A logo is stored under a key we generate and served back with the type
   sniffed from its own bytes. PNG, JPEG, and WebP only: an SVG is a document
   that can carry script, and a logo is drawn on every page including sign-in.
@@ -223,7 +229,9 @@ over RDAP, and whether SPF, DMARC and DKIM are published.
   (`src/server/domain/brand.ts`). Nothing is applied by itself: the company's
   edit page lists every domain record's findings and an administrator picks
   one, whose icon becomes the logo (fetched the same safe way, sniffed, PNG,
-  JPEG or WebP only, 1 MB) and whose colour the accent
+  JPEG or WebP, or an SVG rendered to PNG by sharp with its transparency kept
+  (`src/server/domain/svg.ts`), 1 MB; never on Workers, which run no native
+  code) and whose colour the accent
   (`src/server/services/company-brand.ts`). With several websites the record
   chosen is remembered (`companies.brand_domain_document_id`). Icons are
   drawn through the record's own route, never hotlinked from a client's site.

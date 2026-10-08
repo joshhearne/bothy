@@ -1,0 +1,1 @@
+ALTER TABLE "instance_branding" ADD COLUMN "kb_powered_by_name" text;

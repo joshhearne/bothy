@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 import { checkbox, text, toFieldErrors, type FormState } from "@/lib/form";
-import { ForbiddenError, getCompanyScope, requireAdmin } from "@/server/auth/session";
+import {
+  ForbiddenError,
+  getCompanyScope,
+  requireAdmin,
+} from "@/server/auth/session";
 import { NotFoundError } from "@/server/services/errors";
 import {
   clearCompanyLogo,
@@ -18,8 +22,10 @@ import {
 
 function toFormState(err: unknown): FormState {
   if (err instanceof ZodError) return { fieldErrors: toFieldErrors(err) };
-  if (err instanceof UnsupportedLogoError) return { fieldErrors: { logo: err.message } };
-  if (err instanceof LogoTooLargeError) return { fieldErrors: { logo: err.message } };
+  if (err instanceof UnsupportedLogoError)
+    return { fieldErrors: { logo: err.message } };
+  if (err instanceof LogoTooLargeError)
+    return { fieldErrors: { logo: err.message } };
   if (err instanceof ForbiddenError) return { error: err.message };
   if (err instanceof NotFoundError) return { error: err.message };
   throw err;
@@ -41,6 +47,7 @@ export async function saveBrandingAction(
         accentText: text(formData, "accentText") ?? null,
         altAccentText: text(formData, "altAccentText") ?? null,
         showPoweredBy: checkbox(formData, "showPoweredBy"),
+        kbPoweredByName: text(formData, "kbPoweredByName") ?? null,
       },
       user.id,
     );
@@ -53,7 +60,10 @@ export async function saveBrandingAction(
   return { ok: true };
 }
 
-export async function uploadLogoAction(_prev: FormState, formData: FormData): Promise<FormState> {
+export async function uploadLogoAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
   const file = formData.get("logo");
   if (!(file instanceof File) || file.size === 0) {
     return { fieldErrors: { logo: "Choose an image to upload" } };
@@ -120,7 +130,9 @@ export async function saveCompanyBrandingAction(
   return { ok: true };
 }
 
-export async function removeCompanyLogoAction(formData: FormData): Promise<void> {
+export async function removeCompanyLogoAction(
+  formData: FormData,
+): Promise<void> {
   const companyId = text(formData, "companyId");
   if (!companyId) return;
 

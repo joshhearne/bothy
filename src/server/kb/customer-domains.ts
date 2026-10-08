@@ -15,8 +15,9 @@ export function parseSignInDomains(text: string): {
   for (const raw of text.split(/[\s,;]+/)) {
     const value = raw.trim().replace(/^@/, "");
     if (!value) continue;
+    // An email domain has at least two labels; "localhost" places nobody.
     const domain = normalizeDomain(value);
-    if (!domain) rejected.push(value);
+    if (!domain || !domain.includes(".")) rejected.push(value);
     else if (!domains.includes(domain)) domains.push(domain);
   }
   return { domains: domains.slice(0, 50), rejected };

@@ -254,7 +254,7 @@ export const enUS = {
     brandAccent: "Accent",
     brandKeep: "Keep current",
     brandNoRaster:
-      "The site offers no PNG, JPEG or WebP icon; an ICO or SVG cannot be a logo here.",
+      "The site offers no PNG, JPEG, WebP or SVG icon; an ICO cannot be a logo here. An SVG is rendered to PNG with its transparency kept.",
     brandNoColor: "The site publishes no theme colour.",
     brandApply: "Use as company theme",
     customers: "Customers on the knowledge base",
@@ -862,6 +862,10 @@ export const enUS = {
       altLogoHint: (mode: string) =>
         `Optional. Left empty, the other logo is shown on ${mode} too.`,
       derived: "Derived",
+      kbPoweredBy: "Your name on the public knowledge base",
+      kbPoweredByHint:
+        "On the public knowledge base the credit reads “Powered by Trove KB | <your name>” beside your logo, in front of your customers. Leave it empty to keep the vendor's credit there too.",
+      kbPoweredByPlaceholder: "Your company name",
       poweredBy: "Show the “Powered by” credit",
       poweredByHint:
         "Names the product and who makes it, at the foot of every page. The licence and the link to the source stay either way — anyone using this over a network is entitled to them.",
