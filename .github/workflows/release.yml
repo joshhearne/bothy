@@ -1,0 +1,95 @@
+name: Release
+
+# Triggered when a semver tag is pushed (`git tag v0.1.0 && git push --tags`).
+# Builds release notes from the commits since the previous tag, publishes a
+# GitHub Release, then fires the marketing site's Cloudflare Pages deploy hook
+# so trove-kb.com rebuilds its changelog. The hook is fired from this workflow
+# rather than from a `release: published` trigger because releases created
+# with GITHUB_TOKEN do not start downstream workflows.
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'        # v1.2.3
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'      # v1.2.3-rc.1, v1.2.3-beta.0
+
+permissions:
+  contents: write   # required to create the GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # full history so the previous tag lookup works
+
+      - name: Determine previous tag
+        id: prev
+        run: |
+          PREV=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || echo "")
+          echo "tag=${PREV}" >> "$GITHUB_OUTPUT"
+          echo "Previous tag: ${PREV:-<none>}"
+
+      - name: Build release notes
+        run: |
+          set -e
+          PREV="${{ steps.prev.outputs.tag }}"
+          if [ -z "$PREV" ]; then
+            RANGE="HEAD"
+            HEADING="Initial release"
+          else
+            RANGE="${PREV}..HEAD"
+            HEADING="Changes since ${PREV}"
+          fi
+
+          BODY_LIST=$(git log "$RANGE" --no-merges --pretty=format:'- %s (%h)' --reverse || true)
+          if [ -z "$BODY_LIST" ]; then
+            BODY_LIST="- (no notable commits since the previous release)"
+          fi
+
+          {
+            echo "## ${HEADING}"
+            echo ""
+            echo "### Commits"
+            echo ""
+            echo "$BODY_LIST"
+            echo ""
+            echo "### Compare"
+            if [ -n "$PREV" ]; then
+              echo "[Full diff: ${PREV}…${GITHUB_REF_NAME}](https://github.com/${GITHUB_REPOSITORY}/compare/${PREV}...${GITHUB_REF_NAME})"
+            else
+              echo "[Tree at ${GITHUB_REF_NAME}](https://github.com/${GITHUB_REPOSITORY}/tree/${GITHUB_REF_NAME})"
+            fi
+          } > release-notes.md
+
+          echo "Wrote release-notes.md ($(wc -l < release-notes.md) lines)"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PRERELEASE=""
+          case "${GITHUB_REF_NAME}" in
+            *-*) PRERELEASE="--prerelease" ;;
+          esac
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md \
+            $PRERELEASE
+
+      # Rebuild trove-kb.com so /changelog/ picks up the release. Tolerates a
+      # missing secret with a warning so a half-configured repo still releases.
+      - name: Notify website
+        env:
+          HOOK_URL: ${{ secrets.TROVE_KB_DEPLOY_HOOK_URL }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -z "$HOOK_URL" ]; then
+            echo "::warning::TROVE_KB_DEPLOY_HOOK_URL secret not set — skipping site rebuild for ${TAG}"
+            exit 0
+          fi
+          curl -fsSL -X POST "$HOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "{\"trigger\":\"trove-kb-release\",\"tag\":\"${TAG}\"}"
+          echo "Deploy hook fired for ${TAG}"
