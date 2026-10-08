@@ -915,7 +915,7 @@ export const enUS = {
       derived: "Derived",
       kbPoweredBy: "Your name on the public knowledge base",
       kbPoweredByHint:
-        "On the public knowledge base the credit reads “Powered by Trove KB | <your name>” beside your logo, in front of your customers. Leave it empty to keep the vendor's credit there too.",
+        "On the public knowledge base the credit reads “Powered by Trove KB | <your name>” beside your logo, in front of your customers. Leave it empty to keep the vendor's credit there too. This installation's own pages, which only your administrators and technicians see, keep reading “Powered by Trove KB | Hearne Technologies” either way.",
       kbPoweredByPlaceholder: "Your company name",
       poweredBy: "Show the “Powered by” credit",
       poweredByHint:
