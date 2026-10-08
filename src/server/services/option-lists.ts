@@ -16,11 +16,19 @@ export const optionItemInputSchema = z.object({
 });
 
 export type OptionListSummary = { id: string; name: string; itemCount: number };
-export type OptionItemRow = { id: string; label: string; sortOrder: number; archivedAt: Date | null };
+export type OptionItemRow = {
+  id: string;
+  label: string;
+  sortOrder: number;
+  archivedAt: Date | null;
+};
 
 export async function listOptionLists(): Promise<OptionListSummary[]> {
   const counts = db
-    .select({ listId: optionItems.listId, n: sql<number>`count(*)::int`.as("item_count") })
+    .select({
+      listId: optionItems.listId,
+      n: sql<number>`count(*)::int`.as("item_count"),
+    })
     .from(optionItems)
     .where(isNull(optionItems.archivedAt))
     .groupBy(optionItems.listId)
@@ -38,7 +46,11 @@ export async function listOptionLists(): Promise<OptionListSummary[]> {
 }
 
 export async function getOptionList(id: string) {
-  const [list] = await db.select().from(optionLists).where(eq(optionLists.id, id)).limit(1);
+  const [list] = await db
+    .select()
+    .from(optionLists)
+    .where(eq(optionLists.id, id))
+    .limit(1);
   if (!list) return null;
   const items = await listOptionItems(id, { includeArchived: true });
   return { ...list, items };
@@ -69,16 +81,25 @@ export async function listOptionItems(
  * Archived items are left out, so an archived option can no longer be chosen
  * while documents that already hold it keep rendering (see resolveOptionLabels).
  */
-export async function loadOptionIndex(listIds: string[], tx?: Executor): Promise<OptionIndex> {
+export async function loadOptionIndex(
+  listIds: string[],
+  tx?: Executor,
+): Promise<OptionIndex> {
   const index: OptionIndex = new Map();
   const ids = [...new Set(listIds)];
   if (ids.length === 0) return index;
 
   const exec = tx ?? db;
   const rows = await exec
-    .select({ listId: optionItems.listId, id: optionItems.id, label: optionItems.label })
+    .select({
+      listId: optionItems.listId,
+      id: optionItems.id,
+      label: optionItems.label,
+    })
     .from(optionItems)
-    .where(and(inArray(optionItems.listId, ids), isNull(optionItems.archivedAt)))
+    .where(
+      and(inArray(optionItems.listId, ids), isNull(optionItems.archivedAt)),
+    )
     .orderBy(asc(optionItems.sortOrder), asc(optionItems.label));
 
   for (const row of rows) {
@@ -90,7 +111,9 @@ export async function loadOptionIndex(listIds: string[], tx?: Executor): Promise
 }
 
 /** Every item, archived included, for rendering values that were stored earlier. */
-export async function loadOptionLabels(listIds: string[]): Promise<Map<string, string>> {
+export async function loadOptionLabels(
+  listIds: string[],
+): Promise<Map<string, string>> {
   const ids = [...new Set(listIds)];
   if (ids.length === 0) return new Map();
 
@@ -180,14 +203,19 @@ export async function addOptionItem(
   const [existing] = await exec
     .select({ id: optionItems.id, archivedAt: optionItems.archivedAt })
     .from(optionItems)
-    .where(and(eq(optionItems.listId, listId), eq(optionItems.label, data.label)))
+    .where(
+      and(eq(optionItems.listId, listId), eq(optionItems.label, data.label)),
+    )
     .limit(1);
 
   if (existing) {
     if (!existing.archivedAt) throw new DuplicateOptionError(data.label);
     // Re-adding a label that was archived brings the original item back, so
     // documents still holding its id light up again.
-    await exec.update(optionItems).set({ archivedAt: null }).where(eq(optionItems.id, existing.id));
+    await exec
+      .update(optionItems)
+      .set({ archivedAt: null })
+      .where(eq(optionItems.id, existing.id));
     await writeAudit(
       {
         userId: actorId,
@@ -202,7 +230,9 @@ export async function addOptionItem(
   }
 
   const [{ next } = { next: 0 }] = await exec
-    .select({ next: sql<number>`coalesce(max(${optionItems.sortOrder}), -1) + 1` })
+    .select({
+      next: sql<number>`coalesce(max(${optionItems.sortOrder}), -1) + 1`,
+    })
     .from(optionItems)
     .where(eq(optionItems.listId, listId));
 
@@ -226,7 +256,62 @@ export async function addOptionItem(
   return item;
 }
 
-export async function archiveOptionItem(id: string, actorId: string): Promise<void> {
+/**
+ * A new name for an option everywhere it is used: the label is what readers
+ * see, the id is what documents hold, so nothing else moves. Refused when the
+ * list already has the new name, which is a merge, not a rename.
+ */
+export async function renameOptionItem(
+  id: string,
+  input: z.input<typeof optionItemInputSchema>,
+  actorId: string,
+): Promise<{ id: string; label: string }> {
+  const data = optionItemInputSchema.parse(input);
+
+  return db.transaction(async (tx) => {
+    const [item] = await tx
+      .select({ listId: optionItems.listId, label: optionItems.label })
+      .from(optionItems)
+      .where(and(eq(optionItems.id, id), isNull(optionItems.archivedAt)))
+      .limit(1);
+    if (!item) throw new NotFoundError("Active option");
+    if (item.label === data.label) return { id, label: data.label };
+
+    const [taken] = await tx
+      .select({ id: optionItems.id })
+      .from(optionItems)
+      .where(
+        and(
+          eq(optionItems.listId, item.listId),
+          eq(optionItems.label, data.label),
+          isNull(optionItems.archivedAt),
+        ),
+      )
+      .limit(1);
+    if (taken) throw new DuplicateOptionError(data.label);
+
+    await tx
+      .update(optionItems)
+      .set({ label: data.label })
+      .where(eq(optionItems.id, id));
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "option.renamed",
+        entity: "option_item",
+        entityId: id,
+        detail: { listId: item.listId, from: item.label, to: data.label },
+      },
+      tx,
+    );
+    return { id, label: data.label };
+  });
+}
+
+export async function archiveOptionItem(
+  id: string,
+  actorId: string,
+): Promise<void> {
   await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(optionItems)
@@ -236,13 +321,21 @@ export async function archiveOptionItem(id: string, actorId: string): Promise<vo
     if (!updated) throw new NotFoundError("Active option");
 
     await writeAudit(
-      { userId: actorId, action: "option.archived", entity: "option_item", entityId: id },
+      {
+        userId: actorId,
+        action: "option.archived",
+        entity: "option_item",
+        entityId: id,
+      },
       tx,
     );
   });
 }
 
-export async function unarchiveOptionItem(id: string, actorId: string): Promise<void> {
+export async function unarchiveOptionItem(
+  id: string,
+  actorId: string,
+): Promise<void> {
   await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(optionItems)
@@ -252,7 +345,12 @@ export async function unarchiveOptionItem(id: string, actorId: string): Promise<
     if (!updated) throw new NotFoundError("Option");
 
     await writeAudit(
-      { userId: actorId, action: "option.unarchived", entity: "option_item", entityId: id },
+      {
+        userId: actorId,
+        action: "option.unarchived",
+        entity: "option_item",
+        entityId: id,
+      },
       tx,
     );
   });

@@ -4,6 +4,7 @@ import { connect, type PeerCertificate } from "node:tls";
 import { isWorkers } from "@/lib/runtime";
 import { PRODUCT_NAME, SOURCE_URL } from "@/lib/app-meta";
 import { publicOnly } from "@/server/domain/addresses";
+import { orderDns } from "@/server/domain/order";
 import {
   certificateFindings,
   daysUntil,
@@ -74,7 +75,25 @@ export type CheckSelection = {
   email: boolean;
 };
 
-export type RunOptions = { certificate?: CertificateNotice };
+export type RunOptions = {
+  certificate?: CertificateNotice;
+  dkimSelectors?: string[];
+};
+
+/** A selector is a DNS label or a few: letters, digits, dots, hyphens, underscores. */
+const SELECTOR = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/i;
+
+/** "selector1, s2 ppe-1" from a form, as the distinct valid selectors it names. */
+export function parseSelectors(value: string | null | undefined): string[] {
+  if (!value) return [];
+  const out: string[] = [];
+  for (const raw of value.split(/[\s,;]+/)) {
+    const selector = raw.trim().toLowerCase();
+    if (selector && SELECTOR.test(selector) && !out.includes(selector))
+      out.push(selector);
+  }
+  return out.slice(0, 20);
+}
 
 function resolver(): Resolver {
   const instance = new Resolver({ timeout: TIMEOUT_MS, tries: 2 });
@@ -115,7 +134,7 @@ async function runDns(domain: string): Promise<Section<DnsSummary>> {
     return { ok: false, error: "The domain does not resolve." };
   }
 
-  const data: DnsSummary = {
+  const data: DnsSummary = orderDns({
     a: a ?? [],
     aaaa: aaaa ?? [],
     mx: (mx ?? []).map((record) => ({
@@ -125,7 +144,7 @@ async function runDns(domain: string): Promise<Section<DnsSummary>> {
     ns: (ns ?? []).map((host) => host.toLowerCase()),
     txt: (txt ?? []).map((chunks) => chunks.join("")),
     cname: cname ?? [],
-  };
+  });
 
   const findings: Finding[] = [];
   if (data.mx.length === 0) {
@@ -263,7 +282,10 @@ async function runRdap(domain: string): Promise<Section<RegistrationSummary>> {
   }
 }
 
-async function runEmail(domain: string): Promise<Section<EmailSummary>> {
+async function runEmail(
+  domain: string,
+  extraSelectors: string[] = [],
+): Promise<Section<EmailSummary>> {
   if (isWorkers()) return unavailable();
   const dns = resolver();
 
@@ -276,9 +298,11 @@ async function runEmail(domain: string): Promise<Section<EmailSummary>> {
   ]);
 
   // DKIM keys live under a selector that cannot be listed, so the common ones
-  // are tried and the answer says which were looked for.
+  // are tried, plus any the record names, and the answer says which were
+  // looked for.
+  const tried = [...new Set([...extraSelectors, ...DKIM_SELECTORS])];
   const found = await Promise.all(
-    DKIM_SELECTORS.map(async (selector) => {
+    tried.map(async (selector) => {
       const record = await maybe(
         dns.resolveTxt(`${selector}._domainkey.${domain}`),
       );
@@ -295,6 +319,7 @@ async function runEmail(domain: string): Promise<Section<EmailSummary>> {
     dkimSelectors: found.filter(
       (selector): selector is string => selector !== null,
     ),
+    dkimTried: tried,
   };
 
   return { ok: true, data, findings: emailFindings(data) };
@@ -310,7 +335,7 @@ export async function runChecks(
     selection.dns ? runDns(domain) : undefined,
     selection.tls ? runTls(domain, options.certificate) : undefined,
     selection.rdap ? runRdap(domain) : undefined,
-    selection.email ? runEmail(domain) : undefined,
+    selection.email ? runEmail(domain, options.dkimSelectors) : undefined,
   ]);
 
   const checkedAt = new Date().toISOString();

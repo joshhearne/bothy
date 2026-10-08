@@ -592,6 +592,12 @@ export const domainChecks = pgTable(
     /** Days ahead of certificate expiry to warn, for this record. Null follows the policy. */
     tlsWarnDays: integer("tls_warn_days"),
     /**
+     * DKIM selectors to try for this domain, on top of the common ones. A
+     * selector cannot be listed from DNS, so without this a domain signing
+     * under its own name reads as having no key.
+     */
+    dkimSelectors: text("dkim_selectors"),
+    /**
      * The last result boiled down to what is worth comparing — name servers,
      * certificate, registrar, expiry dates, mail posture — so the next run can
      * say what changed. See src/server/domain/summary.ts.

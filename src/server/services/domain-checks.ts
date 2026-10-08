@@ -19,9 +19,15 @@ import { getDomainCheckPolicy } from "@/server/services/settings";
 import { companyPolicyOf } from "@/server/services/companies";
 import { scopeWhere, type CompanyScope } from "@/server/auth/company-scope";
 import { optionItems } from "@/server/db/schema";
-import { addOptionItem } from "@/server/services/option-lists";
-import { normalizeDomain } from "@/server/domain/hostname";
 import {
+  addOptionItem,
+  DuplicateOptionError,
+  renameOptionItem,
+} from "@/server/services/option-lists";
+import { normalizeDomain } from "@/server/domain/hostname";
+import { namesAgree, squashName } from "@/server/domain/names";
+import {
+  parseSelectors,
   runChecks,
   type CheckSelection,
   type DomainCheckResult,
@@ -64,6 +70,8 @@ export type RecordPolicy = {
   intervals: Record<CheckKind, number | null>;
   tlsAutoRenews: boolean;
   tlsWarnDays: number | null;
+  /** DKIM selectors this record names, tried on top of the common ones. */
+  dkimSelectors: string[];
 };
 
 export type DomainAutomation = {
@@ -168,6 +176,7 @@ function recordPolicyOf(row: CheckRow | undefined): RecordPolicy {
     },
     tlsAutoRenews: row?.tlsAutoRenews ?? false,
     tlsWarnDays: row?.tlsWarnDays ?? null,
+    dkimSelectors: parseSelectors(row?.dkimSelectors),
   };
 }
 
@@ -327,6 +336,8 @@ export type AutomationInput = {
   intervals: Partial<Record<CheckKind, unknown>>;
   tlsAutoRenews: boolean;
   tlsWarnDays: unknown;
+  /** Comma or space separated, as typed. */
+  dkimSelectors?: string | null;
 };
 
 const NO_AUTOMATION: AutomationInput = {
@@ -360,6 +371,7 @@ export async function setDomainChecks(
     },
     tlsAutoRenews: automation.tlsAutoRenews,
     tlsWarnDays: intervalOrNull(automation.tlsWarnDays, 1),
+    dkimSelectors: parseSelectors(automation.dkimSelectors),
   };
   const { effective } = await policyFor(companyId, own);
 
@@ -385,6 +397,8 @@ export async function setDomainChecks(
     emailIntervalDays: own.intervals.email,
     tlsAutoRenews: own.tlsAutoRenews,
     tlsWarnDays: own.tlsWarnDays,
+    dkimSelectors:
+      own.dkimSelectors.length > 0 ? own.dkimSelectors.join(", ") : null,
     ...nextRunColumns(next),
   };
   await db
@@ -469,6 +483,7 @@ async function performCheck(input: {
   for (const kind of kinds) ran[kind] = true;
   const fresh = await runChecks(domain, ran, {
     certificate: { warnDays, autoRenews: own.tlsAutoRenews },
+    dkimSelectors: own.dkimSelectors,
   });
   const result = mergeResults(input.previous.result, fresh, selection);
 
@@ -824,16 +839,12 @@ export async function listDomainAttention(
   return items;
 }
 
-/** Letters and digits only, so "GoDaddy.com, LLC" can meet "GoDaddy". */
-function squash(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
-}
-
 /**
- * A dropdown stores an option id, and a lookup returns a name. An existing
- * option wins even when the wording differs — a registry saying
- * "GoDaddy.com, LLC" means the "GoDaddy" already in the list — and a name
- * nobody has listed is added to the shared list rather than refused.
+ * A dropdown stores an option id, and a lookup returns a name. The option
+ * whose label is the same name, give or take punctuation and case, is used;
+ * a name nobody has listed is added to the shared list rather than refused.
+ * A name that only resembles an option ("Cloudflare, Inc." beside
+ * "Cloudflare") is offered as a choice on the page instead of decided here.
  */
 async function toStoredValue(
   fieldId: string,
@@ -855,13 +866,9 @@ async function toStoredValue(
     .from(optionItems)
     .where(and(eq(optionItems.listId, listId), isNull(optionItems.archivedAt)));
 
-  const wanted = squash(value);
-  const existing = items.find((item) => {
-    const label = squash(item.label);
-    return (
-      label === wanted || label.startsWith(wanted) || wanted.startsWith(label)
-    );
-  });
+  const existing = items.find(
+    (item) => squashName(item.label) === squashName(value),
+  );
   if (existing) return existing.id;
 
   const added = await addOptionItem(listId, { label: value }, actorId);
@@ -894,5 +901,71 @@ export async function applyDomainSuggestion(
   if (!saved.ok) {
     const [message] = Object.values(saved.errors);
     throw new SuggestionRejectedError(message ?? "That value was not accepted");
+  }
+}
+
+/**
+ * Gives the option this record already holds the name the lookup returned:
+ * "Cloudflare" becomes "Cloudflare, Inc." for every record on the shared
+ * list. Only when the two are the same name in different words; anything
+ * else would rename one registrar into another.
+ */
+export async function renameDomainSuggestion(
+  documentId: string,
+  role: Exclude<DomainRole, "domain">,
+  value: string,
+  actorId: string,
+  scope: CompanyScope,
+): Promise<void> {
+  const state = await getDomainCheckState(documentId, scope);
+  const fieldId = state.targets[role];
+  if (!fieldId) throw new NoDomainFieldError();
+
+  const [field] = await db
+    .select({ fieldType: fields.fieldType, optionListId: fields.optionListId })
+    .from(fields)
+    .where(eq(fields.id, fieldId))
+    .limit(1);
+  if (!field || field.fieldType !== "dropdown" || !field.optionListId) {
+    throw new SuggestionRejectedError(
+      "Only a dropdown's option can be renamed",
+    );
+  }
+
+  const [document] = await db
+    .select({ values: documents.fieldValues })
+    .from(documents)
+    .where(eq(documents.id, documentId))
+    .limit(1);
+  const held = (document?.values as Record<string, unknown> | null)?.[fieldId];
+  if (typeof held !== "string" || held === "") {
+    throw new SuggestionRejectedError("This record holds no option to rename");
+  }
+
+  const [item] = await db
+    .select({ id: optionItems.id, label: optionItems.label })
+    .from(optionItems)
+    .where(
+      and(
+        eq(optionItems.id, held),
+        eq(optionItems.listId, field.optionListId),
+        isNull(optionItems.archivedAt),
+      ),
+    )
+    .limit(1);
+  if (!item)
+    throw new SuggestionRejectedError("This record holds no option to rename");
+  if (!namesAgree(item.label, value)) {
+    throw new SuggestionRejectedError(
+      `“${item.label}” and “${value}” are not the same name`,
+    );
+  }
+
+  try {
+    await renameOptionItem(item.id, { label: value }, actorId);
+  } catch (err) {
+    if (err instanceof DuplicateOptionError)
+      throw new SuggestionRejectedError(err.message);
+    throw err;
   }
 }

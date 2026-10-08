@@ -10,6 +10,7 @@ import {
 import { NotFoundError } from "@/server/services/errors";
 import {
   applyDomainSuggestion,
+  renameDomainSuggestion,
   NoDomainFieldError,
   NotADomainError,
   runDomainCheck,
@@ -60,6 +61,7 @@ export async function saveDomainChecksAction(
         },
         tlsAutoRenews: checkbox(formData, "tlsAutoRenews"),
         tlsWarnDays: text(formData, "tlsWarnDays"),
+        dkimSelectors: text(formData, "dkimSelectors") ?? null,
       },
     );
   } catch (err) {
@@ -89,7 +91,12 @@ export async function runDomainCheckAction(
   return { ok: true };
 }
 
-/** Writes one finding into the record, as an ordinary edit. */
+/**
+ * Writes one finding into the record, as an ordinary edit ("add": the name
+ * becomes the record's value, joining the list if it is new), or gives the
+ * option the record holds that name ("rename": the shared list changes, the
+ * record keeps its id).
+ */
 export async function applyDomainSuggestionAction(
   _prev: FormState,
   formData: FormData,
@@ -98,17 +105,15 @@ export async function applyDomainSuggestionAction(
   const role = text(formData, "role") as
     Exclude<DomainRole, "domain"> | undefined;
   const value = text(formData, "value");
+  const mode = text(formData, "mode") === "rename" ? "rename" : "add";
   if (!documentId || !role || !value) return { error: "Missing suggestion" };
 
   try {
     const user = await requireDocumentEditor();
-    await applyDomainSuggestion(
-      documentId,
-      role,
-      value,
-      user.id,
-      await getCompanyScope(user),
-    );
+    const scope = await getCompanyScope(user);
+    if (mode === "rename")
+      await renameDomainSuggestion(documentId, role, value, user.id, scope);
+    else await applyDomainSuggestion(documentId, role, value, user.id, scope);
   } catch (err) {
     return toFormState(err);
   }

@@ -40,6 +40,16 @@ const RULES: readonly Rule[] = [
     label: "Amazon SES verification",
   },
   {
+    test: /^ppe-[0-9a-f]{6,}/i,
+    kind: "verification",
+    label: "Proofpoint Essentials verification",
+  },
+  {
+    test: /^proofpoint-verification=/i,
+    kind: "verification",
+    label: "Proofpoint verification",
+  },
+  {
     test: /^apple-domain-verification=/i,
     kind: "verification",
     label: "Apple domain verification",

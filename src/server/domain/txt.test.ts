@@ -54,3 +54,9 @@ describe("classifyTxt", () => {
     expect(classifyTxt("").kind).toBe("other");
   });
 });
+
+describe("classifyTxt for Proofpoint", () => {
+  it("names a Proofpoint Essentials token", () => {
+    expect(classifyTxt("ppe-fb2fd3a1c9e7").label).toBe("Proofpoint Essentials verification");
+  });
+});

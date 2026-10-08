@@ -17,6 +17,8 @@ import {
   type CheckKind,
 } from "@/server/domain/policy";
 import { classifyTxt } from "@/server/domain/txt";
+import { namesAgree } from "@/server/domain/names";
+import { orderDns } from "@/server/domain/order";
 import {
   applyDomainSuggestionAction,
   runDomainCheckAction,
@@ -49,12 +51,15 @@ function Section({
   title,
   section,
   meta,
+  hideFindings = false,
   children,
 }: {
   title: string;
   section: { ok: boolean; error?: string; findings?: Finding[] } | undefined;
   /** "checked …", "next …": each section runs on its own clock. */
   meta?: string[];
+  /** The children show the findings their own way (a table), so the list is not repeated. */
+  hideFindings?: boolean;
   children?: React.ReactNode;
 }) {
   if (!section) return null;
@@ -71,7 +76,7 @@ function Section({
       </div>
       {section.ok ? (
         <>
-          <FindingList findings={section.findings ?? []} />
+          {!hideFindings && <FindingList findings={section.findings ?? []} />}
           {children}
         </>
       ) : (
@@ -89,12 +94,15 @@ function Suggestion({
   label,
   value,
   current,
+  option,
 }: {
   documentId: string;
   role: "expiry" | "registrar" | "dns_host";
   label: string;
   value: string;
   current: string | null;
+  /** The field is a dropdown, so a name can also rename the option it matched. */
+  option: boolean;
 }) {
   const [state, formAction] = useActionState<FormState, FormData>(
     applyDomainSuggestionAction,
@@ -111,6 +119,10 @@ function Suggestion({
     );
   }
 
+  // The same name in different words ("Cloudflare, Inc." beside "Cloudflare"):
+  // either becomes its own option, or the existing one takes the new name.
+  const sameName = Boolean(current && option && namesAgree(current, value));
+
   return (
     <form
       action={formAction}
@@ -119,14 +131,150 @@ function Suggestion({
       <input type="hidden" name="documentId" value={documentId} />
       <input type="hidden" name="role" value={role} />
       <input type="hidden" name="value" value={value} />
-      <span>{t.documents.domain.suggests(label, value)}</span>
-      <Button type="submit" variant="outline" size="sm">
+      <span>
+        {t.documents.domain.suggests(label, value)}
+        {sameName && current && (
+          <span className="ml-1 text-[var(--muted-foreground)]">
+            {t.documents.domain.recordedAs(current)}
+          </span>
+        )}
+      </span>
+      <Button
+        type="submit"
+        name="mode"
+        value="add"
+        variant="outline"
+        size="sm"
+        title={
+          sameName && current
+            ? t.documents.domain.useHintOption(label, value, current)
+            : t.documents.domain.useHint(label, value)
+        }
+      >
         {t.documents.domain.use}
       </Button>
+      {sameName && current && (
+        <Button
+          type="submit"
+          name="mode"
+          value="rename"
+          variant="outline"
+          size="sm"
+          title={t.documents.domain.updateHint(current, value)}
+        >
+          {t.documents.domain.update}
+        </Button>
+      )}
       {state.error && (
         <span className="text-[var(--destructive)]">{state.error}</span>
       )}
     </form>
+  );
+}
+
+/**
+ * Mail posture as a table: what was checked, what that means, and the record
+ * itself. The findings arrive in the order SPF, DMARC, DKIM, which is the
+ * order of the rows; a finding that is not there reads as a blank.
+ */
+function EmailTable({
+  data,
+  findings,
+}: {
+  data: {
+    spf: string | null;
+    dmarc: string | null;
+    dmarcCname?: string | null;
+    dkimSelectors: string[];
+    dkimTried?: string[];
+  };
+  findings: Finding[];
+}) {
+  const t = useMessages();
+  const none = (
+    <span className="font-sans text-[var(--muted-foreground)]">
+      {t.documents.domain.none}
+    </span>
+  );
+  const rows: {
+    name: string;
+    finding: Finding | undefined;
+    record: React.ReactNode;
+  }[] = [
+    {
+      name: t.documents.domain.spfRecord,
+      finding: findings[0],
+      record: data.spf ?? none,
+    },
+    {
+      name: t.documents.domain.dmarcRecord,
+      finding: findings[1],
+      record: (
+        <>
+          {data.dmarc ?? none}
+          {data.dmarcCname && (
+            <span className="ml-2 font-sans text-[var(--muted-foreground)]">
+              {t.documents.domain.dmarcVia(data.dmarcCname)}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      name: "DKIM",
+      finding: findings[2],
+      record: (
+        <>
+          {data.dkimSelectors.length > 0 ? data.dkimSelectors.join(", ") : none}
+          {data.dkimTried && data.dkimTried.length > 0 && (
+            <span className="ml-2 font-sans text-[var(--muted-foreground)]">
+              {t.documents.domain.dkimTried(data.dkimTried.join(", "))}
+            </span>
+          )}
+        </>
+      ),
+    },
+  ];
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs text-[var(--muted-foreground)]">
+            <th className="py-1 pr-3 font-medium">
+              {t.documents.domain.check}
+            </th>
+            <th className="py-1 pr-3 font-medium">
+              {t.documents.domain.finding}
+            </th>
+            <th className="py-1 font-medium">{t.documents.domain.record}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.name} className="border-t align-top">
+              <td className="py-1.5 pr-3 font-medium whitespace-nowrap">
+                {row.name}
+              </td>
+              <td className="py-1.5 pr-3">
+                {row.finding && (
+                  <span className="flex items-start gap-2">
+                    <span
+                      aria-hidden
+                      className={`mt-1.5 size-2 shrink-0 rounded-full ${DOT[row.finding.severity]}`}
+                    />
+                    <span>{row.finding.message}</span>
+                  </span>
+                )}
+              </td>
+              <td className="py-1.5 font-mono text-xs break-all">
+                {row.record}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -174,11 +322,12 @@ export function DomainPanel({
   documentId: string;
   state: DomainCheckState;
   editor: boolean;
-  /** What the record already says, for comparing a suggestion against. */
+  /** What the record already says, for comparing a suggestion against, and which of those are dropdown options. */
   current: {
     expiry: string | null;
     registrar: string | null;
     dnsHost: string | null;
+    options: { expiry: boolean; registrar: boolean; dnsHost: boolean };
   };
   /** ISO, because a Date crosses the boundary as a string anyway. */
   checkedAt: string | null;
@@ -196,6 +345,8 @@ export function DomainPanel({
   );
 
   const result = state.result;
+  // Sorted at render as well as at fetch, so a result kept from before reads the same way.
+  const dns = result?.dns?.ok ? orderDns(result.dns.data) : null;
   const { automation } = state;
   const when = (value: string | Date | null | undefined) =>
     value ? formatDateTime(new Date(value), locale) : null;
@@ -359,6 +510,24 @@ export function DomainPanel({
                       </label>
                     </div>
                   )}
+
+                  {kind === "email" && (
+                    <label className="flex flex-col gap-1 text-sm sm:basis-full sm:pl-6">
+                      <span className="font-medium">
+                        {t.documents.domain.dkimSelectors}
+                      </span>
+                      <input
+                        type="text"
+                        name="dkimSelectors"
+                        defaultValue={automation.own.dkimSelectors.join(", ")}
+                        placeholder="selector1, selector2"
+                        className="h-9 w-full rounded-md border bg-transparent px-3 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] sm:max-w-md"
+                      />
+                      <span className="text-xs text-[var(--muted-foreground)]">
+                        {t.documents.domain.dkimSelectorsHint}
+                      </span>
+                    </label>
+                  )}
                 </div>
               );
             })}
@@ -459,23 +628,20 @@ export function DomainPanel({
             section={result.dns}
             meta={sectionMeta("dns")}
           >
-            {result.dns?.ok && (
+            {dns && (
               <dl className="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-1 text-sm">
                 {(
                   [
-                    ["A", result.dns.data.a.join(", ")],
-                    ["AAAA", result.dns.data.aaaa.join(", ")],
-                    [
-                      t.documents.domain.cname,
-                      result.dns.data.cname.join(", "),
-                    ],
+                    ["A", dns.a.join(", ")],
+                    ["AAAA", dns.aaaa.join(", ")],
+                    [t.documents.domain.cname, dns.cname.join(", ")],
                     [
                       "MX",
-                      result.dns.data.mx
+                      dns.mx
                         .map((mx) => `${mx.priority} ${mx.exchange}`)
                         .join(", "),
                     ],
-                    ["NS", result.dns.data.ns.join(", ")],
+                    ["NS", dns.ns.join(", ")],
                   ] as const
                 )
                   .filter(([, value]) => value !== "")
@@ -485,14 +651,14 @@ export function DomainPanel({
                       <dd className="break-words font-mono text-xs">{value}</dd>
                     </div>
                   ))}
-                {result.dns.data.txt.length > 0 && (
+                {dns.txt.length > 0 && (
                   <div className="contents">
                     <dt className="text-[var(--muted-foreground)]">
                       {t.documents.domain.txt}
                     </dt>
                     <dd>
                       <ul className="flex list-disc flex-col gap-1 pl-4 marker:text-[var(--muted-foreground)]">
-                        {result.dns.data.txt.map((value, index) => (
+                        {dns.txt.map((value, index) => (
                           <TxtRecord key={index} value={value} />
                         ))}
                       </ul>
@@ -502,19 +668,17 @@ export function DomainPanel({
               </dl>
             )}
 
-            {editor &&
-              result.dns?.ok &&
-              result.dns.data.ns[0] &&
-              state.targets.dns_host && (
-                <Suggestion
-                  documentId={documentId}
-                  role="dns_host"
-                  label={t.documents.domain.dnsHost}
-                  // "dara.ns.cloudflare.com" is answered by Cloudflare.
-                  value={nameServerBrand(result.dns.data.ns[0])}
-                  current={current.dnsHost}
-                />
-              )}
+            {editor && dns && dns.ns[0] && state.targets.dns_host && (
+              <Suggestion
+                documentId={documentId}
+                role="dns_host"
+                label={t.documents.domain.dnsHost}
+                // "dara.ns.cloudflare.com" is answered by Cloudflare.
+                value={nameServerBrand(dns.ns[0])}
+                current={current.dnsHost}
+                option={current.options.dnsHost}
+              />
+            )}
           </Section>
 
           <Section
@@ -555,6 +719,7 @@ export function DomainPanel({
                     label={t.documents.domain.registrar}
                     value={result.rdap.data.registrar}
                     current={current.registrar}
+                    option={current.options.registrar}
                   />
                 )}
                 {result.rdap.data.expires && state.targets.expiry && (
@@ -564,6 +729,7 @@ export function DomainPanel({
                     label={t.documents.domain.expiry}
                     value={result.rdap.data.expires.slice(0, 10)}
                     current={current.expiry}
+                    option={current.options.expiry}
                   />
                 )}
               </div>
@@ -574,43 +740,13 @@ export function DomainPanel({
             title={t.documents.domain.email}
             section={result.email}
             meta={sectionMeta("email")}
+            hideFindings
           >
             {result.email?.ok && (
-              <dl className="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-1 text-sm">
-                <div className="contents">
-                  <dt className="text-[var(--muted-foreground)]">
-                    {t.documents.domain.spfRecord}
-                  </dt>
-                  <dd className="break-all font-mono text-xs">
-                    {result.email.data.spf ?? t.documents.domain.none}
-                  </dd>
-                </div>
-                <div className="contents">
-                  <dt className="text-[var(--muted-foreground)]">
-                    {t.documents.domain.dmarcRecord}
-                  </dt>
-                  <dd className="break-all font-mono text-xs">
-                    {result.email.data.dmarc ?? t.documents.domain.none}
-                    {result.email.data.dmarcCname && (
-                      <span className="ml-2 font-sans text-[var(--muted-foreground)]">
-                        {t.documents.domain.dmarcVia(
-                          result.email.data.dmarcCname,
-                        )}
-                      </span>
-                    )}
-                  </dd>
-                </div>
-                <div className="contents">
-                  <dt className="text-[var(--muted-foreground)]">
-                    {t.documents.domain.dkimSelectors}
-                  </dt>
-                  <dd className="break-all font-mono text-xs">
-                    {result.email.data.dkimSelectors.length > 0
-                      ? result.email.data.dkimSelectors.join(", ")
-                      : t.documents.domain.none}
-                  </dd>
-                </div>
-              </dl>
+              <EmailTable
+                data={result.email.data}
+                findings={result.email.findings}
+              />
             )}
           </Section>
         </div>

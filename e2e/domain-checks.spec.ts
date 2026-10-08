@@ -442,3 +442,20 @@ test("what the last check flagged is listed under Notifications", async ({
   await expect(item).toBeVisible();
   await expect(item.getByText("The domain does not resolve.")).toBeVisible();
 });
+
+test("a record can name its own DKIM selectors, which are kept tidy", async ({ page }) => {
+  await page.goto(`/documents/${documentId}`);
+  await page
+    .getByRole("textbox", { name: "DKIM selectors" })
+    .fill(" Selector1, ppe-1 bad!sel  selector1 ");
+  await page.getByRole("button", { name: "Save choices" }).click();
+  await expect
+    .poll(() =>
+      psql(`select dkim_selectors from domain_checks where document_id = '${documentId}';`),
+    )
+    .toBe("selector1, ppe-1");
+  await page.reload();
+  await expect(page.getByRole("textbox", { name: "DKIM selectors" })).toHaveValue(
+    "selector1, ppe-1",
+  );
+});

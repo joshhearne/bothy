@@ -247,6 +247,8 @@ export type EmailSummary = {
   /** Where _dmarc points when it is a CNAME (Proofpoint and others host it), else null. */
   dmarcCname?: string | null;
   dkimSelectors: string[];
+  /** Every selector that was looked for, the common ones and the record's own. */
+  dkimTried?: string[];
 };
 
 /** A TXT record arrives as chunks that have to be joined before reading. */

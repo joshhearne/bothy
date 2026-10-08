@@ -760,3 +760,8 @@ ALTER TABLE domain_checks ADD CONSTRAINT domain_checks_intervals_check CHECK (
   AND (rdap_interval_days IS NULL OR rdap_interval_days BETWEEN 1 AND 365)
   AND (email_interval_days IS NULL OR email_interval_days BETWEEN 1 AND 365)
   AND (tls_warn_days IS NULL OR tls_warn_days BETWEEN 1 AND 365));
+
+-- ---------- DKIM selectors a record names ----------
+-- A DKIM key lives under a selector that cannot be listed, so the common ones
+-- are tried and a record may name its own, comma separated, to try as well.
+ALTER TABLE domain_checks ADD COLUMN dkim_selectors text;

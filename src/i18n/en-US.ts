@@ -29,7 +29,8 @@ export const enUS = {
     accountMenuFor: (name: string) => `Account menu for ${name}`,
     signedInAs: "Signed in as",
     closeAccount: "Close account menu",
-    poweredBy: (product: string, vendor: string) => `Powered by ${product} | ${vendor}`,
+    poweredBy: (product: string, vendor: string) =>
+      `Powered by ${product} | ${vendor}`,
     source: "Source code",
   },
 
@@ -83,7 +84,8 @@ export const enUS = {
 
   setup: {
     heading: "Welcome to Trove KB",
-    description: "Create the first administrator account. This is the only time sign-up is open.",
+    description:
+      "Create the first administrator account. This is the only time sign-up is open.",
     yourName: "Your name",
     email: "Email",
     password: "Password",
@@ -109,9 +111,11 @@ export const enUS = {
     rateLimited: "Too many attempts. Try again shortly.",
     forgot: "Forgot your password?",
     forgotHeading: "Reset your password",
-    forgotDescription: "Enter your email address. If there is an account for it, a link to choose a new password is on its way, good for an hour.",
+    forgotDescription:
+      "Enter your email address. If there is an account for it, a link to choose a new password is on its way, good for an hour.",
     forgotSubmit: "Send the link",
-    forgotSent: "If there is an account for that address, a link is on its way. Check your mail.",
+    forgotSent:
+      "If there is an account for that address, a link is on its way. Check your mail.",
     resetHeading: "Choose a new password",
     resetDescription: "Your other sessions will be signed out.",
     resetSubmit: "Set password",
@@ -139,7 +143,8 @@ export const enUS = {
 
   mfa: {
     heading: "One more step",
-    description: "Enter the code from your authenticator app, or use a passkey.",
+    description:
+      "Enter the code from your authenticator app, or use a passkey.",
     again: "This part of the site asks for your second step again.",
     code: "Six-digit code",
     verify: "Verify",
@@ -156,7 +161,8 @@ export const enUS = {
           ? "1 recovery code left."
           : `${left} recovery codes left.`,
     wrongCode: "That code is not right.",
-    locked: (until: string) => `Too many wrong answers. Try again after ${until}.`,
+    locked: (until: string) =>
+      `Too many wrong answers. Try again after ${until}.`,
     expired: "Start again: that setup has expired.",
     signOut: "Sign out",
   },
@@ -165,8 +171,10 @@ export const enUS = {
     title: "Personal settings",
     security: "Security",
     password: "Password",
-    passwordHint: "Choose your own. Your other sessions are signed out when it changes.",
-    passwordRequired: "You signed in with a temporary password. Choose your own to carry on.",
+    passwordHint:
+      "Choose your own. Your other sessions are signed out when it changes.",
+    passwordRequired:
+      "You signed in with a temporary password. Choose your own to carry on.",
     current: "Current password",
     next: "New password",
     confirm: "Confirm new password",
@@ -177,13 +185,17 @@ export const enUS = {
     mfaTitle: "Second sign-in step",
     mfaHint:
       "A code from an authenticator app, a passkey, or both. Once anything is enrolled, every sign-in asks for it.",
-    mfaRequired: (when: string) => `Administrators must enroll a second step. Yours is due by ${when}.`,
-    mfaOverdue: "Administrators must enroll a second step before going on. Set one up below.",
-    mfaEncouraged: "Optional for your role, and worth having: it keeps a stolen password from being enough.",
+    mfaRequired: (when: string) =>
+      `Administrators must enroll a second step. Yours is due by ${when}.`,
+    mfaOverdue:
+      "Administrators must enroll a second step before going on. Set one up below.",
+    mfaEncouraged:
+      "Optional for your role, and worth having: it keeps a stolen password from being enough.",
     enrolledNothing: "Nothing enrolled yet.",
 
     totp: "Authenticator app",
-    totpHint: "Microsoft Authenticator, Google Authenticator, 1Password, or any app that takes a code.",
+    totpHint:
+      "Microsoft Authenticator, Google Authenticator, 1Password, or any app that takes a code.",
     totpEnrolled: (when: string) => `Enrolled ${when}.`,
     totpSetUp: "Set up an authenticator app",
     totpScan: "Scan this with your app, or type the key into it.",
@@ -198,7 +210,7 @@ export const enUS = {
       "A security key such as a YubiKey, or a passkey held by your device or password manager. Passkeys cannot be phished.",
     passkeyAdd: "Add a passkey",
     passkeyLabel: "Name for this passkey",
-    passkeyLabelHint: "So you know which is which: \"Work YubiKey\", \"Laptop\".",
+    passkeyLabelHint: 'So you know which is which: "Work YubiKey", "Laptop".',
     passkeyAdding: "Follow your browser's prompt…",
     passkeyFailed: "The passkey could not be added. Try again.",
     passkeyUnsupported: "This browser cannot make passkeys.",
@@ -213,7 +225,8 @@ export const enUS = {
     recovery: "Recovery codes",
     recoveryHint:
       "For when the app and the passkey are both out of reach. Each works once. Keep them somewhere safe, away from your password.",
-    recoveryLeft: (left: number) => (left === 1 ? "1 unused code." : `${left} unused codes.`),
+    recoveryLeft: (left: number) =>
+      left === 1 ? "1 unused code." : `${left} unused codes.`,
     recoveryNone: "You have none. Make a set.",
     recoveryMake: "Make a new set",
     recoveryMakeHint: "The old set stops working.",
@@ -222,7 +235,8 @@ export const enUS = {
 
     lastFactorWarning:
       "This is your only second step. Removing it turns the second step off for your account.",
-    adminNeedsOne: "Administrators must keep at least one second step enrolled.",
+    adminNeedsOne:
+      "Administrators must keep at least one second step enrolled.",
   },
 
   companies: {
@@ -232,7 +246,8 @@ export const enUS = {
     domainChecksSave: "Update domain checks",
     title: "Companies",
     empty: "No companies yet. Create one to start documenting.",
-    noneGranted: "No companies have been shared with you yet. Ask an administrator for access.",
+    noneGranted:
+      "No companies have been shared with you yet. Ask an administrator for access.",
     newHeading: "New company",
     editHeading: (name: string) => `Edit ${name}`,
     create: "Create company",
@@ -252,14 +267,18 @@ export const enUS = {
     newDocument: "New document",
     exportJson: "Export JSON",
     exportMarkdown: "Export Markdown",
-    counts: (locations: string, documents: string) => `${locations} · ${documents}`,
+    counts: (locations: string, documents: string) =>
+      `${locations} · ${documents}`,
   },
 
   documents: {
     pickDocType: (company: string) => `Pick a doc type for ${company}.`,
-    noDocTypes: "No doc types exist yet. An administrator creates them under Admin → Doc types.",
-    needsLocation: (docType: string) => `${docType} documents attach to a location. Pick one.`,
-    noLocationsForCompany: (company: string) => `${company} has no locations yet. Add one on the company page first.`,
+    noDocTypes:
+      "No doc types exist yet. An administrator creates them under Admin → Doc types.",
+    needsLocation: (docType: string) =>
+      `${docType} documents attach to a location. Pick one.`,
+    noLocationsForCompany: (company: string) =>
+      `${company} has no locations yet. Add one on the company page first.`,
     chooseDifferentType: "Choose a different doc type",
     newOf: (docType: string) => `New ${docType}`,
     create: "Create document",
@@ -293,12 +312,16 @@ export const enUS = {
       save: "Save schedule",
       clear: "Clear schedule",
       done: "Mark done",
-      overdue: (days: number) => `Overdue by ${days} ${days === 1 ? "day" : "days"}.`,
+      overdue: (days: number) =>
+        `Overdue by ${days} ${days === 1 ? "day" : "days"}.`,
       dueSoon: (days: number) =>
-        days === 0 ? "Due today." : `Due in ${days} ${days === 1 ? "day" : "days"}.`,
+        days === 0
+          ? "Due today."
+          : `Due in ${days} ${days === 1 ? "day" : "days"}.`,
       ok: (date: string) => `Next due ${date}.`,
       lastDone: (date: string) => `Last done ${date}.`,
-      stamped: "From the doc type. Editing it here makes it this document's own.",
+      stamped:
+        "From the doc type. Editing it here makes it this document's own.",
       typeHeading: "Review schedule for every document of this type",
       typeHint:
         "Every document of this type starts with this. A doc type cannot know a date, so the first one is counted from the day a document is created.",
@@ -312,7 +335,9 @@ export const enUS = {
       typeApplyHint:
         "Stamps it into documents of this type that have no schedule of their own. Nothing that already has one is touched.",
       typeApplied: (count: number) =>
-        count === 1 ? "Stamped into 1 document." : `Stamped into ${count} documents.`,
+        count === 1
+          ? "Stamped into 1 document."
+          : `Stamped into ${count} documents.`,
     },
 
     rack: {
@@ -341,11 +366,13 @@ export const enUS = {
       face: "Face",
       faceBoth: "Front and rear",
       document: "A document",
-      documentHint: "Pick something already written up, or leave it and type a label.",
+      documentHint:
+        "Pick something already written up, or leave it and type a label.",
       label: "Or a label",
       labelHint: "For a patch panel or a shelf nobody will ever document.",
       type: "Kind",
-      typeHint: "Decides its colour. Taken from the document when you pick one.",
+      typeHint:
+        "Decides its colour. Taken from the document when you pick one.",
       add: "Mount it",
       remove: "Remove",
       key: "Colour key",
@@ -354,7 +381,8 @@ export const enUS = {
       setGlobal: "Set for every client",
       setCompany: "Override for this client",
       warnings: "Worth a look",
-      tooClose: (a: string, b: string) => `${a} and ${b} are too close to tell apart in print.`,
+      tooClose: (a: string, b: string) =>
+        `${a} and ${b} are too close to tell apart in print.`,
       overrideShadows: (type: string, other: string) =>
         `This client's ${type} colour is the one ${other} already uses here — change the override.`,
       overlap: (a: string, b: string, units: string) =>
@@ -364,15 +392,18 @@ export const enUS = {
 
     domain: {
       heading: "Domain checks",
-      subtitle: "Looked up against the domain in this record, when asked and on a schedule.",
+      subtitle:
+        "Looked up against the domain in this record, when asked and on a schedule.",
       dns: "DNS records",
       dnsHint: "A, AAAA, MX, NS and TXT, and who is answering for the domain.",
       tls: "TLS certificate",
       tlsHint: "Issuer, what it covers, and how long it has left.",
       rdap: "Domain registration",
-      rdapHint: "The registry's own record: registrar, expiry, and transfer lock.",
+      rdapHint:
+        "The registry's own record: registrar, expiry, and transfer lock.",
       email: "Email posture",
-      emailHint: "Whether SPF, DMARC and DKIM are published, and what DMARC enforces.",
+      emailHint:
+        "Whether SPF, DMARC and DKIM are published, and what DMARC enforces.",
       save: "Save choices",
       run: "Check now",
       running: "Checking…",
@@ -380,11 +411,21 @@ export const enUS = {
       lastChecked: (when: string) => `Last checked ${when}.`,
       noField: "This doc type has no field marked as holding a domain.",
       noDomain: "Fill in the domain first.",
-      notADomain: (value: string) => `“${value}” is not a domain this can look up.`,
+      notADomain: (value: string) =>
+        `“${value}” is not a domain this can look up.`,
       nothingOn: "Turn on at least one check.",
       use: "Use this",
+      useHint: (label: string, value: string) =>
+        `Set this record's ${label} to “${value}”.`,
+      useHintOption: (label: string, value: string, current: string) =>
+        `Add “${value}” to the shared list as its own option and set this record's ${label} to it. “${current}” stays for the records that use it.`,
+      update: "Update",
+      updateHint: (current: string, value: string) =>
+        `Rename “${current}” to “${value}” in the shared list, so every record that uses it reads the new name.`,
       suggests: (source: string, value: string) => `${source} says ${value}`,
+      recordedAs: (current: string) => `(recorded as ${current})`,
       matches: "matches what is recorded",
+      matchesAs: (recorded: string) => `matches what is recorded (${recorded})`,
       registrar: "Registrar",
       dnsHost: "DNS host",
       expiry: "Expiration",
@@ -394,11 +435,13 @@ export const enUS = {
       automaticHint:
         "The worker re-runs each check on its own clock, says what changed, and warns ahead of an expiry.",
       interval: "How often",
-      every: (days: number) => (days === 1 ? "every day" : `every ${days} days`),
+      every: (days: number) =>
+        days === 1 ? "every day" : `every ${days} days`,
       off: "off",
       companyDefault: (label: string) => `Company default (${label})`,
       instanceDefault: (label: string) => `Instance default (${label})`,
-      intervalEvery: (days: number) => (days === 1 ? "Every day" : `Every ${days} days`),
+      intervalEvery: (days: number) =>
+        days === 1 ? "Every day" : `Every ${days} days`,
       nextRun: (when: string) => `Next automatic check ${when}.`,
       automaticOff:
         "Nothing will run on its own: every chosen check is off for this company or this instance.",
@@ -417,9 +460,16 @@ export const enUS = {
       dmarcRecord: "DMARC",
       dmarcVia: (host: string) => `via CNAME to ${host}`,
       dkimSelectors: "DKIM selectors",
+      dkimSelectorsHint:
+        "A key lives under a selector that cannot be listed. The common ones are tried; name this domain's own here, comma separated, or DKIM will read as missing.",
+      dkimTried: (selectors: string) => `tried ${selectors}`,
+      check: "Check",
+      finding: "Finding",
+      record: "Record",
       none: "none",
       lastCheckedAuto: (when: string) => `Last checked ${when}, automatically.`,
-      autoError: (reason: string) => `The last automatic check could not run: ${reason}`,
+      autoError: (reason: string) =>
+        `The last automatic check could not run: ${reason}`,
     },
     uploadTypes:
       "Images (HEIC is converted to JPEG), PDF, Word, Excel, PowerPoint, CSV, Markdown, and text.",
@@ -431,9 +481,11 @@ export const enUS = {
   editor: {
     addField: "Add field",
     addFieldHeading: "Add a field to this document",
-    addFieldDescription: "It belongs to this document only until you add it to the template.",
+    addFieldDescription:
+      "It belongs to this document only until you add it to the template.",
     addToTemplate: "Add to template",
-    promoteHeading: (label: string, docType: string) => `Add "${label}" to the ${docType} template`,
+    promoteHeading: (label: string, docType: string) =>
+      `Add "${label}" to the ${docType} template`,
     promoteDescription:
       "Confirm the label, type, and option list. Every document of this type gains the field, empty.",
     thisDocument: "This document",
@@ -443,7 +495,8 @@ export const enUS = {
     thisDocumentOnly: "This document only",
     updateTemplate: "Update template",
     orderSavedForDocument: "Field order saved for this document.",
-    orderSavedForTemplate: (docType: string) => `Field order updated for every ${docType} document.`,
+    orderSavedForTemplate: (docType: string) =>
+      `Field order updated for every ${docType} document.`,
     added: (label: string) => `Added ${label}.`,
     archivedField: (label: string) => `Archived ${label}.`,
     promoted: (label: string) => `"${label}" is now part of the template.`,
@@ -473,7 +526,8 @@ export const enUS = {
     noPermission: "You do not have permission to reveal secrets.",
     linkOnlyProvider: "This provider stores links only.",
     locked: "The vault is locked, so this field is showing a link only.",
-    unreachable: "The vault sidecar is unreachable, so this field is showing a link only.",
+    unreachable:
+      "The vault sidecar is unreachable, so this field is showing a link only.",
     openWebVault: "Open in the web vault",
   },
 
@@ -506,8 +560,10 @@ export const enUS = {
 
   kb: {
     title: "Knowledge base",
-    subtitle: "Reference material brought in from outside, kept apart from client documentation.",
-    empty: "No collections yet. An administrator adds them under Admin → Knowledge base.",
+    subtitle:
+      "Reference material brought in from outside, kept apart from client documentation.",
+    empty:
+      "No collections yet. An administrator adds them under Admin → Knowledge base.",
     noneShared: "No collections have been shared with you.",
     placeholder: "Search the knowledge base",
     query: "Search query",
@@ -526,8 +582,10 @@ export const enUS = {
     openSite: "Open the original site",
     typeNames: {
       pdf: (count: number) => (count === 1 ? "1 PDF" : `${count} PDFs`),
-      docx: (count: number) => (count === 1 ? "1 Word doc" : `${count} Word docs`),
-      article: (count: number) => (count === 1 ? "1 Imported Doc" : `${count} Imported Docs`),
+      docx: (count: number) =>
+        count === 1 ? "1 Word doc" : `${count} Word docs`,
+      article: (count: number) =>
+        count === 1 ? "1 Imported Doc" : `${count} Imported Docs`,
     },
     allCategories: "Everything",
     uncategorized: "Uncategorized",
@@ -566,7 +624,8 @@ export const enUS = {
       runbookHint:
         "The items of the body's first numbered list become its steps. Each step is given an id on save, written at the end of the line as {#id}; keep those when you edit so progress tracked elsewhere stays with the step.",
       internalOnly: "Keep off the public site",
-      internalOnlyHint: "Readable by signed-in people only, even when the collection is on the public site.",
+      internalOnlyHint:
+        "Readable by signed-in people only, even when the collection is on the public site.",
       body: "Body",
       bodyHint: "Markdown. A line of its own with # starts a heading.",
       stepsPreview: "Steps as they will be saved",
@@ -582,8 +641,10 @@ export const enUS = {
       collection: "Knowledge base",
       move: "Move…",
       moveTitle: "Move to another knowledge base",
-      moveHint: "The article keeps its name, pictures, and history. Its category and section can be set for the new place before saving.",
-      moveLocked: "Moving is an administrator's step and needs your second sign-in step fresh. Unlock it, and you come straight back here.",
+      moveHint:
+        "The article keeps its name, pictures, and history. Its category and section can be set for the new place before saving.",
+      moveLocked:
+        "Moving is an administrator's step and needs your second sign-in step fresh. Unlock it, and you come straight back here.",
       moveUnlock: "Unlock moving",
       moveOnlyAdmins: "Only an administrator can move an article.",
       moveTo: "Move to",
@@ -593,11 +654,13 @@ export const enUS = {
         "This article was brought in from a file or a website. Changes made here are kept until the next import of the same article replaces them.",
     },
     runbookSteps: "Steps",
-    runbookHint: "Tick steps as you go. Nothing is saved here; a ticketing system that links this runbook keeps its own progress.",
+    runbookHint:
+      "Tick steps as you go. Nothing is saved here; a ticketing system that links this runbook keeps its own progress.",
     runbookCanned: (name: string) => `Reply template: ${name}`,
     runbookDone: (done: number, total: number) => `${done} of ${total} done`,
     openPdf: "Open the PDF",
-    pdfHint: "Text doesn't read right? Open the PDF to see it as written, or download it.",
+    pdfHint:
+      "Text doesn't read right? Open the PDF to see it as written, or download it.",
     downloadOriginal: "Download the original",
     collapse: "Collapse",
     expand: "Expand",
@@ -620,7 +683,8 @@ export const enUS = {
     collections: "Knowledge bases",
     favorites: "My favorites",
     favoritesHint: "Kept for you, wherever you sign in.",
-    noFavorites: "Nothing yet. Open an article and choose Favorite to keep it here.",
+    noFavorites:
+      "Nothing yet. Open an article and choose Favorite to keep it here.",
     favorite: "Favorite",
     unfavorite: "Favorited",
     favoriteCount: (count: number) =>
@@ -645,7 +709,8 @@ export const enUS = {
     only: "Only the companies I choose",
     none: "No companies exist yet.",
     hint: "A new account starts with no access until it is granted here.",
-    keyHint: "The key sees only these companies, through the API and through MCP.",
+    keyHint:
+      "The key sees only these companies, through the API and through MCP.",
     kbOnly: "No companies: knowledge base only",
     kbOnlyHint:
       "Reads no documentation. What it may do is set per collection under Admin → Knowledge base.",
@@ -675,7 +740,8 @@ export const enUS = {
       defaultLanguage: "Default language",
       defaultLanguageHint: (fallback: string) =>
         `Leave this alone and the instance follows APP_LOCALE, which is ${fallback}.`,
-      fromEnvironment: (fallback: string) => `From the environment (${fallback})`,
+      fromEnvironment: (fallback: string) =>
+        `From the environment (${fallback})`,
       publicKb: "Public knowledge base",
       publicKbHint:
         "A read-only site for people who have not signed in. It shows only the collections marked for it, and nothing else in this installation.",
@@ -691,7 +757,8 @@ export const enUS = {
       publicUrl: "Where it is published",
       publicUrlHint:
         "Such as https://kb.example.com. The public site answers only on this hostname, so the same pages on this installation's own address stay closed. Also used for the links shown here.",
-      publicYourAddress: (address: string) => `You are visiting from ${address}.`,
+      publicYourAddress: (address: string) =>
+        `You are visiting from ${address}.`,
       publicOpenWarning:
         "Anyone with the address can read every collection marked for the public site.",
       publicCollections: (count: number) =>
@@ -706,7 +773,8 @@ export const enUS = {
       publicAccessTeam: "Team",
       publicAccessTeamHint: "The part before .cloudflareaccess.com.",
       publicAccessAud: "Application audience tag",
-      publicAccessAudHint: "From the application's Overview in Zero Trust: a long hexadecimal string.",
+      publicAccessAudHint:
+        "From the application's Overview in Zero Trust: a long hexadecimal string.",
       publicSave: "Update public site",
       domainChecks: "Automatic domain checks",
       domainChecksHint:
@@ -732,14 +800,18 @@ export const enUS = {
     },
     branding: {
       title: "Branding",
-      subtitle: "Your name, your logo, and one accent color, everywhere people look.",
+      subtitle:
+        "Your name, your logo, and one accent color, everywhere people look.",
       portalName: "Portal name",
-      portalNameHint: "Replaces the product name in the top bar, the browser tab, and on the sign-in page.",
+      portalNameHint:
+        "Replaces the product name in the top bar, the browser tab, and on the sign-in page.",
       accent: "Accent color",
-      accentHint: "A hex color like #1f6feb. Used exactly as given in the mode it is for.",
+      accentHint:
+        "A hex color like #1f6feb. Used exactly as given in the mode it is for.",
       accentClear: "No accent color",
       logo: "Logo",
-      logoHint: "PNG, JPEG, or WebP, up to 1 MB. Shown beside the name; the tab keeps the mark in your accent.",
+      logoHint:
+        "PNG, JPEG, or WebP, up to 1 MB. Shown beside the name; the tab keeps the mark in your accent.",
       upload: "Upload logo",
       replace: "Replace logo",
       remove: "Remove logo",
@@ -751,13 +823,15 @@ export const enUS = {
       darkMode: "Dark mode",
       accentFor: (mode: string) => `Accent color for ${mode}`,
       accentTextFor: (mode: string) => `Text on the accent for ${mode}`,
-      accentTextHint: "The color of a button's label and of text on the accent. Auto picks black or white, whichever reads.",
+      accentTextHint:
+        "The color of a button's label and of text on the accent. Auto picks black or white, whichever reads.",
       auto: "Auto",
       logoFor: (mode: string) => `Logo for ${mode}`,
       currentLogo: (mode: string) => `The logo shown on ${mode}`,
       lightSection: "Light mode",
       darkSection: "Dark mode",
-      colorsHint: "Each mode has its own accent and its own logo. A mode left without an accent gets one derived from the other, kept readable on its background.",
+      colorsHint:
+        "Each mode has its own accent and its own logo. A mode left without an accent gets one derived from the other, kept readable on its background.",
       altAccentHint: (mode: string) =>
         `Optional. Left empty, one is derived from your accent so it stays readable on ${mode}.`,
       altLogoHint: (mode: string) =>
@@ -772,7 +846,8 @@ export const enUS = {
       preview: "Preview",
       previewButton: "A button in your color",
       companyHeading: "This company's branding",
-      companyHint: "Shown on this company's pages and its documents. The rest of the interface keeps yours.",
+      companyHint:
+        "Shown on this company's pages and its documents. The rest of the interface keeps yours.",
     },
 
     docTypes: {
@@ -798,13 +873,15 @@ export const enUS = {
         "Archived fields stay hidden but their stored values are kept, so old revisions still render.",
       moveUp: (label: string) => `Move ${label} up`,
       moveDown: (label: string) => `Move ${label} down`,
-      linkHint: "Restricts the picker to documents of one type in the same company.",
+      linkHint:
+        "Restricts the picker to documents of one type in the same company.",
       summary: (scope: string, fields: string, documents: string) =>
         `${scope} · ${fields} · ${documents}`,
     },
     optionLists: {
       title: "Option lists",
-      subtitle: "Shared sources for dropdown fields. Any doc type can point at the same list.",
+      subtitle:
+        "Shared sources for dropdown fields. Any doc type can point at the same list.",
       empty: "No option lists yet.",
       listName: "List name",
       create: "Create list",
@@ -829,7 +906,8 @@ export const enUS = {
       revoke: "Revoke",
       revoked: "Revoked",
       delete: "Delete",
-      deleteHint: "Removes a revoked key from this list. The audit log keeps what it did.",
+      deleteHint:
+        "Removes a revoked key from this list. The audit log keeps what it did.",
       nameHint: "Where the key will be used.",
       scopes: "Scopes",
       scopeHint:
@@ -843,7 +921,8 @@ export const enUS = {
     },
     webhooks: {
       title: "Webhooks",
-      subtitle: "Signed with HMAC-SHA256, retried with backoff up to 8 attempts.",
+      subtitle:
+        "Signed with HMAC-SHA256, retried with backoff up to 8 attempts.",
       endpoints: "Endpoints",
       empty: "No webhooks yet.",
       newWebhook: "New webhook",
@@ -854,7 +933,8 @@ export const enUS = {
       disable: "Disable",
       signingSecret: "Signing secret",
       secretLabel: "Webhook signing secret",
-      secretHint: "Verify X-Trove-Signature as sha256=HMAC-SHA256(secret, raw body).",
+      secretHint:
+        "Verify X-Trove-Signature as sha256=HMAC-SHA256(secret, raw body).",
       delivered: (when: string) => `delivered ${when}`,
       retrying: (when: string) => `retrying after ${when}`,
       notDelivered: "not delivered",
@@ -882,19 +962,22 @@ export const enUS = {
       allowCreate: "Allow creating vault items from a document",
       enabled: "Enabled",
       collections: "Company collections",
-      collectionsHint: "The item picker only searches collections mapped to that company.",
+      collectionsHint:
+        "The item picker only searches collections mapped to that company.",
       collectionId: "Bitwarden collection id",
       mapCollection: "Map collection",
       unmap: "Unmap",
       noneMapped: "No collection mapped",
       brokering: (name: string) => `${name} is brokering through the sidecar.`,
-      linkMode: (name: string) => `${name} is in link mode, so secret fields show deep links only.`,
+      linkMode: (name: string) =>
+        `${name} is in link mode, so secret fields show deep links only.`,
       degraded: (status: string) =>
         `The sidecar is ${status}, so secret fields have degraded to link mode.`,
     },
     users: {
       title: "Users",
-      subtitle: "Roles, company access, and who may reveal a secret from the vault.",
+      subtitle:
+        "Roles, company access, and who may reveal a secret from the vault.",
       roleFor: (email: string) => `Role for ${email}`,
       setRole: "Set role",
       mayReveal: "May reveal secrets",
@@ -916,12 +999,14 @@ export const enUS = {
       created: (email: string) => `Created ${email}.`,
       duplicate: "A user with that email address already exists.",
       setTemporary: "Set a temporary password",
-      setTemporaryHint: "Signs them out everywhere. They choose their own at the next sign-in.",
+      setTemporaryHint:
+        "Signs them out everywhere. They choose their own at the next sign-in.",
       temporarySet: (email: string) => `Temporary password set for ${email}.`,
       mfa: "Second step",
       mfaNone: "not enrolled",
       mfaTotp: "authenticator app",
-      mfaPasskeys: (count: number) => (count === 1 ? "1 passkey" : `${count} passkeys`),
+      mfaPasskeys: (count: number) =>
+        count === 1 ? "1 passkey" : `${count} passkeys`,
       mfaDue: (when: string) => `due by ${when}`,
       mfaOverdue: "overdue",
       resetMfa: "Reset second step",
@@ -942,7 +1027,8 @@ export const enUS = {
       name: "Collection name",
       nameHint: "Name it after the source, such as “Calder Ridge Support KB”.",
       description: "Description",
-      descriptionHint: "Optional. Shown to readers, and to an AI client choosing where to search.",
+      descriptionHint:
+        "Optional. Shown to readers, and to an AI client choosing where to search.",
       siteUrl: "Website",
       siteUrlHint:
         "Optional. Where the source lives, offered to readers who would rather go there, such as for what sits behind the vendor's sign-in. A connector's address is used when this is empty.",
@@ -969,7 +1055,8 @@ export const enUS = {
       },
       chips: {
         allCompanies: "All companies",
-        someCompanies: (count: number) => (count === 1 ? "1 company" : `${count} companies`),
+        someCompanies: (count: number) =>
+          count === 1 ? "1 company" : `${count} companies`,
         enabled: "Enabled",
         disabled: "Disabled",
         partial: "Partial",
@@ -988,38 +1075,48 @@ export const enUS = {
       mcpEnabled: "Available through MCP (read only)",
       mcpEnabledHint:
         "Lets an AI client search and read this collection with an API key. Nothing can be changed through MCP.",
-      archiveHint: "Hides the collection from readers and from search. Nothing is deleted.",
+      archiveHint:
+        "Hides the collection from readers and from search. Nothing is deleted.",
       duplicate: "A collection with that name already exists",
       visibility: {
         heading: "Public site visibility",
         hint: "What to keep off the public site. Articles held back by hand stay held back; everything else follows the rules and the categories below.",
-        offHint: "This collection is not on the public site, so nothing here shows yet.",
+        offHint:
+          "This collection is not on the public site, so nothing here shows yet.",
         rules: "Hold back by keyword",
         rulesHint:
           "Each line is a pattern. A plain line can hold several, split by commas or tabs. Matching ignores case.",
         pattern: "Patterns",
         patternPlaceholder: "admin\ninternal, draft\n*.docx",
         regex: "Regular expressions",
-        regexHint: "Read each pattern as a regular expression instead of a plain phrase. Commas are then part of the pattern.",
+        regexHint:
+          "Read each pattern as a regular expression instead of a plain phrase. Commas are then part of the pattern.",
         scopeArticles: "Articles",
         scopeArticlesHint: "An article whose title matches.",
         scopeCategories: "Categories",
-        scopeCategoriesHint: "Every article in a category or section whose name matches.",
+        scopeCategoriesHint:
+          "Every article in a category or section whose name matches.",
         scopeFiles: "Files",
-        scopeFilesHint: "An article made from a file whose name or type matches: *.pdf, docx, guide-*.pdf.",
-        preview: (total: number) => (total === 1 ? "Would hold back 1 article" : `Would hold back ${total} articles`),
+        scopeFilesHint:
+          "An article made from a file whose name or type matches: *.pdf, docx, guide-*.pdf.",
+        preview: (total: number) =>
+          total === 1
+            ? "Would hold back 1 article"
+            : `Would hold back ${total} articles`,
         previewTitle: (n: number) => `${n} by title`,
         previewCategory: (n: number, categories: number) =>
           `${n} in ${categories === 1 ? "1 category" : `${categories} categories`}`,
         previewFile: (n: number) => `${n} by file`,
-        previewPatterns: (n: number) => (n === 1 ? "1 pattern" : `${n} patterns`),
+        previewPatterns: (n: number) =>
+          n === 1 ? "1 pattern" : `${n} patterns`,
         previewNone: "Nothing matches yet",
         previewScope: "Choose what the patterns apply to",
         previewChecking: "Checking…",
         addRules: "Add rules",
         added: "Rules added",
         noRules: "No rules yet.",
-        ruleHides: (n: number) => (n === 1 ? "holds back 1 article" : `holds back ${n} articles`),
+        ruleHides: (n: number) =>
+          n === 1 ? "holds back 1 article" : `holds back ${n} articles`,
         literal: "Phrase",
         remove: "Remove",
         edit: "Edit",
@@ -1034,12 +1131,16 @@ export const enUS = {
         uncategorized: "Uncategorized",
         saveCategories: "Save category visibility",
         categoriesSaved: "Saved",
-        hiddenCategories: (n: number) => (n === 1 ? "1 category held back" : `${n} categories held back`),
+        hiddenCategories: (n: number) =>
+          n === 1 ? "1 category held back" : `${n} categories held back`,
         articlesIn: (n: number) => (n === 1 ? "1 article" : `${n} articles`),
-        badPattern: (pattern: string) => `"${pattern}" is not a valid regular expression`,
+        badPattern: (pattern: string) =>
+          `"${pattern}" is not a valid regular expression`,
       },
       summary: (articles: string, unextracted: number) =>
-        unextracted > 0 ? `${articles} · ${unextracted} with no readable text` : articles,
+        unextracted > 0
+          ? `${articles} · ${unextracted} with no readable text`
+          : articles,
 
       importHeading: "Import",
       importHint: (mb: number) =>
@@ -1052,10 +1153,12 @@ export const enUS = {
       chosen: (name: string, size: string) => `${name} · ${size}`,
       start: "Start import",
       cancel: "Cancel",
-      packing: (done: number, total: number) => `Packing ${done} of ${total} files…`,
+      packing: (done: number, total: number) =>
+        `Packing ${done} of ${total} files…`,
       uploading: (percent: number) => `Uploading… ${percent}%`,
       importing: (count: number) => `Importing… ${count} so far`,
-      tooLarge: (mb: number) => `That is larger than the ${mb} MB an import accepts.`,
+      tooLarge: (mb: number) =>
+        `That is larger than the ${mb} MB an import accepts.`,
       nothingChosen: "Choose something to import first.",
       uploadFailed: "The upload did not finish. Try again.",
       done: "Import finished.",
@@ -1080,15 +1183,22 @@ export const enUS = {
         done: "Finished",
         failed: "Failed",
       },
-      counts: (added: number, updated: number, skipped: number, failed: number) =>
+      counts: (
+        added: number,
+        updated: number,
+        skipped: number,
+        failed: number,
+      ) =>
         `${added} added · ${updated} updated · ${skipped} skipped · ${failed} failed`,
 
       access: "API access",
-      accessHint: "Every collection for one key, set at once. A collection on the public site is readable by every key as the public sees it; a grant adds what is held back, or writing.",
+      accessHint:
+        "Every collection for one key, set at once. A collection on the public site is readable by every key as the public sees it; a grant adds what is held back, or writing.",
       accessLink: "Set a key's access to every collection",
       accessKey: "API key",
       accessNoKeys: "No active API keys. Create one under Admin → API keys.",
-      accessLegend: "D: only what its companies allow (the default for a new key). R: read. RW: read and write. Reactions: may keep favorites and votes for a named reader (on by default).",
+      accessLegend:
+        "D: only what its companies allow (the default for a new key). R: read. RW: read and write. Reactions: may keep favorites and votes for a named reader (on by default).",
       accessMaster: "Every collection",
       accessMasterHint: "Sets every row below; change any row afterwards.",
       accessCollection: "Collection",
@@ -1097,9 +1207,15 @@ export const enUS = {
       accessWrite: "RW",
       accessReactions: "Reactions",
       accessPublicBadge: "Public",
-      accessPublicNote: "On the public site: readable by every key as the public sees it.",
+      accessPublicNote:
+        "On the public site: readable by every key as the public sees it.",
       accessSave: "Save access",
-      accessSaved: (n: number) => (n === 0 ? "Nothing changed." : n === 1 ? "1 collection changed." : `${n} collections changed.`),
+      accessSaved: (n: number) =>
+        n === 0
+          ? "Nothing changed."
+          : n === 1
+            ? "1 collection changed."
+            : `${n} collections changed.`,
       accessLevelFor: (collection: string) => `Access to ${collection}`,
       accessReactionsFor: (collection: string) => `Reactions on ${collection}`,
       reactionsShort: "Reactions",
@@ -1109,7 +1225,9 @@ export const enUS = {
       noPeople: "Nobody else has an account yet.",
       peopleLevelFor: (name: string) => `Access for ${name}`,
       peopleWriters: (count: number) =>
-        count === 1 ? "1 person may write articles here." : `${count} people may write articles here.`,
+        count === 1
+          ? "1 person may write articles here."
+          : `${count} people may write articles here.`,
       keys: "API key access",
       keysHint:
         "Set once per key. A key that may write keeps this collection current through the API or MCP on its own, until you change this. Keys are made under Admin → API keys.",
@@ -1132,8 +1250,10 @@ export const enUS = {
       setup: "Connecting a repository",
       setupHint:
         "Do this once in the repository. Afterwards its AI tooling reads and updates this collection without being asked.",
-      setupConnect: "1. Add Trove KB as an MCP server, with a key that has access above",
-      setupInstruct: "2. Tell the tooling when to update, in the repository's CLAUDE.md or equivalent",
+      setupConnect:
+        "1. Add Trove KB as an MCP server, with a key that has access above",
+      setupInstruct:
+        "2. Tell the tooling when to update, in the repository's CLAUDE.md or equivalent",
 
       connectors: "Connectors",
       connectorsHint:
@@ -1145,7 +1265,8 @@ export const enUS = {
       kindPrefix: "Every page under an address",
       kindHelpCenter: "A help center, by its categories and sections",
       url: "Address",
-      urlHintSitemap: "The sitemap's own address, such as https://example.com/sitemap.xml.",
+      urlHintSitemap:
+        "The sitemap's own address, such as https://example.com/sitemap.xml.",
       urlHintPrefix: "Pages are followed from here, and only beneath it.",
       urlHintHelpCenter:
         "The help center's front page in one language, such as https://support.example.com/hc/en-us. Each article arrives under its category and section.",
@@ -1157,16 +1278,19 @@ export const enUS = {
       started: "Started. It will appear under recent imports.",
       enable: "Enable",
       disable: "Disable",
-      every: (hours: number) => (hours % 24 === 0 ? `every ${hours / 24} d` : `every ${hours} h`),
+      every: (hours: number) =>
+        hours % 24 === 0 ? `every ${hours / 24} d` : `every ${hours} h`,
       lastRun: (when: string) => `last run ${when}`,
       nextRun: (when: string) => `next ${when}`,
       neverRun: "never run",
       disabled: "disabled",
-      unavailable: "Imports and connectors are not available in this deployment.",
+      unavailable:
+        "Imports and connectors are not available in this deployment.",
     },
     audit: {
       title: "Audit log",
-      subtitle: "Append-only. Every save, promotion, reveal, and key change lands here.",
+      subtitle:
+        "Append-only. Every save, promotion, reveal, and key change lands here.",
       action: "Action",
       anyAction: "Any action",
       user: "User",

@@ -58,8 +58,23 @@ function labelOf(
   return detail.optionLabels.get(value) ?? value;
 }
 
+/** Whether what the record holds in this field is an option id from a shared list. */
+function isOption(
+  detail: {
+    document: { fieldValues: Record<string, unknown> | null };
+    optionLabels: Map<string, string>;
+  },
+  fieldId: string | undefined,
+): boolean {
+  const value = valueOf(detail, fieldId);
+  return value !== null && detail.optionLabels.has(value);
+}
+
 /** Deep link into the web vault, for link mode and degraded fallbacks. */
-function webVaultItemUrl(base: string | null | undefined, itemId: string): string | null {
+function webVaultItemUrl(
+  base: string | null | undefined,
+  itemId: string,
+): string | null {
   if (!base) return null;
   return `${base.replace(/\/$/, "")}/#/vault?itemId=${encodeURIComponent(itemId)}`;
 }
@@ -97,7 +112,10 @@ export default async function DocumentPage({
   const isRack = detail.docType.isRack;
   const rackView = isRack ? await getRackView(documentId, scope) : null;
   const [mountable, allDocTypes] = isRack
-    ? await Promise.all([listCompanyDocuments(company.id, scope), listDocTypes()])
+    ? await Promise.all([
+        listCompanyDocuments(company.id, scope),
+        listDocTypes(),
+      ])
     : [[], []];
 
   return (
@@ -109,10 +127,13 @@ export default async function DocumentPage({
             <Link href={`/companies/${company.id}`} className="hover:underline">
               {company.name}
             </Link>
-            {detail.location ? ` · ${detail.location.name}` : ""} · {detail.docType.name}
+            {detail.location ? ` · ${detail.location.name}` : ""} ·{" "}
+            {detail.docType.name}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{detail.document.title}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {detail.document.title}
+            </h1>
             {detail.document.archivedAt && (
               <span className="rounded-full border px-2 py-0.5 text-xs text-[var(--muted-foreground)]">
                 {t.common.archived}
@@ -120,7 +141,9 @@ export default async function DocumentPage({
             )}
           </div>
           <p className="text-sm text-[var(--muted-foreground)]">
-            {t.documents.updated(formatDateTime(detail.document.updatedAt, locale))}
+            {t.documents.updated(
+              formatDateTime(detail.document.updatedAt, locale),
+            )}
           </p>
         </div>
 
@@ -142,7 +165,11 @@ export default async function DocumentPage({
           {editor &&
             (detail.document.archivedAt ? (
               <form action={unarchiveDocumentAction}>
-                <input type="hidden" name="documentId" value={detail.document.id} />
+                <input
+                  type="hidden"
+                  name="documentId"
+                  value={detail.document.id}
+                />
                 <input type="hidden" name="companyId" value={company.id} />
                 <Button type="submit" variant="outline" size="sm">
                   {t.common.restore}
@@ -150,7 +177,11 @@ export default async function DocumentPage({
               </form>
             ) : (
               <form action={archiveDocumentAction}>
-                <input type="hidden" name="documentId" value={detail.document.id} />
+                <input
+                  type="hidden"
+                  name="documentId"
+                  value={detail.document.id}
+                />
                 <input type="hidden" name="companyId" value={company.id} />
                 <Button type="submit" variant="outline" size="sm">
                   {t.common.archive}
@@ -161,12 +192,19 @@ export default async function DocumentPage({
       </div>
 
       {detail.fields.length === 0 ? (
-        <p className="text-sm text-[var(--muted-foreground)]">{t.documents.noFields}</p>
+        <p className="text-sm text-[var(--muted-foreground)]">
+          {t.documents.noFields}
+        </p>
       ) : (
         <dl className="flex flex-col divide-y rounded-md border">
           {detail.fields.map((field) => (
-            <div key={field.id} className="grid gap-1 px-4 py-3 sm:grid-cols-[14rem_1fr] sm:gap-4">
-              <dt className="text-sm font-medium text-[var(--muted-foreground)]">{field.label}</dt>
+            <div
+              key={field.id}
+              className="grid gap-1 px-4 py-3 sm:grid-cols-[14rem_1fr] sm:gap-4"
+            >
+              <dt className="text-sm font-medium text-[var(--muted-foreground)]">
+                {field.label}
+              </dt>
               <dd className="min-w-0">
                 {(() => {
                   const rendered = renderFieldValue(
@@ -177,7 +215,8 @@ export default async function DocumentPage({
                     locale,
                   );
 
-                  if (rendered.kind !== "secret") return <FieldValue value={rendered} />;
+                  if (rendered.kind !== "secret")
+                    return <FieldValue value={rendered} />;
 
                   return (
                     <SecretField
@@ -187,7 +226,10 @@ export default async function DocumentPage({
                       label={rendered.label}
                       username={rendered.username}
                       uri={rendered.uri}
-                      webVaultUrl={webVaultItemUrl(detail.vault?.webVaultUrl, rendered.itemId)}
+                      webVaultUrl={webVaultItemUrl(
+                        detail.vault?.webVaultUrl,
+                        rendered.itemId,
+                      )}
                       canReveal={user.canRevealSecrets}
                       brokering={detail.vault?.brokering ?? false}
                       vaultStatus={detail.vault?.status ?? "unreachable"}
@@ -213,7 +255,10 @@ export default async function DocumentPage({
           mountable={mountable
             .filter((candidate) => candidate.id !== documentId)
             .map((candidate) => ({ id: candidate.id, title: candidate.title }))}
-          docTypes={allDocTypes.map((type) => ({ id: type.id, name: type.name }))}
+          docTypes={allDocTypes.map((type) => ({
+            id: type.id,
+            name: type.name,
+          }))}
         />
       )}
 
@@ -233,7 +278,10 @@ export default async function DocumentPage({
           }}
           editor
           mountable={[]}
-          docTypes={allDocTypes.map((type) => ({ id: type.id, name: type.name }))}
+          docTypes={allDocTypes.map((type) => ({
+            id: type.id,
+            name: type.name,
+          }))}
         />
       )}
 
@@ -246,6 +294,11 @@ export default async function DocumentPage({
             expiry: valueOf(detail, domainState.targets.expiry),
             registrar: labelOf(detail, domainState.targets.registrar),
             dnsHost: labelOf(detail, domainState.targets.dns_host),
+            options: {
+              expiry: isOption(detail, domainState.targets.expiry),
+              registrar: isOption(detail, domainState.targets.registrar),
+              dnsHost: isOption(detail, domainState.targets.dns_host),
+            },
           }}
           checkedAt={domainState.checkedAt?.toISOString() ?? null}
           nextRunAt={domainState.automation.nextRunAt?.toISOString() ?? null}
@@ -253,15 +306,25 @@ export default async function DocumentPage({
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold tracking-tight">{t.documents.attachments}</h2>
+        <h2 className="text-lg font-semibold tracking-tight">
+          {t.documents.attachments}
+        </h2>
 
         {files.length === 0 ? (
-          <p className="text-sm text-[var(--muted-foreground)]">{t.documents.noAttachments}</p>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            {t.documents.noAttachments}
+          </p>
         ) : (
           <ul className="flex flex-col gap-2">
             {files.map((file) => (
-              <li key={file.id} className="flex flex-wrap items-center gap-3 rounded-md border px-4 py-3">
-                <Paperclip className="size-4 shrink-0 text-[var(--muted-foreground)]" aria-hidden />
+              <li
+                key={file.id}
+                className="flex flex-wrap items-center gap-3 rounded-md border px-4 py-3"
+              >
+                <Paperclip
+                  className="size-4 shrink-0 text-[var(--muted-foreground)]"
+                  aria-hidden
+                />
                 <a
                   href={`/api/attachments/${file.id}`}
                   className="min-w-0 flex-1 truncate font-medium hover:underline"
@@ -269,7 +332,8 @@ export default async function DocumentPage({
                   {file.filename}
                 </a>
                 <span className="text-sm text-[var(--muted-foreground)]">
-                  {formatBytes(file.sizeBytes, locale)} · {formatDateTime(file.createdAt, locale)}
+                  {formatBytes(file.sizeBytes, locale)} ·{" "}
+                  {formatDateTime(file.createdAt, locale)}
                 </span>
                 {editor && (
                   <form action={removeAttachmentAction}>
@@ -295,7 +359,9 @@ export default async function DocumentPage({
 
       {backlinks.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold tracking-tight">{t.documents.linkedFrom}</h2>
+          <h2 className="text-lg font-semibold tracking-tight">
+            {t.documents.linkedFrom}
+          </h2>
           <ul className="flex flex-col gap-2">
             {backlinks.map((backlink) => (
               <li

@@ -239,6 +239,13 @@
       "when": 1791469673316,
       "tag": "0033_domain_check_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791471897206,
+      "tag": "0034_dkim_selectors",
+      "breakpoints": true
     }
   ]
 }

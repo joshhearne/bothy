@@ -1,0 +1,1 @@
+ALTER TABLE "domain_checks" ADD COLUMN "dkim_selectors" text;

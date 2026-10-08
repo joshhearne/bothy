@@ -216,6 +216,11 @@ over RDAP, and whether SPF, DMARC and DKIM are published.
   renews on its own (`tls_auto_renews`): then its expiry is no cause for alarm
   and nothing is announced, unless the record also sets a notice, which means
   "warn me anyway". Registration keeps a fixed 60-day notice.
+- Mail posture is shown as a table: the check, what was found, and the
+  record itself. A DKIM key lives under a selector that cannot be listed, so
+  the common selectors are tried and a record may name its own
+  (`domain_checks.dkim_selectors`); without that, a domain signing under its
+  own selector reads as having no key.
 - TXT records are listed one per line with what each is for named where it
   can be told (`src/server/domain/txt.ts`: SPF, DMARC, DKIM, and the
   verification tokens of Google, Atlassian, Microsoft 365 and others). DMARC
