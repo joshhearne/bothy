@@ -36,23 +36,23 @@ export function AdminNav() {
   const sections: { href: Route; label: string; icon: typeof Users }[] = [
     { href: "/admin/users" as Route, label: t.nav.users, icon: Users },
     { href: "/admin/roles" as Route, label: t.nav.roles, icon: IdCard },
+    { href: "/admin/settings" as Route, label: t.nav.settings, icon: Settings },
+    { href: "/admin/branding" as Route, label: t.nav.branding, icon: Palette },
+    {
+      href: "/admin/option-lists" as Route,
+      label: t.nav.optionLists,
+      icon: ListTree,
+    },
+    { href: "/admin/doc-types" as Route, label: t.nav.docTypes, icon: Layers },
     {
       href: "/admin/notifications" as Route,
       label: t.nav.notifications,
       icon: Bell,
     },
     { href: "/admin/webhooks" as Route, label: t.nav.webhooks, icon: Webhook },
-    { href: "/admin/settings" as Route, label: t.nav.settings, icon: Settings },
-    { href: "/admin/branding" as Route, label: t.nav.branding, icon: Palette },
-    { href: "/admin/doc-types" as Route, label: t.nav.docTypes, icon: Layers },
-    {
-      href: "/admin/option-lists" as Route,
-      label: t.nav.optionLists,
-      icon: ListTree,
-    },
+    { href: "/admin/api-keys" as Route, label: t.nav.apiKeys, icon: KeyRound },
     { href: "/admin/kb" as Route, label: t.nav.knowledgeBase, icon: BookOpen },
     { href: "/admin/portal" as Route, label: t.nav.portal, icon: Globe },
-    { href: "/admin/api-keys" as Route, label: t.nav.apiKeys, icon: KeyRound },
     { href: "/admin/vault" as Route, label: t.nav.vault, icon: ShieldCheck },
     { href: "/admin/audit" as Route, label: t.nav.auditLog, icon: ScrollText },
   ];
