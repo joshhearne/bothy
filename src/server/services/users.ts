@@ -7,6 +7,7 @@ import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/companies";
 import { ROLES, type Role } from "@/server/auth/roles";
 import { ALL_COMPANIES, only, type CompanyScope } from "@/server/auth/company-scope";
+import { SECRET_STYLES, type SecretStyle } from "@/lib/secret-style";
 
 /**
  * Minimal user administration. Phase 6 needs it because revealing a secret
@@ -168,6 +169,18 @@ export async function setCanRevealSecrets(
       tx,
     );
   });
+}
+
+export const secretStyleSchema = z.enum(SECRET_STYLES);
+
+/** A person's own choice of how secrets are shown to them. No audit: it changes nothing anyone else sees. */
+export async function setSecretStyle(id: string, style: SecretStyle): Promise<void> {
+  const [row] = await db
+    .update(users)
+    .set({ secretStyle: secretStyleSchema.parse(style), updatedAt: new Date() })
+    .where(eq(users.id, id))
+    .returning({ id: users.id });
+  if (!row) throw new NotFoundError("User");
 }
 
 export const provisionUserSchema = z.object({

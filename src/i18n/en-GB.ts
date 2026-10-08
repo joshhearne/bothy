@@ -22,6 +22,13 @@ export const enGB: DeepPartial<Messages> = {
     uncategorized: "Uncategorised",
   },
 
+  app: {
+    secretStyle: "Secret colours",
+    secretStyles: {
+      colorblind: "Colour-blind palette",
+    },
+  },
+
   admin: {
     vault: {
       organizationId: "Organisation id",

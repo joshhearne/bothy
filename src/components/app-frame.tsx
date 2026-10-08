@@ -1,5 +1,5 @@
 import { AppShell } from "@/components/app-shell";
-import { canManageDocTypes, canManageHierarchy, type CurrentUser } from "@/server/auth/session";
+import { canManageDocTypes, canManageHierarchy, canUseSecretFields, type CurrentUser } from "@/server/auth/session";
 import { listCompanies } from "@/server/services/companies";
 import { signOutAction } from "@/app/sign-in/actions";
 import { getTheme } from "@/server/theme";
@@ -30,6 +30,7 @@ export async function AppFrame({
       canCreateCompanies={canManageHierarchy(user.role)}
       canManageDocTypes={canManageDocTypes(user.role)}
       theme={theme}
+      secretStyle={canUseSecretFields(user.role) ? user.secretStyle : null}
       branding={branding}
       footer={<AppFooter />}
       signOut={signOutAction}

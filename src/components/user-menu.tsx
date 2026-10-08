@@ -11,6 +11,8 @@ import { LOCALE_NAMES, LOCALES, type Locale } from "@/i18n/locales";
 import { setLocaleAction } from "@/app/locale-actions";
 import { setThemeAction } from "@/app/theme-actions";
 import { THEMES, type Theme } from "@/lib/theme";
+import { SECRET_STYLES, type SecretStyle } from "@/lib/secret-style";
+import { setSecretStyleAction } from "@/app/secret-style-actions";
 import { Select } from "@/components/ui/select";
 
 /**
@@ -22,6 +24,7 @@ export function UserMenu({
   canAdminister,
   locale,
   theme,
+  secretStyle,
   signOut,
 }: {
   user: { name: string; email: string; role: string };
@@ -29,6 +32,8 @@ export function UserMenu({
   canAdminister: boolean;
   locale: Locale;
   theme: Theme;
+  /** How revealed secrets are shown; null for a role that never sees one. */
+  secretStyle: SecretStyle | null;
   signOut: () => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
@@ -37,6 +42,7 @@ export function UserMenu({
   const panelRef = useRef<HTMLDivElement>(null);
   const localeFormRef = useRef<HTMLFormElement>(null);
   const themeFormRef = useRef<HTMLFormElement>(null);
+  const secretStyleFormRef = useRef<HTMLFormElement>(null);
   const t = useMessages();
 
   const initials = initialsFor(user.name, user.email);
@@ -94,8 +100,12 @@ export function UserMenu({
             <span className="text-xs uppercase tracking-wide text-[var(--muted-foreground)]">
               {t.app.signedInAs}
             </span>
-            {user.name && <span className="text-sm font-medium">{user.name}</span>}
-            <span className="truncate text-sm text-[var(--muted-foreground)]">{user.email}</span>
+            {user.name && (
+              <span className="text-sm font-medium">{user.name}</span>
+            )}
+            <span className="truncate text-sm text-[var(--muted-foreground)]">
+              {user.email}
+            </span>
             <span className="mt-1 w-fit rounded-full border px-2 py-0.5 text-xs text-[var(--muted-foreground)]">
               {user.role}
             </span>
@@ -125,7 +135,11 @@ export function UserMenu({
             </div>
           )}
 
-          <form ref={localeFormRef} action={setLocaleAction} className="flex flex-col gap-1 pt-3">
+          <form
+            ref={localeFormRef}
+            action={setLocaleAction}
+            className="flex flex-col gap-1 pt-3"
+          >
             <label htmlFor="locale" className="text-sm font-medium">
               {t.app.language}
             </label>
@@ -144,7 +158,11 @@ export function UserMenu({
             </Select>
           </form>
 
-          <form ref={themeFormRef} action={setThemeAction} className="flex flex-col gap-1 py-3">
+          <form
+            ref={themeFormRef}
+            action={setThemeAction}
+            className="flex flex-col gap-1 py-3"
+          >
             <label htmlFor="theme" className="text-sm font-medium">
               {t.app.theme}
             </label>
@@ -163,8 +181,38 @@ export function UserMenu({
             </Select>
           </form>
 
+          {secretStyle !== null && (
+            <form
+              ref={secretStyleFormRef}
+              action={setSecretStyleAction}
+              className="flex flex-col gap-1 pb-3"
+            >
+              <label htmlFor="secretStyle" className="text-sm font-medium">
+                {t.app.secretStyle}
+              </label>
+              <Select
+                id="secretStyle"
+                name="secretStyle"
+                defaultValue={secretStyle}
+                onChange={() => secretStyleFormRef.current?.requestSubmit()}
+                className={select}
+              >
+                {SECRET_STYLES.map((option) => (
+                  <option key={option} value={option}>
+                    {t.app.secretStyles[option]}
+                  </option>
+                ))}
+              </Select>
+            </form>
+          )}
+
           <form action={signOut} className="border-t pt-3">
-            <Button type="submit" variant="outline" size="sm" className="w-full">
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              className="w-full"
+            >
               <LogOut className="size-4" aria-hidden />
               {t.app.signOut}
             </Button>

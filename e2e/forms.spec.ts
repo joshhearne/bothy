@@ -31,6 +31,11 @@ test("a new key can be copied with a click, and says that it was", async ({ page
   const key = (await shown.textContent()) as string;
   expect(key).toMatch(/^trove_[A-Za-z0-9_-]{20,}$/);
 
+  // Each character is coloured by what it is, and the text is still only the key.
+  await expect(shown.locator('[data-kind="letter"]').first()).toBeVisible();
+  await expect(shown.locator('[data-kind="symbol"]').first()).toHaveText("_");
+  expect(await shown.locator("[data-kind]").count()).toBe(key.length);
+
   await page.getByRole("button", { name: "Copy", exact: true }).click();
   await expect(page.getByRole("button", { name: "Copied!" })).toBeVisible();
   await expect(page.locator("[data-copied]")).toHaveCount(1);

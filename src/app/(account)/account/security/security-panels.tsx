@@ -36,7 +36,7 @@ function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void 
   return (
     <div role="alert" className="flex flex-col gap-3 rounded-md border border-[var(--destructive)] p-4">
       <p className="text-sm font-medium">{t.account.recoveryShown}</p>
-      <CopyBlock value={codes.join("\n")} label={t.account.recovery} wrap />
+      <CopyBlock value={codes.join("\n")} label={t.account.recovery} wrap secret />
       <div>
         <Button type="button" onClick={onDone}>
           {t.account.recoveryDone}
@@ -175,7 +175,7 @@ function TotpPanel({
             />
             <div className="min-w-0 flex-1">
               <p className="text-xs text-[var(--muted-foreground)]">{t.account.totpKey}</p>
-              <CopyBlock value={enrollment.secret.replace(/(.{4})/g, "$1 ").trim()} label={t.account.totpKey} wrap />
+              <CopyBlock value={enrollment.secret.replace(/(.{4})/g, "$1 ").trim()} label={t.account.totpKey} wrap spellOut />
             </div>
           </div>
           <Label htmlFor="totp-code">{t.account.totpConfirm}</Label>

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 
 import { ROLES, type Role } from "@/server/auth/roles";
+import { DEFAULT_SECRET_STYLE, isSecretStyle, type SecretStyle } from "@/lib/secret-style";
 import { ForbiddenError } from "@/server/services/errors";
 import { companyScopeForUser } from "@/server/services/users";
 import { hasSecondFactor, mfaDeadlineFor, STEP_UP_MINUTES } from "@/server/services/mfa";
@@ -19,6 +20,8 @@ export type CurrentUser = {
   name: string;
   role: Role;
   canRevealSecrets: boolean;
+  /** How a revealed secret is shown to them. Meaningful only where canUseSecretFields. */
+  secretStyle: SecretStyle;
   /** An administrator gave them a temporary password; they choose their own next. */
   mustChangePassword: boolean;
   /** This session, for the second step and for ending the others. */
@@ -59,6 +62,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     name: user.name,
     role: toRole(user.role),
     canRevealSecrets: user.canRevealSecrets === true,
+    secretStyle: isSecretStyle(user.secretStyle) ? user.secretStyle : DEFAULT_SECRET_STYLE,
     mustChangePassword: (user as { mustChangePassword?: boolean }).mustChangePassword === true,
     sessionToken: session.session.token,
     mfa: {
@@ -173,6 +177,14 @@ export function canAddOptionItems(role: Role): boolean {
 
 export function canManageIntegrations(role: Role): boolean {
   return role === "admin";
+}
+
+/**
+ * Who works with secret fields: the people who reveal them. The choice of how
+ * a secret is coloured is theirs alone; a read-only viewer never sees one.
+ */
+export function canUseSecretFields(role: Role): boolean {
+  return role === "admin" || role === "tech";
 }
 
 async function require(check: (role: Role) => boolean): Promise<CurrentUser> {

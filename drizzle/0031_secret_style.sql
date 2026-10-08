@@ -1,0 +1,2 @@
+ALTER TABLE "users" ADD COLUMN "secret_style" text DEFAULT 'on' NOT NULL;--> statement-breakpoint
+ALTER TABLE "users" ADD CONSTRAINT "users_secret_style_check" CHECK ("users"."secret_style" IN ('on','colorblind','off'));

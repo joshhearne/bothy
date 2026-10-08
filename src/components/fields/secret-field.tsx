@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, KeyRound, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SecretSpellOut, SecretText } from "@/components/ui/secret-text";
 import { useMessages } from "@/i18n/client";
 import { revealPasswordAction, revealTotpAction } from "@/app/(app)/documents/vault-actions";
 
@@ -106,7 +107,9 @@ export function SecretField({
             </Button>
           ) : (
             <>
-              <code className="rounded bg-[var(--muted)] px-2 py-1 font-mono">{password}</code>
+              <code className="rounded bg-[var(--muted)] px-2 py-1 font-mono">
+                <SecretText value={password} />
+              </code>
               <Button
                 type="button"
                 variant="ghost"
@@ -122,10 +125,19 @@ export function SecretField({
 
           <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={code}>
             <Timer className="size-4" aria-hidden />
-            {totp ? `${totp.code} · ${totp.remaining}s` : t.secrets.totp}
+            {totp ? (
+              <>
+                <SecretText value={totp.code} />
+                <span className="text-[var(--muted-foreground)]">· {totp.remaining}s</span>
+              </>
+            ) : (
+              t.secrets.totp
+            )}
           </Button>
         </div>
       )}
+
+      {password !== null && <SecretSpellOut value={password} />}
 
       {error && <p className="text-[var(--destructive)]">{error}</p>}
     </div>

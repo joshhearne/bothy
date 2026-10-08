@@ -50,6 +50,14 @@
   --light-sidebar: oklch(0.979 0.004 258);
   --light-sidebar-border: oklch(0.915 0.006 258);
   --light-selection: oklch(0.51 0.1 186 / 0.18);
+  /*
+   * A revealed secret colours each character by what it is, so a 1, an l and
+   * an I can be told apart by hue as well as shape. The hues are AlphabetSoup's
+   * (letters blue, digits orange, symbols violet), darkened for a white page.
+   */
+  --light-secret-letter: #2563eb;
+  --light-secret-digit: #c2410c;
+  --light-secret-symbol: #6d28d9;
 
   --dark-background: oklch(0.18 0.015 258);
   --dark-foreground: oklch(0.97 0.005 258);
@@ -71,6 +79,22 @@
   --dark-sidebar: oklch(0.215 0.016 258);
   --dark-sidebar-border: oklch(0.3 0.017 258);
   --dark-selection: oklch(0.78 0.14 182 / 0.28);
+  --dark-secret-letter: #60a5fa;
+  --dark-secret-digit: #fb923c;
+  --dark-secret-symbol: #a78bfa;
+}
+
+/*
+ * Paul Tol's vibrant set, which stays apart under every common colour-vision
+ * deficiency. The choice sits on the application shell (data-secret-style,
+ * from the person's account), so the aliases are declared again there: a
+ * custom property inherits already resolved, and overriding the raw values
+ * alone would change nothing.
+ */
+[data-secret-style="colorblind"] {
+  --secret-letter: light-dark(#0077bb, #6cb4ee);
+  --secret-digit: light-dark(#b85c00, #ee7733);
+  --secret-symbol: light-dark(#aa3377, #ee88bb);
 }
 
 /*
@@ -103,7 +127,22 @@
   --sidebar: light-dark(var(--light-sidebar), var(--dark-sidebar));
   --sidebar-border: light-dark(var(--light-sidebar-border), var(--dark-sidebar-border));
   --selection: light-dark(var(--light-selection), var(--dark-selection));
+  --secret-letter: light-dark(var(--light-secret-letter), var(--dark-secret-letter));
+  --secret-digit: light-dark(var(--light-secret-digit), var(--dark-secret-digit));
+  --secret-symbol: light-dark(var(--light-secret-symbol), var(--dark-secret-symbol));
 }
+
+/*
+ * The characters of a revealed secret. One span each; the text content of the
+ * parent is still exactly the secret, so copying and reading it stay honest.
+ */
+.secret-text [data-kind="letter"] { color: var(--secret-letter); }
+.secret-text [data-kind="digit"] { color: var(--secret-digit); }
+.secret-text [data-kind="symbol"] { color: var(--secret-symbol); font-weight: 600; }
+/* A space is invisible on its own; a dotted floor shows that it is there. */
+.secret-text [data-space] { text-decoration: underline dotted var(--secret-symbol); text-underline-offset: 0.2em; }
+/* The reader asked for plain text: same spans, no colour, so nothing else moves. */
+[data-secret-style="off"] .secret-text [data-kind] { color: inherit; font-weight: inherit; text-decoration: none; }
 
 
 /*

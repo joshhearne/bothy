@@ -88,6 +88,7 @@ export const auth = betterAuth({
       role: { type: "string", defaultValue: "tech", input: false },
       canRevealSecrets: { type: "boolean", defaultValue: false, input: false },
       mustChangePassword: { type: "boolean", defaultValue: false, input: false },
+      secretStyle: { type: "string", defaultValue: "on", input: false },
     },
   },
 

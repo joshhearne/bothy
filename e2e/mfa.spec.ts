@@ -31,7 +31,8 @@ async function signIn(page: Page, email: string, password: string) {
 }
 
 async function fresh(browser: Browser) {
-  const context = await browser.newContext();
+  // Clipboard access is for the readback copy; 127.0.0.1 counts as secure.
+  const context = await browser.newContext({ permissions: ["clipboard-read", "clipboard-write"] });
   return { context, page: await context.newPage() };
 }
 
@@ -148,6 +149,21 @@ test("an authenticator app is enrolled, and brings recovery codes with it", asyn
   const shown = await page.getByRole("status", { name: "Key" }).textContent();
   secret = (shown ?? "").replace(/[^A-Z2-7]/g, "");
   expect(secret).toHaveLength(32);
+
+  // The key can be spelled out for a phone call, next to it rather than in it.
+  await page.getByRole("button", { name: "Spell out" }).click();
+  const readback = page.getByLabel("Readback");
+  await expect(readback).toBeVisible();
+  await expect(readback).toContainText("as in");
+  await expect(readback).toContainText(/Capital [A-Z] as in [A-Z][a-z]+/);
+  expect((await page.getByRole("status", { name: "Key" }).textContent() ?? "").replace(/[^A-Z2-7]/g, "")).toBe(secret);
+  await page.getByRole("button", { name: "Copy readback" }).click();
+  await expect(page.getByRole("button", { name: "Copied!" })).toBeVisible();
+  const spoken = await page.evaluate(() => navigator.clipboard.readText());
+  expect(spoken.startsWith("Capital ") || /^[2-7] \| /.test(spoken)).toBe(true);
+  expect(spoken.split(" | ")).toHaveLength(secret.length + 7);
+  await page.getByRole("button", { name: "Hide spelling" }).click();
+  await expect(readback).toBeHidden();
 
   await page.getByLabel("Then enter the code the app shows").fill("000000");
   await page.getByRole("button", { name: "Turn on" }).click();

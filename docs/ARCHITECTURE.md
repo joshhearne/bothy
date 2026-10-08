@@ -145,6 +145,18 @@ for. `instance_settings` is a single row holding what an operator chooses once
   illustrating them.
 - A company's accent applies to its own pages and documents; the shell keeps
   the instance's, so it stays obvious which portal you are in.
+- A revealed secret (vault password, TOTP, recovery codes, a new API key or
+  webhook secret) is shown one `<span>` per character, marked by what it is,
+  and coloured by `data-secret-style` on `<html>`: `on` (letters blue, digits
+  orange, symbols violet, AlphabetSoup's hues), `colorblind` (Paul Tol's
+  vibrant set) or `off`. The choice is `users.secret_style`, on by default,
+  picked from the user menu and carried on the application shell rather than
+  `<html>` because it is the signed-in person's, not the browser's. Only
+  administrators and technicians, who are who reveal secrets, see the choice;
+  a read-only viewer gets no attribute and no select. The element's text
+  content is still exactly the secret. The NATO readback ("Capital P as in Papa | 4 | ! as in
+  Exclamation") sits beside the secret, never inside it, and is built in
+  `src/lib/secret-text.ts`, a port of AlphabetSoup's core tables.
 
 ## Attachments
 - What a file is comes from its own bytes, never from the browser's declared
@@ -183,8 +195,26 @@ over RDAP, and whether SPF, DMARC and DKIM are published.
 - `fields.domain_role` is one of `domain`, `expiry`, `registrar`, `dns_host`.
   The feature is therefore not wired to one doc type's labels: point it at a
   field on a doc type of your own and it works there.
-- Checks run when somebody asks and the result is kept in `domain_checks`, so
-  reading a page costs no lookups. Nothing runs in the background.
+- Checks run when somebody asks, and the worker re-runs them on its own: the
+  instance sets how often (`instance_settings.domain_check_interval_days`,
+  zero for never), a record can set its own interval or opt out
+  (`domain_checks.auto`, `interval_days`), and `next_run_at` says when it is
+  due. The result is kept in `domain_checks`, so reading a page costs no
+  lookups, and `checked_by` is null when the worker ran it.
+- Each run boils the result down to a summary (`src/server/domain/summary.ts`:
+  name servers, addresses, mail exchangers, certificate and its expiry,
+  registrar, registration expiry, transfer lock, SPF, DMARC, DKIM) and compares
+  it with the last one. A difference is a `domain.changed` webhook naming each
+  change; only facts known on both sides are compared, so a section turned on
+  or a lookup that failed once is not a change. A certificate or registration
+  inside its warning window is a `domain.expiring` webhook, once per expiry
+  date (`warned`). Admin → Notifications lists what the last run of every
+  record flagged, the same facts the webhooks carry.
+- The worker's pass (`runDueDomainChecks`) takes what is due oldest first,
+  within the same budget a person's clicks share, and puts off a record whose
+  domain is empty or malformed until next time with the reason in
+  `auto_error`. `/api/internal/webhooks` runs the same pass for deployments
+  with no timer.
 - Running one needs the document-editing permission, because it is outbound
   traffic sent on the instance's behalf, and the whole instance shares one
   budget of 30 runs a minute.

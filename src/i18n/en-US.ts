@@ -19,6 +19,12 @@ export const enUS = {
       light: "Light",
       dark: "Dark",
     },
+    secretStyle: "Secret colors",
+    secretStyles: {
+      on: "Letters, digits, symbols",
+      colorblind: "Color-blind palette",
+      off: "Off",
+    },
     account: "Account",
     accountMenuFor: (name: string) => `Account menu for ${name}`,
     signedInAs: "Signed in as",
@@ -354,7 +360,7 @@ export const enUS = {
 
     domain: {
       heading: "Domain checks",
-      subtitle: "Looked up on request, against the domain in this record.",
+      subtitle: "Looked up against the domain in this record, when asked and on a schedule.",
       dns: "DNS records",
       dnsHint: "A, AAAA, MX, NS and TXT, and who is answering for the domain.",
       tls: "TLS certificate",
@@ -380,6 +386,17 @@ export const enUS = {
       expiry: "Expiration",
       records: "Records",
       unavailable: "Lookups are not available in this deployment.",
+      automatic: "Check automatically",
+      automaticHint:
+        "The worker re-runs the checks above on an interval, says what changed, and warns ahead of an expiry.",
+      interval: "How often",
+      intervalDefault: (days: number) =>
+        days === 0 ? "Instance default (off)" : `Instance default (every ${days} days)`,
+      intervalEvery: (days: number) => (days === 1 ? "Every day" : `Every ${days} days`),
+      nextRun: (when: string) => `Next automatic check ${when}.`,
+      automaticOff: "Automatic checks are off for this instance. Turn them on under Admin → Settings.",
+      lastCheckedAuto: (when: string) => `Last checked ${when}, automatically.`,
+      autoError: (reason: string) => `The last automatic check could not run: ${reason}`,
     },
     uploadTypes:
       "Images (HEIC is converted to JPEG), PDF, Word, Excel, PowerPoint, CSV, Markdown, and text.",
@@ -435,6 +452,18 @@ export const enUS = {
     locked: "The vault is locked, so this field is showing a link only.",
     unreachable: "The vault sidecar is unreachable, so this field is showing a link only.",
     openWebVault: "Open in the web vault",
+  },
+
+  secretText: {
+    spellOut: "Spell out",
+    hideSpelling: "Hide spelling",
+    readback: "Readback",
+    asIn: "as in",
+    capital: "Capital",
+    copyReadback: "Copy readback",
+    letters: "Letters",
+    digits: "Digits",
+    symbols: "Symbols",
   },
 
   search: {
@@ -611,6 +640,11 @@ export const enUS = {
       dueSoon: "Due soon",
       open: "Open",
       due: (date: string) => `due ${date}`,
+      domains: "Domain checks",
+      domainsHint:
+        "What the last check of each domain record flagged. A webhook goes out when a check finds something different, and once per expiry date.",
+      domainsEmpty: "Every checked domain looks fine.",
+      checked: (when: string) => `checked ${when}`,
     },
     settings: {
       language: "Language",
@@ -651,6 +685,16 @@ export const enUS = {
       publicAccessAud: "Application audience tag",
       publicAccessAudHint: "From the application's Overview in Zero Trust: a long hexadecimal string.",
       publicSave: "Update public site",
+      domainChecks: "Automatic domain checks",
+      domainChecksHint:
+        "How often the worker re-runs the checks a domain record has turned on. A record can set its own interval or opt out; this is what the rest follow.",
+      domainInterval: "Re-check every",
+      domainIntervals: {
+        off: "Never: checks run only when somebody presses Check now",
+        day: "Day",
+        days: (days: number) => `${days} days`,
+      },
+      domainChecksSave: "Update domain checks",
       configuration: "Configuration",
       configurationHint:
         "Set in the environment, shown here so nobody has to read a compose file.",

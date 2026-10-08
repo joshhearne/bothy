@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { useLocale, useMessages } from "@/i18n/client";
 import { UserMenu } from "@/components/user-menu";
 import { type Theme } from "@/lib/theme";
+import type { SecretStyle } from "@/lib/secret-style";
 import { BrandMark, brandStyle } from "@/components/brand";
 import type { Branding } from "@/server/services/branding";
 
@@ -28,6 +29,8 @@ export type AppShellProps = {
   canCreateCompanies: boolean;
   canManageDocTypes: boolean;
   theme: Theme;
+  /** Null for a role that never meets a secret field: no attribute, no choice. */
+  secretStyle: SecretStyle | null;
   branding: Branding;
   /** Rendered by the server layout: the footer reads messages of its own. */
   footer: React.ReactNode;
@@ -46,6 +49,7 @@ export function AppShell({
   canCreateCompanies,
   canManageDocTypes,
   theme,
+  secretStyle,
   branding,
   footer,
   signOut,
@@ -75,7 +79,11 @@ export function AppShell({
   }, [open]);
 
   return (
-    <div className="flex min-h-dvh flex-col" style={brandStyle(branding)}>
+    <div
+      className="flex min-h-dvh flex-col"
+      style={brandStyle(branding)}
+      data-secret-style={secretStyle ?? undefined}
+    >
       {/* Opaque on purpose: a backdrop-filter here forms a backdrop root and
           paints through the mobile drawer's overlay. */}
       <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-[var(--background)] px-4">
@@ -102,6 +110,7 @@ export function AppShell({
             canAdminister={canManageDocTypes}
             locale={locale}
             theme={theme}
+            secretStyle={secretStyle}
             signOut={signOut}
           />
         </div>

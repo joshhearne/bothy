@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
-import { openAccountMenu, signInAsAdmin } from "./support";
+import { ADMIN, openAccountMenu, signInAs, signInAsAdmin } from "./support";
+import { createUser, psql } from "./db";
+
+const VIEWER = { email: "e2e-secret-viewer@example.com", password: "a-viewer-password-7!" };
 
 /**
  * Light and dark are one palette selected by color-scheme, so what matters is
@@ -115,4 +118,44 @@ test("system can be chosen back", async ({ page }) => {
 
   await page.emulateMedia({ colorScheme: "light" });
   expect((await painted(page)).body).toBe(back.light);
+});
+
+test("secrets are coloured by default, the choice is kept on the account, and a viewer has none", async ({ page }) => {
+  const shell = page.locator("[data-secret-style]");
+
+  await page.goto("/companies");
+  await expect(page.locator("html")).not.toHaveAttribute("data-secret-style");
+  await expect(shell).toHaveAttribute("data-secret-style", "on");
+  expect(psql(`select secret_style from users where email='${ADMIN.email}';`)).toBe("on");
+
+  await openAccountMenu(page);
+  await page.getByLabel("Secret colors").selectOption({ label: "Off" });
+  await expect(shell).toHaveAttribute("data-secret-style", "off");
+  expect(psql(`select secret_style from users where email='${ADMIN.email}';`)).toBe("off");
+
+  // Another browser, same account: the choice came with the account, not the cookie jar.
+  const other = await page.context().browser()!.newContext();
+  const elsewhere = await other.newPage();
+  await signInAsAdmin(elsewhere);
+  await elsewhere.goto("/companies");
+  await expect(elsewhere.locator("[data-secret-style]")).toHaveAttribute("data-secret-style", "off");
+  await other.close();
+
+  await openAccountMenu(page);
+  await page.getByLabel("Secret colors").selectOption({ label: "Color-blind palette" });
+  await expect(shell).toHaveAttribute("data-secret-style", "colorblind");
+
+  await openAccountMenu(page);
+  await page.getByLabel("Secret colors").selectOption({ label: "Letters, digits, symbols" });
+  await expect(shell).toHaveAttribute("data-secret-style", "on");
+
+  // Somebody who only reads never meets a secret field, so there is nothing to choose.
+  createUser(VIEWER.email, "readonly", VIEWER.password);
+  await page.context().clearCookies();
+  await signInAs(page, VIEWER.email, VIEWER.password);
+  await page.goto("/companies");
+  await expect(page.locator("[data-secret-style]")).toHaveCount(0);
+  await openAccountMenu(page);
+  await expect(page.getByLabel("Theme")).toBeVisible();
+  await expect(page.getByLabel("Secret colors")).toHaveCount(0);
 });

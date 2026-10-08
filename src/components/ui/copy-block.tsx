@@ -4,6 +4,7 @@ import * as React from "react";
 import { Check, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMessages } from "@/i18n/client";
+import { SecretSpellOut, SecretText } from "@/components/ui/secret-text";
 
 const SHOWN_FOR_MS = 1800;
 
@@ -44,6 +45,8 @@ export function CopyBlock({
   value,
   label,
   wrap = false,
+  secret = false,
+  spellOut = false,
   className,
 }: {
   /** Exactly what lands on the clipboard. */
@@ -52,6 +55,10 @@ export function CopyBlock({
   label: string;
   /** Wrap long lines, for prose. Commands and keys scroll instead. */
   wrap?: boolean;
+  /** A key, a code, a password: colour each character by what it is. */
+  secret?: boolean;
+  /** Offer the spoken form too, for reading it down a phone. Implies secret. */
+  spellOut?: boolean;
   className?: string;
 }) {
   const t = useMessages();
@@ -90,8 +97,10 @@ export function CopyBlock({
           wrap ? "break-words whitespace-pre-wrap" : "overflow-x-auto whitespace-pre",
         )}
       >
-        {value}
+        {secret || spellOut ? <SecretText value={value} /> : value}
       </output>
+
+      {spellOut && <SecretSpellOut value={value} className="border-t px-3 py-2" />}
 
       <button
         type="button"

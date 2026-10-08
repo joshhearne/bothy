@@ -58,10 +58,15 @@ export const users = pgTable(
     /** Wrong codes in a row, and until when the second step is closed. */
     mfaFailures: integer("mfa_failures").notNull().default(0),
     mfaLockedUntil: timestamp("mfa_locked_until", { withTimezone: true }),
+    /** How a revealed secret is shown to them; see src/lib/secret-style.ts. */
+    secretStyle: text("secret_style").notNull().default("on"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
   },
-  (t) => [check("users_role_check", sql`${t.role} IN ('admin','tech','readonly')`)],
+  (t) => [
+    check("users_role_check", sql`${t.role} IN ('admin','tech','readonly')`),
+    check("users_secret_style_check", sql`${t.secretStyle} IN ('on','colorblind','off')`),
+  ],
 );
 
 export const sessions = pgTable("sessions", {
@@ -459,19 +464,45 @@ export const apiKeys = pgTable("api_keys", {
  * last run found. One row per document, created when somebody first turns a
  * check on.
  */
-export const domainChecks = pgTable("domain_checks", {
-  documentId: uuid("document_id")
-    .primaryKey()
-    .references(() => documents.id, { onDelete: "cascade" }),
-  dns: boolean("dns").notNull().default(false),
-  tls: boolean("tls").notNull().default(false),
-  rdap: boolean("rdap").notNull().default(false),
-  email: boolean("email").notNull().default(false),
-  /** The last result, as rendered. Never anything secret: these are public records. */
-  result: jsonb("result"),
-  checkedAt: timestamp("checked_at", { withTimezone: true }),
-  checkedBy: uuid("checked_by").references(() => users.id),
-});
+export const domainChecks = pgTable(
+  "domain_checks",
+  {
+    documentId: uuid("document_id")
+      .primaryKey()
+      .references(() => documents.id, { onDelete: "cascade" }),
+    dns: boolean("dns").notNull().default(false),
+    tls: boolean("tls").notNull().default(false),
+    rdap: boolean("rdap").notNull().default(false),
+    email: boolean("email").notNull().default(false),
+    /** The last result, as rendered. Never anything secret: these are public records. */
+    result: jsonb("result"),
+    checkedAt: timestamp("checked_at", { withTimezone: true }),
+    /** Null when the worker ran it rather than a person. */
+    checkedBy: uuid("checked_by").references(() => users.id),
+    /** Whether the worker runs the chosen checks on its own. */
+    auto: boolean("auto").notNull().default(true),
+    /** How often, for this record. Null follows the instance setting. */
+    intervalDays: integer("interval_days"),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    /**
+     * The last result boiled down to what is worth comparing — name servers,
+     * certificate, registrar, expiry dates, mail posture — so the next run can
+     * say what changed. See src/server/domain/summary.ts.
+     */
+    summary: jsonb("summary"),
+    /** Expiry dates already announced, by kind, so each is announced once. */
+    warned: jsonb("warned"),
+    /** Why the last automatic run could not check anything, if it could not. */
+    autoError: text("auto_error"),
+  },
+  (t) => [
+    check(
+      "domain_checks_interval_check",
+      sql`${t.intervalDays} IS NULL OR ${t.intervalDays} BETWEEN 1 AND 365`,
+    ),
+    index("domain_checks_next_run_idx").on(t.nextRunAt),
+  ],
+);
 
 /**
  * Instance settings: one row, like branding. What an operator chooses once for
@@ -499,6 +530,11 @@ export const instanceSettings = pgTable(
      */
     kbPublicAccessTeam: text("kb_public_access_team"),
     kbPublicAccessAud: text("kb_public_access_aud"),
+    /**
+     * How often the worker re-runs a record's domain checks, in days, unless
+     * the record says otherwise. Zero turns automatic checks off everywhere.
+     */
+    domainCheckIntervalDays: integer("domain_check_interval_days").notNull().default(7),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
     updatedBy: uuid("updated_by").references(() => users.id),
   },
@@ -507,6 +543,10 @@ export const instanceSettings = pgTable(
     check(
       "instance_settings_kb_public_mode_check",
       sql`${t.kbPublicMode} IN ('off','addresses','open')`,
+    ),
+    check(
+      "instance_settings_domain_interval_check",
+      sql`${t.domainCheckIntervalDays} BETWEEN 0 AND 365`,
     ),
   ],
 );

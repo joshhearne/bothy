@@ -41,7 +41,7 @@ function RevealOnce({
   return (
     <div className="flex flex-col gap-2 rounded-md border p-4">
       <p className="text-sm font-medium">{title}</p>
-      <CopyBlock value={value} label={label} />
+      <CopyBlock value={value} label={label} secret />
       <p className="text-xs text-[var(--muted-foreground)]">{help}</p>
     </div>
   );

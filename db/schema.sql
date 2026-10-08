@@ -688,3 +688,27 @@ ALTER TABLE instance_branding ADD COLUMN alt_accent_text text;
 -- keep favorites and votes for a named reader on that collection.
 ALTER TABLE api_key_kb_collections ADD COLUMN can_read boolean NOT NULL DEFAULT true;
 ALTER TABLE api_key_kb_collections ADD COLUMN reactions boolean NOT NULL DEFAULT true;
+
+-- ---------- Secret colours: a person's own choice ----------
+-- How a revealed secret is shown to them: each character coloured by what it
+-- is (on), the same in a colour-blind-safe palette, or plain. On by default.
+-- Only administrators and technicians see the choice; they are who reveal.
+ALTER TABLE users ADD COLUMN secret_style text NOT NULL DEFAULT 'on';
+ALTER TABLE users ADD CONSTRAINT users_secret_style_check CHECK (secret_style IN ('on','colorblind','off'));
+
+-- ---------- Domain checks that run on their own ----------
+-- The worker re-runs a record's chosen checks on an interval, keeps a compact
+-- summary of the last result so the next run can say what changed, and
+-- announces each expiry date once. A record can turn this off or set its own
+-- interval; zero at the instance level turns it off everywhere.
+ALTER TABLE domain_checks ADD COLUMN auto boolean NOT NULL DEFAULT true;
+ALTER TABLE domain_checks ADD COLUMN interval_days int;
+ALTER TABLE domain_checks ADD COLUMN next_run_at timestamptz;
+ALTER TABLE domain_checks ADD COLUMN summary jsonb;
+ALTER TABLE domain_checks ADD COLUMN warned jsonb;
+ALTER TABLE domain_checks ADD COLUMN auto_error text;
+ALTER TABLE domain_checks ADD CONSTRAINT domain_checks_interval_check
+  CHECK (interval_days IS NULL OR interval_days BETWEEN 1 AND 365);
+CREATE INDEX domain_checks_next_run_idx ON domain_checks (next_run_at);
+ALTER TABLE instance_settings ADD COLUMN domain_check_interval_days int NOT NULL DEFAULT 7
+  CHECK (domain_check_interval_days BETWEEN 0 AND 365);

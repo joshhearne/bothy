@@ -218,6 +218,20 @@
       "when": 1791392657117,
       "tag": "0030_drop_icon_follows_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791427458689,
+      "tag": "0031_secret_style",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791429885021,
+      "tag": "0032_domain_checks_auto",
+      "breakpoints": true
     }
   ]
 }
