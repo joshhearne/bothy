@@ -292,12 +292,12 @@ function TxtRecord({ value }: { value: string }) {
   const { label } = classifyTxt(value);
   return (
     <li className="flex flex-wrap items-baseline gap-2">
+      <span className="min-w-0 break-all font-mono text-xs">{value}</span>
       {label && (
         <span className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-[var(--muted-foreground)] uppercase">
           {label}
         </span>
       )}
-      <span className="min-w-0 break-all font-mono text-xs">{value}</span>
     </li>
   );
 }
