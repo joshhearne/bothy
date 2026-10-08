@@ -712,3 +712,51 @@ ALTER TABLE domain_checks ADD CONSTRAINT domain_checks_interval_check
 CREATE INDEX domain_checks_next_run_idx ON domain_checks (next_run_at);
 ALTER TABLE instance_settings ADD COLUMN domain_check_interval_days int NOT NULL DEFAULT 7
   CHECK (domain_check_interval_days BETWEEN 0 AND 365);
+
+-- ---------- Domain checks: an interval per kind, in three layers ----------
+-- DNS and the certificate daily, registration and mail posture weekly, set
+-- for the instance; a company may say otherwise for its records (zero turns
+-- a kind off for the company), and a record for itself. A certificate that
+-- renews on its own is no cause for alarm unless the record asks for a notice
+-- anyway. The old single interval is gone with the row's clock split by kind.
+ALTER TABLE instance_settings DROP COLUMN domain_check_interval_days;
+ALTER TABLE instance_settings ADD COLUMN domain_dns_interval_days int NOT NULL DEFAULT 1;
+ALTER TABLE instance_settings ADD COLUMN domain_tls_interval_days int NOT NULL DEFAULT 1;
+ALTER TABLE instance_settings ADD COLUMN domain_rdap_interval_days int NOT NULL DEFAULT 7;
+ALTER TABLE instance_settings ADD COLUMN domain_email_interval_days int NOT NULL DEFAULT 7;
+ALTER TABLE instance_settings ADD COLUMN domain_tls_warn_days int NOT NULL DEFAULT 30;
+ALTER TABLE instance_settings ADD CONSTRAINT instance_settings_domain_intervals_check CHECK (
+  domain_dns_interval_days BETWEEN 0 AND 365 AND domain_tls_interval_days BETWEEN 0 AND 365
+  AND domain_rdap_interval_days BETWEEN 0 AND 365 AND domain_email_interval_days BETWEEN 0 AND 365
+  AND domain_tls_warn_days BETWEEN 1 AND 365);
+
+ALTER TABLE companies ADD COLUMN domain_dns_interval_days int;
+ALTER TABLE companies ADD COLUMN domain_tls_interval_days int;
+ALTER TABLE companies ADD COLUMN domain_rdap_interval_days int;
+ALTER TABLE companies ADD COLUMN domain_email_interval_days int;
+ALTER TABLE companies ADD COLUMN domain_tls_warn_days int;
+ALTER TABLE companies ADD CONSTRAINT companies_domain_intervals_check CHECK (
+  (domain_dns_interval_days IS NULL OR domain_dns_interval_days BETWEEN 0 AND 365)
+  AND (domain_tls_interval_days IS NULL OR domain_tls_interval_days BETWEEN 0 AND 365)
+  AND (domain_rdap_interval_days IS NULL OR domain_rdap_interval_days BETWEEN 0 AND 365)
+  AND (domain_email_interval_days IS NULL OR domain_email_interval_days BETWEEN 0 AND 365)
+  AND (domain_tls_warn_days IS NULL OR domain_tls_warn_days BETWEEN 1 AND 365));
+
+ALTER TABLE domain_checks DROP CONSTRAINT domain_checks_interval_check;
+ALTER TABLE domain_checks DROP COLUMN interval_days;
+ALTER TABLE domain_checks ADD COLUMN dns_interval_days int;
+ALTER TABLE domain_checks ADD COLUMN tls_interval_days int;
+ALTER TABLE domain_checks ADD COLUMN rdap_interval_days int;
+ALTER TABLE domain_checks ADD COLUMN email_interval_days int;
+ALTER TABLE domain_checks ADD COLUMN dns_next_run_at timestamptz;
+ALTER TABLE domain_checks ADD COLUMN tls_next_run_at timestamptz;
+ALTER TABLE domain_checks ADD COLUMN rdap_next_run_at timestamptz;
+ALTER TABLE domain_checks ADD COLUMN email_next_run_at timestamptz;
+ALTER TABLE domain_checks ADD COLUMN tls_auto_renews boolean NOT NULL DEFAULT false;
+ALTER TABLE domain_checks ADD COLUMN tls_warn_days int;
+ALTER TABLE domain_checks ADD CONSTRAINT domain_checks_intervals_check CHECK (
+  (dns_interval_days IS NULL OR dns_interval_days BETWEEN 1 AND 365)
+  AND (tls_interval_days IS NULL OR tls_interval_days BETWEEN 1 AND 365)
+  AND (rdap_interval_days IS NULL OR rdap_interval_days BETWEEN 1 AND 365)
+  AND (email_interval_days IS NULL OR email_interval_days BETWEEN 1 AND 365)
+  AND (tls_warn_days IS NULL OR tls_warn_days BETWEEN 1 AND 365));

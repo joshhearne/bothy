@@ -1,6 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { canManageHierarchy, requireScopedUser } from "@/server/auth/session";
-import { getCompany } from "@/server/services/companies";
+import {
+  getCompany,
+  getCompanyDomainPolicy,
+} from "@/server/services/companies";
+import { getDomainCheckPolicy } from "@/server/services/settings";
+import { CompanyDomainPolicyForm } from "../../domain-policy-form";
 import { getMessages } from "@/i18n/server";
 import { getCompanyBranding, LOGO_ACCEPT } from "@/server/services/branding";
 import { CompanyBrandingForm } from "@/app/(app)/admin/branding-forms";
@@ -10,14 +15,23 @@ import { CompanyForm } from "../../company-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditCompanyPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditCompanyPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { user, scope } = await requireScopedUser();
   const { id } = await params;
   if (!canManageHierarchy(user.role)) redirect(`/companies/${id}`);
 
   const company = await getCompany(id, scope);
   if (!company) notFound();
-  const [t, branding] = await Promise.all([getMessages(), getCompanyBranding(id, scope)]);
+  const [t, branding, domainPolicy, instancePolicy] = await Promise.all([
+    getMessages(),
+    getCompanyBranding(id, scope),
+    getCompanyDomainPolicy(id, scope),
+    getDomainCheckPolicy(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -65,6 +79,23 @@ export default async function EditCompanyPage({ params }: { params: Promise<{ id
               </form>
             ),
         )}
+      </section>
+
+      <section className="flex flex-col gap-3 border-t pt-6">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">
+            {t.companies.domainChecks}
+          </h2>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            {t.companies.domainChecksHint}
+          </p>
+        </div>
+
+        <CompanyDomainPolicyForm
+          companyId={company.id}
+          company={domainPolicy}
+          instance={instancePolicy}
+        />
       </section>
     </div>
   );

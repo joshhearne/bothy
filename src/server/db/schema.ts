@@ -49,7 +49,9 @@ export const users = pgTable(
     /** False means the user sees only what user_companies grants them. */
     allCompanies: boolean("all_companies").notNull().default(false),
     /** Set by an administrator's temporary password; cleared when the user chooses their own. */
-    mustChangePassword: boolean("must_change_password").notNull().default(false),
+    mustChangePassword: boolean("must_change_password")
+      .notNull()
+      .default(false),
     /** Wrong passwords in a row, and until when the account is closed to sign-in. */
     failedSignIns: integer("failed_sign_ins").notNull().default(0),
     lockedUntil: timestamp("locked_until", { withTimezone: true }),
@@ -60,12 +62,19 @@ export const users = pgTable(
     mfaLockedUntil: timestamp("mfa_locked_until", { withTimezone: true }),
     /** How a revealed secret is shown to them; see src/lib/secret-style.ts. */
     secretStyle: text("secret_style").notNull().default("on"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(now),
   },
   (t) => [
     check("users_role_check", sql`${t.role} IN ('admin','tech','readonly')`),
-    check("users_secret_style_check", sql`${t.secretStyle} IN ('on','colorblind','off')`),
+    check(
+      "users_secret_style_check",
+      sql`${t.secretStyle} IN ('on','colorblind','off')`,
+    ),
   ],
 );
 
@@ -80,8 +89,12 @@ export const sessions = pgTable("sessions", {
   userAgent: text("user_agent"),
   /** When this session last passed the second step. Null until it has. */
   mfaVerifiedAt: timestamp("mfa_verified_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(now),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(now),
 });
 
 /* ---------- Second factors ---------- */
@@ -97,7 +110,9 @@ export const mfaTotp = pgTable("mfa_totp", {
     .references(() => users.id, { onDelete: "cascade" }),
   secretEncrypted: text("secret_encrypted").notNull(),
   lastUsedStep: bigint("last_used_step", { mode: "number" }),
-  enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().default(now),
+  enrolledAt: timestamp("enrolled_at", { withTimezone: true })
+    .notNull()
+    .default(now),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
 });
 
@@ -116,7 +131,9 @@ export const mfaPasskeys = pgTable(
     transports: text("transports").notNull().default(""),
     deviceType: text("device_type").notNull().default("singleDevice"),
     backedUp: boolean("backed_up").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(now),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   },
   (t) => [index("mfa_passkeys_user_idx").on(t.userId)],
@@ -132,7 +149,9 @@ export const mfaRecoveryCodes = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     codeHash: text("code_hash").notNull(),
     usedAt: timestamp("used_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(now),
   },
   (t) => [index("mfa_recovery_codes_user_idx").on(t.userId)],
 );
@@ -148,11 +167,19 @@ export const accounts = pgTable("accounts", {
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
   idToken: text("id_token"),
-  accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
-  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+  accessTokenExpiresAt: timestamp("access_token_expires_at", {
+    withTimezone: true,
+  }),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at", {
+    withTimezone: true,
+  }),
   scope: text("scope"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(now),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(now),
 });
 
 export const verifications = pgTable("verifications", {
@@ -160,29 +187,58 @@ export const verifications = pgTable("verifications", {
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(now),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .default(now),
 });
 
 /* ---------- Hierarchy ---------- */
 
-export const companies = pgTable("companies", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  isInternal: boolean("is_internal").notNull().default(false),
-  notes: text("notes"), // markdown
-  brandScheme: text("brand_scheme").notNull().default("light"),
-  /** Which vault this client's secrets live in. Null means the default one. */
-  vaultProviderId: uuid("vault_provider_id"),
-  accent: text("accent"), // #rrggbb, validated in app code
-  altAccent: text("alt_accent"),
-  logoKey: text("logo_key"),
-  logoMime: text("logo_mime"),
-  altLogoKey: text("alt_logo_key"),
-  altLogoMime: text("alt_logo_mime"),
-  archivedAt: timestamp("archived_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
-});
+export const companies = pgTable(
+  "companies",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    isInternal: boolean("is_internal").notNull().default(false),
+    notes: text("notes"), // markdown
+    brandScheme: text("brand_scheme").notNull().default("light"),
+    /** Which vault this client's secrets live in. Null means the default one. */
+    vaultProviderId: uuid("vault_provider_id"),
+    accent: text("accent"), // #rrggbb, validated in app code
+    altAccent: text("alt_accent"),
+    logoKey: text("logo_key"),
+    logoMime: text("logo_mime"),
+    altLogoKey: text("alt_logo_key"),
+    altLogoMime: text("alt_logo_mime"),
+    /**
+     * How often this company's domain records are re-checked, kind by kind,
+     * and how far ahead a certificate is worth a warning. Null follows the
+     * instance; zero turns a kind off for the company. See src/server/domain/policy.ts.
+     */
+    domainDnsIntervalDays: integer("domain_dns_interval_days"),
+    domainTlsIntervalDays: integer("domain_tls_interval_days"),
+    domainRdapIntervalDays: integer("domain_rdap_interval_days"),
+    domainEmailIntervalDays: integer("domain_email_interval_days"),
+    domainTlsWarnDays: integer("domain_tls_warn_days"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(now),
+  },
+  (t) => [
+    check(
+      "companies_domain_intervals_check",
+      sql`(${t.domainDnsIntervalDays} IS NULL OR ${t.domainDnsIntervalDays} BETWEEN 0 AND 365)
+      AND (${t.domainTlsIntervalDays} IS NULL OR ${t.domainTlsIntervalDays} BETWEEN 0 AND 365)
+      AND (${t.domainRdapIntervalDays} IS NULL OR ${t.domainRdapIntervalDays} BETWEEN 0 AND 365)
+      AND (${t.domainEmailIntervalDays} IS NULL OR ${t.domainEmailIntervalDays} BETWEEN 0 AND 365)
+      AND (${t.domainTlsWarnDays} IS NULL OR ${t.domainTlsWarnDays} BETWEEN 1 AND 365)`,
+    ),
+  ],
+);
 
 /**
  * Instance branding: one row, held to one row by a boolean primary key that
@@ -207,12 +263,17 @@ export const instanceBranding = pgTable(
     logoMime: text("logo_mime"),
     altLogoKey: text("alt_logo_key"),
     altLogoMime: text("alt_logo_mime"),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(now),
     updatedBy: uuid("updated_by").references(() => users.id),
   },
   (t) => [
     check("instance_branding_singleton", sql`${t.id}`),
-    check("instance_branding_scheme_check", sql`${t.scheme} IN ('light','dark')`),
+    check(
+      "instance_branding_scheme_check",
+      sql`${t.scheme} IN ('light','dark')`,
+    ),
   ],
 );
 
@@ -295,14 +356,21 @@ export const documents = pgTable(
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
-    locationId: uuid("location_id").references(() => locations.id, { onDelete: "set null" }),
+    locationId: uuid("location_id").references(() => locations.id, {
+      onDelete: "set null",
+    }),
     title: text("title").notNull(),
     /** { "<field_id>": value } — keyed by field UUID, never by label. */
-    fieldValues: jsonb("field_values").$type<Record<string, unknown>>().notNull().default({}),
+    fieldValues: jsonb("field_values")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
     /** Optional per-doc order override: ["<field_id>", ...] */
     fieldOrder: jsonb("field_order").$type<string[] | null>(),
     updatedBy: uuid("updated_by").references(() => users.id),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(now),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     /** Maintained by the app on save: flattened text of field_values. */
     searchText: text("search_text").notNull().default(""),
@@ -341,12 +409,18 @@ export const fields = pgTable(
   "fields",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    docTypeId: uuid("doc_type_id").references(() => docTypes.id, { onDelete: "cascade" }),
-    documentId: uuid("document_id").references(() => documents.id, { onDelete: "cascade" }),
+    docTypeId: uuid("doc_type_id").references(() => docTypes.id, {
+      onDelete: "cascade",
+    }),
+    documentId: uuid("document_id").references(() => documents.id, {
+      onDelete: "cascade",
+    }),
     label: text("label").notNull(),
     fieldType: text("field_type").notNull(),
     optionListId: uuid("option_list_id").references(() => optionLists.id),
-    linkDocTypeId: uuid("link_doc_type_id").references((): typeof docTypes.id => docTypes.id),
+    linkDocTypeId: uuid("link_doc_type_id").references(
+      (): typeof docTypes.id => docTypes.id,
+    ),
     required: boolean("required").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
     /**
@@ -383,7 +457,9 @@ export const documentRevisions = pgTable("document_revisions", {
   title: text("title").notNull(),
   fieldValues: jsonb("field_values").$type<Record<string, unknown>>().notNull(),
   editedBy: uuid("edited_by").references(() => users.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(now),
 });
 
 /** Derived from doc_link fields, for backlinks. */
@@ -413,7 +489,9 @@ export const attachments = pgTable("attachments", {
   storageKey: text("storage_key").notNull(), // local volume or S3 path
   sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
   uploadedBy: uuid("uploaded_by").references(() => users.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(now),
 });
 
 export const auditLog = pgTable("audit_log", {
@@ -423,7 +501,9 @@ export const auditLog = pgTable("audit_log", {
   entity: text("entity").notNull(),
   entityId: uuid("entity_id"),
   detail: jsonb("detail").$type<Record<string, unknown>>(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(now),
 });
 
 /* ---------- Integrations ---------- */
@@ -439,8 +519,15 @@ export const externalRefs = pgTable(
     externalId: text("external_id").notNull(),
   },
   (t) => [
-    check("external_refs_entity_check", sql`${t.entity} IN ('company','location','document')`),
-    unique("external_refs_system_entity_external_id_key").on(t.system, t.entity, t.externalId),
+    check(
+      "external_refs_entity_check",
+      sql`${t.entity} IN ('company','location','document')`,
+    ),
+    unique("external_refs_system_entity_external_id_key").on(
+      t.system,
+      t.entity,
+      t.externalId,
+    ),
     index("external_refs_entity_idx").on(t.entity, t.entityId),
   ],
 );
@@ -450,13 +537,18 @@ export const apiKeys = pgTable("api_keys", {
   name: text("name").notNull(), // "HaloPSA integration"
   prefix: text("prefix").notNull().unique(), // first 8 chars, shown in UI
   keyHash: text("key_hash").notNull(), // sha256 of full key; full key shown once
-  scopes: text("scopes").array().notNull().default(sql`'{read}'`),
+  scopes: text("scopes")
+    .array()
+    .notNull()
+    .default(sql`'{read}'`),
   createdBy: uuid("created_by").references(() => users.id),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   revokedAt: timestamp("revoked_at", { withTimezone: true }),
   /** False means the key sees only what api_key_companies grants it. */
   allCompanies: boolean("all_companies").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(now),
 });
 
 /**
@@ -481,9 +573,24 @@ export const domainChecks = pgTable(
     checkedBy: uuid("checked_by").references(() => users.id),
     /** Whether the worker runs the chosen checks on its own. */
     auto: boolean("auto").notNull().default(true),
-    /** How often, for this record. Null follows the instance setting. */
-    intervalDays: integer("interval_days"),
+    /** How often each kind runs, for this record. Null follows the company, then the instance. */
+    dnsIntervalDays: integer("dns_interval_days"),
+    tlsIntervalDays: integer("tls_interval_days"),
+    rdapIntervalDays: integer("rdap_interval_days"),
+    emailIntervalDays: integer("email_interval_days"),
+    /** Each kind's own clock; next_run_at is the soonest of them, for the worker's query. */
+    dnsNextRunAt: timestamp("dns_next_run_at", { withTimezone: true }),
+    tlsNextRunAt: timestamp("tls_next_run_at", { withTimezone: true }),
+    rdapNextRunAt: timestamp("rdap_next_run_at", { withTimezone: true }),
+    emailNextRunAt: timestamp("email_next_run_at", { withTimezone: true }),
     nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    /**
+     * The certificate renews on its own (ACME, a managed host), so its expiry
+     * is no cause for alarm. A notice set alongside means "warn me anyway".
+     */
+    tlsAutoRenews: boolean("tls_auto_renews").notNull().default(false),
+    /** Days ahead of certificate expiry to warn, for this record. Null follows the policy. */
+    tlsWarnDays: integer("tls_warn_days"),
     /**
      * The last result boiled down to what is worth comparing — name servers,
      * certificate, registrar, expiry dates, mail posture — so the next run can
@@ -497,8 +604,12 @@ export const domainChecks = pgTable(
   },
   (t) => [
     check(
-      "domain_checks_interval_check",
-      sql`${t.intervalDays} IS NULL OR ${t.intervalDays} BETWEEN 1 AND 365`,
+      "domain_checks_intervals_check",
+      sql`(${t.dnsIntervalDays} IS NULL OR ${t.dnsIntervalDays} BETWEEN 1 AND 365)
+        AND (${t.tlsIntervalDays} IS NULL OR ${t.tlsIntervalDays} BETWEEN 1 AND 365)
+        AND (${t.rdapIntervalDays} IS NULL OR ${t.rdapIntervalDays} BETWEEN 1 AND 365)
+        AND (${t.emailIntervalDays} IS NULL OR ${t.emailIntervalDays} BETWEEN 1 AND 365)
+        AND (${t.tlsWarnDays} IS NULL OR ${t.tlsWarnDays} BETWEEN 1 AND 365)`,
     ),
     index("domain_checks_next_run_idx").on(t.nextRunAt),
   ],
@@ -531,11 +642,27 @@ export const instanceSettings = pgTable(
     kbPublicAccessTeam: text("kb_public_access_team"),
     kbPublicAccessAud: text("kb_public_access_aud"),
     /**
-     * How often the worker re-runs a record's domain checks, in days, unless
-     * the record says otherwise. Zero turns automatic checks off everywhere.
+     * How often the worker re-runs each kind of domain check, in days, unless
+     * a company or record says otherwise. Zero turns that kind off everywhere.
+     * The defaults are DEFAULT_INTERVALS in src/server/domain/policy.ts.
      */
-    domainCheckIntervalDays: integer("domain_check_interval_days").notNull().default(7),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+    domainDnsIntervalDays: integer("domain_dns_interval_days")
+      .notNull()
+      .default(1),
+    domainTlsIntervalDays: integer("domain_tls_interval_days")
+      .notNull()
+      .default(1),
+    domainRdapIntervalDays: integer("domain_rdap_interval_days")
+      .notNull()
+      .default(7),
+    domainEmailIntervalDays: integer("domain_email_interval_days")
+      .notNull()
+      .default(7),
+    /** Days ahead of a certificate's expiry to warn, unless a company or record says otherwise. */
+    domainTlsWarnDays: integer("domain_tls_warn_days").notNull().default(30),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(now),
     updatedBy: uuid("updated_by").references(() => users.id),
   },
   (t) => [
@@ -545,8 +672,12 @@ export const instanceSettings = pgTable(
       sql`${t.kbPublicMode} IN ('off','addresses','open')`,
     ),
     check(
-      "instance_settings_domain_interval_check",
-      sql`${t.domainCheckIntervalDays} BETWEEN 0 AND 365`,
+      "instance_settings_domain_intervals_check",
+      sql`${t.domainDnsIntervalDays} BETWEEN 0 AND 365
+        AND ${t.domainTlsIntervalDays} BETWEEN 0 AND 365
+        AND ${t.domainRdapIntervalDays} BETWEEN 0 AND 365
+        AND ${t.domainEmailIntervalDays} BETWEEN 0 AND 365
+        AND ${t.domainTlsWarnDays} BETWEEN 1 AND 365`,
     ),
   ],
 );
@@ -577,8 +708,14 @@ export const documentSchedules = pgTable(
     fromDocType: boolean("from_doc_type").notNull().default(false),
   },
   (t) => [
-    check("document_schedules_kind_check", sql`${t.kind} IN ('expiry','maintenance')`),
-    check("document_schedules_lead_check", sql`${t.leadDays} BETWEEN 0 AND 365`),
+    check(
+      "document_schedules_kind_check",
+      sql`${t.kind} IN ('expiry','maintenance')`,
+    ),
+    check(
+      "document_schedules_lead_check",
+      sql`${t.leadDays} BETWEEN 0 AND 365`,
+    ),
     check(
       "document_schedules_interval_check",
       sql`${t.intervalDays} IS NULL OR ${t.intervalDays} BETWEEN 1 AND 3650`,
@@ -607,7 +744,10 @@ export const racks = pgTable(
   },
   (t) => [
     check("racks_total_u_check", sql`${t.totalU} BETWEEN 1 AND 60`),
-    check("racks_numbering_check", sql`${t.numbering} IN ('bottom_up','top_down')`),
+    check(
+      "racks_numbering_check",
+      sql`${t.numbering} IN ('bottom_up','top_down')`,
+    ),
   ],
 );
 
@@ -627,7 +767,9 @@ export const rackMounts = pgTable(
     positionU: integer("position_u").notNull(),
     heightU: integer("height_u").notNull().default(1),
     face: text("face").notNull().default("front"),
-    documentId: uuid("document_id").references(() => documents.id, { onDelete: "set null" }),
+    documentId: uuid("document_id").references(() => documents.id, {
+      onDelete: "set null",
+    }),
     label: text("label"),
     /** What it is, when there is no document to take that from. */
     docTypeId: uuid("doc_type_id").references(() => docTypes.id),
@@ -655,7 +797,9 @@ export const rackTypeColors = pgTable(
     docTypeId: uuid("doc_type_id")
       .notNull()
       .references(() => docTypes.id, { onDelete: "cascade" }),
-    companyId: uuid("company_id").references(() => companies.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id").references(() => companies.id, {
+      onDelete: "cascade",
+    }),
     color: text("color").notNull(),
   },
   (t) => [
@@ -679,7 +823,9 @@ export const userCompanies = pgTable(
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
-    grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().default(now),
+    grantedAt: timestamp("granted_at", { withTimezone: true })
+      .notNull()
+      .default(now),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.companyId] }),
@@ -696,7 +842,9 @@ export const apiKeyCompanies = pgTable(
     companyId: uuid("company_id")
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
-    grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().default(now),
+    grantedAt: timestamp("granted_at", { withTimezone: true })
+      .notNull()
+      .default(now),
   },
   (t) => [
     primaryKey({ columns: [t.apiKeyId, t.companyId] }),
@@ -710,7 +858,9 @@ export const webhooks = pgTable("webhooks", {
   secret: text("secret").notNull(), // HMAC-SHA256 signing secret
   events: text("events").array().notNull(),
   active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(now),
 });
 
 export const webhookDeliveries = pgTable("webhook_deliveries", {
@@ -724,7 +874,9 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
   attempts: integer("attempts").notNull().default(0),
   nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
   deliveredAt: timestamp("delivered_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(now),
 });
 
 /* ---------- Vault integration ---------- */
@@ -744,7 +896,10 @@ export const vaultProviders = pgTable(
     enabled: boolean("enabled").notNull().default(true),
   },
   (t) => [
-    check("vault_providers_kind_check", sql`${t.kind} IN ('link','bw_serve','bitwarden_public_api','op_connect','hashicorp_kv','passbolt','keeper')`),
+    check(
+      "vault_providers_kind_check",
+      sql`${t.kind} IN ('link','bw_serve','bitwarden_public_api','op_connect','hashicorp_kv','passbolt','keeper')`,
+    ),
   ],
 );
 
@@ -779,7 +934,9 @@ export const kbCollections = pgTable("kb_collections", {
   publicAccess: boolean("public_access").notNull().default(false),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdBy: uuid("created_by").references(() => users.id),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(now),
 });
 
 /** The companies a collection is kept to, when it is not for everyone. */
@@ -818,7 +975,9 @@ export const apiKeyKbCollections = pgTable(
     canWrite: boolean("can_write").notNull().default(false),
     /** The key may keep favorites and votes for a named reader here. On unless an admin turns it off. */
     reactions: boolean("reactions").notNull().default(true),
-    grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().default(now),
+    grantedAt: timestamp("granted_at", { withTimezone: true })
+      .notNull()
+      .default(now),
   },
   (t) => [
     primaryKey({ columns: [t.apiKeyId, t.collectionId] }),
@@ -840,7 +999,9 @@ export const userKbCollections = pgTable(
       .notNull()
       .references(() => kbCollections.id, { onDelete: "cascade" }),
     canWrite: boolean("can_write").notNull().default(false),
-    grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().default(now),
+    grantedAt: timestamp("granted_at", { withTimezone: true })
+      .notNull()
+      .default(now),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.collectionId] }),
@@ -872,7 +1033,10 @@ export const kbArticles = pgTable(
     category: text("category"),
     subcategory: text("subcategory"),
     /** Frontmatter the columns above do not cover, attachments included. */
-    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
     dateCreated: timestamp("date_created", { withTimezone: true }),
     dateModified: timestamp("date_modified", { withTimezone: true }),
     /** `unextracted` is a file with no text layer: recorded, not searchable. */
@@ -888,17 +1052,33 @@ export const kbArticles = pgTable(
     /** SHA-256 of the source bytes, so an unchanged file is not rewritten. */
     contentHash: text("content_hash").notNull(),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
-    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().default(now),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+    importedAt: timestamp("imported_at", { withTimezone: true })
+      .notNull()
+      .default(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(now),
   },
   (t) => [
     unique("kb_articles_collection_source_key").on(t.collectionId, t.sourceKey),
     check("kb_articles_format_check", sql`${t.format} IN ('markdown','text')`),
-    check("kb_articles_extraction_check", sql`${t.extraction} IN ('ok','unextracted')`),
-    check("kb_articles_hidden_by_check", sql`${t.hiddenBy} IN ('manual','rule','category')`),
+    check(
+      "kb_articles_extraction_check",
+      sql`${t.extraction} IN ('ok','unextracted')`,
+    ),
+    check(
+      "kb_articles_hidden_by_check",
+      sql`${t.hiddenBy} IN ('manual','rule','category')`,
+    ),
     check("kb_articles_kind_check", sql`${t.kind} IN ('article','runbook')`),
-    index("kb_articles_runbook_idx").on(t.collectionId).where(sql`${t.kind} = 'runbook'`),
-    index("kb_articles_category_idx").on(t.collectionId, t.category, t.subcategory),
+    index("kb_articles_runbook_idx")
+      .on(t.collectionId)
+      .where(sql`${t.kind} = 'runbook'`),
+    index("kb_articles_category_idx").on(
+      t.collectionId,
+      t.category,
+      t.subcategory,
+    ),
   ],
 );
 
@@ -922,8 +1102,12 @@ export const kbHideRules = pgTable(
     matchFiles: boolean("match_files").notNull().default(false),
     regex: text("regex").notNull(),
     fileRegex: text("file_regex").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
-    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(now),
+    createdBy: uuid("created_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
   },
   (t) => [index("kb_hide_rules_collection_idx").on(t.collectionId)],
 );
@@ -990,13 +1174,20 @@ export const kbImages = pgTable(
     sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
     /** SHA-256 of the file as it arrived, so an unchanged one is not rewritten. */
     contentHash: text("content_hash").notNull(),
-    importedAt: timestamp("imported_at", { withTimezone: true }).notNull().default(now),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+    importedAt: timestamp("imported_at", { withTimezone: true })
+      .notNull()
+      .default(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(now),
   },
   (t) => [
     unique("kb_images_collection_path").on(t.collectionId, t.sourcePath),
     // Exports disagree with themselves about case; the lookup forgives that.
-    index("kb_images_lookup_idx").on(t.collectionId, sql`lower(${t.sourcePath})`),
+    index("kb_images_lookup_idx").on(
+      t.collectionId,
+      sql`lower(${t.sourcePath})`,
+    ),
   ],
 );
 
@@ -1012,7 +1203,9 @@ export const kbFavorites = pgTable(
     articleId: uuid("article_id")
       .notNull()
       .references(() => kbArticles.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(now),
   },
   (t) => [
     primaryKey({ columns: [t.readerKey, t.articleId] }),
@@ -1029,8 +1222,12 @@ export const kbVotes = pgTable(
       .notNull()
       .references(() => kbArticles.id, { onDelete: "cascade" }),
     helpful: boolean("helpful").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().default(now),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(now),
   },
   (t) => [
     primaryKey({ columns: [t.readerKey, t.articleId] }),
@@ -1052,7 +1249,9 @@ export const kbImports = pgTable(
     status: text("status").notNull().default("uploading"),
     /** Upload bookkeeping: what was promised, and how much has arrived. */
     expectedBytes: bigint("expected_bytes", { mode: "number" }),
-    receivedBytes: bigint("received_bytes", { mode: "number" }).notNull().default(0),
+    receivedBytes: bigint("received_bytes", { mode: "number" })
+      .notNull()
+      .default(0),
     total: integer("total").notNull().default(0),
     added: integer("added").notNull().default(0),
     updated: integer("updated").notNull().default(0),
@@ -1067,15 +1266,23 @@ export const kbImports = pgTable(
     /** A category given for the whole import, in place of the folder's name. */
     category: text("category"),
     /** [{ path, reason }], capped so one bad archive cannot fill the row. */
-    failures: jsonb("failures").$type<{ path: string; reason: string }[]>().notNull().default([]),
+    failures: jsonb("failures")
+      .$type<{ path: string; reason: string }[]>()
+      .notNull()
+      .default([]),
     usedManifest: boolean("used_manifest").notNull().default(false),
     error: text("error"),
     startedBy: uuid("started_by").references(() => users.id),
-    startedAt: timestamp("started_at", { withTimezone: true }).notNull().default(now),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .default(now),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
   },
   (t) => [
-    check("kb_imports_source_check", sql`${t.source} IN ('upload','connector')`),
+    check(
+      "kb_imports_source_check",
+      sql`${t.source} IN ('upload','connector')`,
+    ),
     check(
       "kb_imports_status_check",
       sql`${t.status} IN ('uploading','running','done','failed')`,
@@ -1103,12 +1310,23 @@ export const kbConnectors = pgTable(
     lastRunAt: timestamp("last_run_at", { withTimezone: true }),
     nextRunAt: timestamp("next_run_at", { withTimezone: true }),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(now),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(now),
   },
   (t) => [
-    check("kb_connectors_kind_check", sql`${t.kind} IN ('sitemap','prefix','helpcenter')`),
-    check("kb_connectors_interval_check", sql`${t.intervalHours} BETWEEN 1 AND 8760`),
-    check("kb_connectors_max_pages_check", sql`${t.maxPages} BETWEEN 1 AND 20000`),
+    check(
+      "kb_connectors_kind_check",
+      sql`${t.kind} IN ('sitemap','prefix','helpcenter')`,
+    ),
+    check(
+      "kb_connectors_interval_check",
+      sql`${t.intervalHours} BETWEEN 1 AND 8760`,
+    ),
+    check(
+      "kb_connectors_max_pages_check",
+      sql`${t.maxPages} BETWEEN 1 AND 20000`,
+    ),
     index("kb_connectors_due_idx").on(t.nextRunAt),
   ],
 );

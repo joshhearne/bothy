@@ -195,12 +195,32 @@ over RDAP, and whether SPF, DMARC and DKIM are published.
 - `fields.domain_role` is one of `domain`, `expiry`, `registrar`, `dns_host`.
   The feature is therefore not wired to one doc type's labels: point it at a
   field on a doc type of your own and it works there.
-- Checks run when somebody asks, and the worker re-runs them on its own: the
-  instance sets how often (`instance_settings.domain_check_interval_days`,
-  zero for never), a record can set its own interval or opt out
-  (`domain_checks.auto`, `interval_days`), and `next_run_at` says when it is
-  due. The result is kept in `domain_checks`, so reading a page costs no
-  lookups, and `checked_by` is null when the worker ran it.
+- Checks run when somebody asks, and the worker re-runs them on its own, each
+  kind on its own clock. How often is a policy in three layers
+  (`src/server/domain/policy.ts`): the instance says what everything follows
+  (`instance_settings.domain_{dns,tls,rdap,email}_interval_days`, DNS and the
+  certificate daily, registration and mail posture weekly, zero for never), a
+  company may say otherwise for its records
+  (`companies.domain_*_interval_days`, null to follow, zero to turn a kind off),
+  and a record may say otherwise for itself (`domain_checks.*_interval_days`)
+  or opt out of the worker altogether (`auto`). A new record states nothing,
+  so it follows its company and, through it, the instance. Each kind keeps its
+  own next time (`*_next_run_at`); `next_run_at` is the soonest, which is what
+  the worker's query reads. A run replaces only the sections it fetched
+  (`result.checked` says when each was), so the page shows every section at
+  its own age and the summary compares like with like. The result is kept in
+  `domain_checks`, so reading a page costs no lookups, and `checked_by` is null
+  when the worker ran it.
+- A certificate's warning is a notice in the same three layers
+  (`domain_tls_warn_days`, 30 by default). A record may say its certificate
+  renews on its own (`tls_auto_renews`): then its expiry is no cause for alarm
+  and nothing is announced, unless the record also sets a notice, which means
+  "warn me anyway". Registration keeps a fixed 60-day notice.
+- TXT records are listed one per line with what each is for named where it
+  can be told (`src/server/domain/txt.ts`: SPF, DMARC, DKIM, and the
+  verification tokens of Google, Atlassian, Microsoft 365 and others). DMARC
+  hosted elsewhere by CNAME (Proofpoint and the like) is read through it and
+  the page says where it points.
 - Each run boils the result down to a summary (`src/server/domain/summary.ts`:
   name servers, addresses, mail exchangers, certificate and its expiry,
   registrar, registration expiry, transfer lock, SPF, DMARC, DKIM) and compares
@@ -211,10 +231,11 @@ over RDAP, and whether SPF, DMARC and DKIM are published.
   date (`warned`). Admin → Notifications lists what the last run of every
   record flagged, the same facts the webhooks carry.
 - The worker's pass (`runDueDomainChecks`) takes what is due oldest first,
-  within the same budget a person's clicks share, and puts off a record whose
-  domain is empty or malformed until next time with the reason in
-  `auto_error`. `/api/internal/webhooks` runs the same pass for deployments
-  with no timer.
+  within the same budget a person's clicks share, runs only the kinds whose
+  time has come, and puts off a record whose domain is empty or malformed
+  until next time with the reason in `auto_error`. A record with nothing left
+  to run is looked at again tomorrow. `/api/internal/webhooks` runs the same
+  pass for deployments with no timer.
 - Running one needs the document-editing permission, because it is outbound
   traffic sent on the instance's behalf, and the whole instance shares one
   budget of 30 runs a minute.

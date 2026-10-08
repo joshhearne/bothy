@@ -19,6 +19,10 @@ export const WEBHOOK_EVENTS = [
   "field.promoted",
   /** A schedule has reached its lead time, or gone past its date. */
   "document.due",
+  /** A domain check found something different from the run before. */
+  "domain.changed",
+  /** A certificate or a registration is inside its warning window; once per date. */
+  "domain.expiring",
   /** A knowledge base article written or archived through the API or MCP. */
   "kb.article.upserted",
   "kb.article.archived",

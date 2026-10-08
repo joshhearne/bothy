@@ -75,8 +75,13 @@ Accepted types decided by magic bytes; HEIC/HEIF converted to JPEG; macro-enable
 Office refused. See docs/ARCHITECTURE.md.
 
 ### Phase 11: Domain checks
-DNS, TLS, RDAP and email posture per domain record, run on request and stored. Field roles
-(`fields.domain_role`) decide which field holds the domain. See docs/ARCHITECTURE.md.
+DNS, TLS, RDAP and email posture per domain record, run on request or by the worker, each kind
+on its own interval set in three layers (instance, company, record; `src/server/domain/policy.ts`)
+with per-record opt-out. Each run is compared with the last: `domain.changed` names what differs,
+`domain.expiring` warns once per expiry date within the certificate notice (none for a certificate
+marked as renewing itself), and Admin → Notifications lists what was flagged. TXT records are
+named by kind. Field roles (`fields.domain_role`) decide which field holds the domain. See
+docs/ARCHITECTURE.md.
 
 ### Phase 12: Rack elevations
 Rack doc types (`doc_types.is_rack`) with `racks` / `rack_mounts` / `rack_type_colors`. Colour is
@@ -126,4 +131,4 @@ session is stamped and the sensitive pages ask again. Admins reset a person's fa
 UI. See docs/ARCHITECTURE.md.
 
 ### Later
-Tags, multi-tenant, importers (Hudu, IT Glue CSV), scheduled re-checks with expiry webhooks.
+Tags, multi-tenant, importers (Hudu, IT Glue CSV).

@@ -2,13 +2,15 @@ import { timingSafeEqual } from "node:crypto";
 import { env } from "@/lib/env";
 import { deliverDueWebhooks } from "@/server/services/webhooks";
 import { announceDue } from "@/server/services/schedules";
+import { runDueDomainChecks } from "@/server/services/domain-checks";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Everything the background worker does, for deployments that cannot hold a
  * timer — a Cloudflare Cron Trigger, or system cron against a container: it
- * announces schedules that have come due, then delivers what is waiting.
+ * announces schedules that have come due, re-runs the domain checks that are
+ * due, then delivers what is waiting.
  *
  * The Node container runs both on timers of its own, so this is not needed
  * there; it is also the honest way for a test to watch a pass happen rather
@@ -43,11 +45,13 @@ export async function POST(request: Request): Promise<Response> {
 
   // Announce first, so anything that came due this pass goes out in it.
   const announced = await announceDue();
+  const domainChecks = await runDueDomainChecks();
   const attempts = await deliverDueWebhooks();
 
   return Response.json(
     {
       announced,
+      domain_checks: domainChecks,
       attempted: attempts.length,
       delivered: attempts.filter((attempt) => attempt.status === "delivered").length,
       retrying: attempts.filter((attempt) => attempt.status === "retrying").length,

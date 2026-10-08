@@ -2,10 +2,18 @@
 
 import { revalidatePath } from "next/cache";
 import { text, type FormState } from "@/lib/form";
-import { ForbiddenError, requireAdmin, requireRecentMfa } from "@/server/auth/session";
+import {
+  ForbiddenError,
+  requireAdmin,
+  requireRecentMfa,
+} from "@/server/auth/session";
 import { ZodError } from "zod";
 import { toFieldErrors } from "@/lib/form";
-import { setDefaultLocale, setKbPublicSettings } from "@/server/services/settings";
+import {
+  setDefaultLocale,
+  setDomainCheckPolicy,
+  setKbPublicSettings,
+} from "@/server/services/settings";
 
 export async function setDefaultLocaleAction(
   _prev: FormState,
@@ -25,7 +33,10 @@ export async function setDefaultLocaleAction(
   return { ok: true };
 }
 
-export async function setKbPublicAction(_prev: FormState, formData: FormData): Promise<FormState> {
+export async function setKbPublicAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
   try {
     const user = await requireAdmin();
     await requireRecentMfa(user);
@@ -47,5 +58,32 @@ export async function setKbPublicAction(_prev: FormState, formData: FormData): P
 
   revalidatePath("/admin/settings");
   revalidatePath("/admin/kb", "layout");
+  return { ok: true };
+}
+
+export async function setDomainCheckPolicyAction(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  try {
+    const user = await requireAdmin();
+    await requireRecentMfa(user);
+    await setDomainCheckPolicy(
+      {
+        dns: text(formData, "dns"),
+        tls: text(formData, "tls"),
+        rdap: text(formData, "rdap"),
+        email: text(formData, "email"),
+        tlsWarnDays: text(formData, "tlsWarnDays"),
+      },
+      user.id,
+    );
+  } catch (err) {
+    if (err instanceof ZodError) return { fieldErrors: toFieldErrors(err) };
+    if (err instanceof ForbiddenError) return { error: err.message };
+    throw err;
+  }
+
+  revalidatePath("/admin/settings");
   return { ok: true };
 }

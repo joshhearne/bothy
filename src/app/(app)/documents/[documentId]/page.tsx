@@ -248,6 +248,7 @@ export default async function DocumentPage({
             dnsHost: labelOf(detail, domainState.targets.dns_host),
           }}
           checkedAt={domainState.checkedAt?.toISOString() ?? null}
+          nextRunAt={domainState.automation.nextRunAt?.toISOString() ?? null}
         />
       )}
 

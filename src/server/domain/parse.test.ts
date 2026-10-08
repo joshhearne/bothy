@@ -172,3 +172,39 @@ describe("email posture", () => {
     expect(monitoring[2]?.message).toContain("google");
   });
 });
+
+describe("certificateFindings with a notice", () => {
+  const cert = (over: Partial<Parameters<typeof certificateFindings>[0]> = {}) => ({
+    issuer: "Let's Encrypt",
+    subject: "example.com",
+    names: ["example.com"],
+    validFrom: null,
+    validTo: null,
+    daysRemaining: 20,
+    chainTrusted: true,
+    chainError: null,
+    coversDomain: true,
+    ...over,
+  });
+
+  it("warns at the notice the policy gives, not a fixed one", () => {
+    expect(certificateFindings(cert(), { warnDays: 14, autoRenews: false })[0]?.severity).toBe("ok");
+    expect(certificateFindings(cert(), { warnDays: 21, autoRenews: false })[0]?.severity).toBe("warn");
+  });
+
+  it("stays calm for a certificate that renews itself, and says so", () => {
+    const [finding] = certificateFindings(cert({ daysRemaining: 5 }), { warnDays: null, autoRenews: true });
+    expect(finding?.severity).toBe("ok");
+    expect(finding?.message).toContain("renews automatically");
+  });
+
+  it("warns about a renewal that has not happened when a notice was asked for anyway", () => {
+    const [finding] = certificateFindings(cert({ daysRemaining: 5 }), { warnDays: 7, autoRenews: true });
+    expect(finding?.severity).toBe("warn");
+    expect(finding?.message).toContain("has not renewed yet");
+  });
+
+  it("still calls an expired certificate bad whatever the notice", () => {
+    expect(certificateFindings(cert({ daysRemaining: -1 }), { warnDays: null, autoRenews: true })[0]?.severity).toBe("bad");
+  });
+});

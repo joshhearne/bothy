@@ -8,10 +8,19 @@ export type Severity = "ok" | "warn" | "bad";
 
 export type Finding = { severity: Severity; message: string };
 
-/** A certificate expiring sooner than this is worth saying out loud. */
+/** A certificate expiring sooner than this is worth saying out loud, unless the policy says otherwise. */
 export const TLS_WARN_DAYS = 30;
 /** Domains are renewed on longer notice than certificates. */
 export const DOMAIN_WARN_DAYS = 60;
+
+/**
+ * How the certificate's remaining life is judged: how many days ahead to
+ * warn, or null for a certificate that renews on its own and needs none.
+ */
+export type CertificateNotice = {
+  warnDays: number | null;
+  autoRenews: boolean;
+};
 
 export function daysUntil(when: Date, now: Date = new Date()): number {
   return Math.floor((when.getTime() - now.getTime()) / 86_400_000);
@@ -61,7 +70,10 @@ export function nameMatches(domain: string, pattern: string): boolean {
   return name.slice(0, -(suffix.length + 1)).includes(".") === false;
 }
 
-export function certificateFindings(cert: CertificateSummary): Finding[] {
+export function certificateFindings(
+  cert: CertificateSummary,
+  notice: CertificateNotice = { warnDays: TLS_WARN_DAYS, autoRenews: false },
+): Finding[] {
   const findings: Finding[] = [];
 
   if (!cert.chainTrusted) {
@@ -73,16 +85,37 @@ export function certificateFindings(cert: CertificateSummary): Finding[] {
     });
   }
   if (!cert.coversDomain) {
-    findings.push({ severity: "bad", message: "The certificate does not cover this domain." });
+    findings.push({
+      severity: "bad",
+      message: "The certificate does not cover this domain.",
+    });
   }
 
   const days = cert.daysRemaining;
   if (days === null) return findings;
 
-  if (days < 0) findings.push({ severity: "bad", message: `The certificate expired ${-days} days ago.` });
-  else if (days <= TLS_WARN_DAYS) {
-    findings.push({ severity: "warn", message: `The certificate expires in ${days} days.` });
-  } else findings.push({ severity: "ok", message: `The certificate is valid for ${days} more days.` });
+  if (days < 0)
+    findings.push({
+      severity: "bad",
+      message: `The certificate expired ${-days} days ago.`,
+    });
+  else if (notice.warnDays !== null && days <= notice.warnDays) {
+    findings.push({
+      severity: "warn",
+      message: notice.autoRenews
+        ? `The certificate expires in ${days} days and has not renewed yet.`
+        : `The certificate expires in ${days} days.`,
+    });
+  } else if (notice.autoRenews) {
+    findings.push({
+      severity: "ok",
+      message: `The certificate is valid for ${days} more days and renews automatically.`,
+    });
+  } else
+    findings.push({
+      severity: "ok",
+      message: `The certificate is valid for ${days} more days.`,
+    });
 
   return findings;
 }
@@ -107,35 +140,56 @@ function vcardName(entity: RdapEntity): string | null {
   if (!Array.isArray(card)) return null;
 
   for (const entry of card) {
-    if (Array.isArray(entry) && entry[0] === "fn" && typeof entry[3] === "string") {
+    if (
+      Array.isArray(entry) &&
+      entry[0] === "fn" &&
+      typeof entry[3] === "string"
+    ) {
       return entry[3].trim() || null;
     }
   }
   return null;
 }
 
-export function parseRdap(body: unknown, now: Date = new Date()): RegistrationSummary {
-  const record = (body ?? {}) as { events?: unknown; entities?: unknown; status?: unknown };
+export function parseRdap(
+  body: unknown,
+  now: Date = new Date(),
+): RegistrationSummary {
+  const record = (body ?? {}) as {
+    events?: unknown;
+    entities?: unknown;
+    status?: unknown;
+  };
 
-  const events = Array.isArray(record.events) ? (record.events as RdapEvent[]) : [];
+  const events = Array.isArray(record.events)
+    ? (record.events as RdapEvent[])
+    : [];
   const dateFor = (action: string): string | null => {
     const found = events.find(
-      (event) => typeof event.eventAction === "string" && event.eventAction === action,
+      (event) =>
+        typeof event.eventAction === "string" && event.eventAction === action,
     );
     if (!found || typeof found.eventDate !== "string") return null;
     const parsed = new Date(found.eventDate);
     return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
   };
 
-  const entities = Array.isArray(record.entities) ? (record.entities as RdapEntity[]) : [];
+  const entities = Array.isArray(record.entities)
+    ? (record.entities as RdapEntity[])
+    : [];
   const registrar =
     entities
-      .filter((entity) => Array.isArray(entity.roles) && entity.roles.includes("registrar"))
+      .filter(
+        (entity) =>
+          Array.isArray(entity.roles) && entity.roles.includes("registrar"),
+      )
       .map(vcardName)
       .find((name): name is string => Boolean(name)) ?? null;
 
   const statuses = Array.isArray(record.status)
-    ? record.status.filter((value): value is string => typeof value === "string")
+    ? record.status.filter(
+        (value): value is string => typeof value === "string",
+      )
     : [];
 
   const expires = dateFor("expiration");
@@ -147,7 +201,9 @@ export function parseRdap(body: unknown, now: Date = new Date()): RegistrationSu
     daysRemaining: expires ? daysUntil(new Date(expires), now) : null,
     statuses,
     // Any of the transfer locks counts: registries name them differently.
-    locked: statuses.some((status) => status.toLowerCase().includes("transfer prohibited")),
+    locked: statuses.some((status) =>
+      status.toLowerCase().includes("transfer prohibited"),
+    ),
   };
 }
 
@@ -156,14 +212,28 @@ export function registrationFindings(record: RegistrationSummary): Finding[] {
   const days = record.daysRemaining;
 
   if (days !== null) {
-    if (days < 0) findings.push({ severity: "bad", message: `The registration lapsed ${-days} days ago.` });
+    if (days < 0)
+      findings.push({
+        severity: "bad",
+        message: `The registration lapsed ${-days} days ago.`,
+      });
     else if (days <= DOMAIN_WARN_DAYS) {
-      findings.push({ severity: "warn", message: `The registration expires in ${days} days.` });
-    } else findings.push({ severity: "ok", message: `The registration runs for ${days} more days.` });
+      findings.push({
+        severity: "warn",
+        message: `The registration expires in ${days} days.`,
+      });
+    } else
+      findings.push({
+        severity: "ok",
+        message: `The registration runs for ${days} more days.`,
+      });
   }
 
   if (!record.locked && record.statuses.length > 0) {
-    findings.push({ severity: "warn", message: "No transfer lock is set at the registrar." });
+    findings.push({
+      severity: "warn",
+      message: "No transfer lock is set at the registrar.",
+    });
   }
   return findings;
 }
@@ -174,6 +244,8 @@ export type EmailSummary = {
   spf: string | null;
   dmarc: string | null;
   dmarcPolicy: string | null;
+  /** Where _dmarc points when it is a CNAME (Proofpoint and others host it), else null. */
+  dmarcCname?: string | null;
   dkimSelectors: string[];
 };
 
@@ -183,11 +255,17 @@ export function joinTxt(record: string[] | string): string {
 }
 
 export function findSpf(records: (string[] | string)[]): string | null {
-  return records.map(joinTxt).find((value) => /^v=spf1\b/i.test(value.trim())) ?? null;
+  return (
+    records.map(joinTxt).find((value) => /^v=spf1\b/i.test(value.trim())) ??
+    null
+  );
 }
 
 export function findDmarc(records: (string[] | string)[]): string | null {
-  return records.map(joinTxt).find((value) => /^v=dmarc1\b/i.test(value.trim())) ?? null;
+  return (
+    records.map(joinTxt).find((value) => /^v=dmarc1\b/i.test(value.trim())) ??
+    null
+  );
 }
 
 export function dmarcPolicy(record: string | null): string | null {
@@ -202,7 +280,10 @@ export function emailFindings(summary: EmailSummary): Finding[] {
   findings.push(
     summary.spf
       ? { severity: "ok", message: "SPF is published." }
-      : { severity: "warn", message: "No SPF record: anyone may send as this domain." },
+      : {
+          severity: "warn",
+          message: "No SPF record: anyone may send as this domain.",
+        },
   );
 
   if (!summary.dmarc) {
@@ -210,10 +291,14 @@ export function emailFindings(summary: EmailSummary): Finding[] {
   } else if (summary.dmarcPolicy === "none" || summary.dmarcPolicy === null) {
     findings.push({
       severity: "warn",
-      message: "DMARC is published but its policy is none, so nothing is enforced.",
+      message:
+        "DMARC is published but its policy is none, so nothing is enforced.",
     });
   } else {
-    findings.push({ severity: "ok", message: `DMARC policy is ${summary.dmarcPolicy}.` });
+    findings.push({
+      severity: "ok",
+      message: `DMARC policy is ${summary.dmarcPolicy}.`,
+    });
   }
 
   if (summary.dkimSelectors.length === 0) {

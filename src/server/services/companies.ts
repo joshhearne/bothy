@@ -1,4 +1,8 @@
 import "server-only";
+import {
+  INTERVAL_MAX_DAYS,
+  type PolicyOverrides,
+} from "@/server/domain/policy";
 import { z } from "zod";
 import { and, asc, eq, gt, ilike, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/server/db";
@@ -20,6 +24,110 @@ export const companyInputSchema = z.object({
 });
 
 export type CompanyInput = z.infer<typeof companyInputSchema>;
+
+const overrideDays = z.coerce
+  .number()
+  .int()
+  .min(0)
+  .max(INTERVAL_MAX_DAYS)
+  .nullable();
+
+/** The company layer of the domain-check policy: null follows the instance, zero turns a kind off. */
+export const companyDomainPolicySchema = z.object({
+  dns: overrideDays,
+  tls: overrideDays,
+  rdap: overrideDays,
+  email: overrideDays,
+  tlsWarnDays: z.coerce.number().int().min(1).max(INTERVAL_MAX_DAYS).nullable(),
+});
+
+export type CompanyDomainPolicyInput = z.infer<
+  typeof companyDomainPolicySchema
+>;
+
+type CompanyPolicyRow = {
+  domainDnsIntervalDays: number | null;
+  domainTlsIntervalDays: number | null;
+  domainRdapIntervalDays: number | null;
+  domainEmailIntervalDays: number | null;
+  domainTlsWarnDays: number | null;
+};
+
+/** The row's five columns as the policy resolver reads them. */
+export function companyPolicyOf(
+  row: CompanyPolicyRow | null | undefined,
+): PolicyOverrides {
+  return {
+    intervals: {
+      dns: row?.domainDnsIntervalDays ?? null,
+      tls: row?.domainTlsIntervalDays ?? null,
+      rdap: row?.domainRdapIntervalDays ?? null,
+      email: row?.domainEmailIntervalDays ?? null,
+    },
+    tlsWarnDays: row?.domainTlsWarnDays ?? null,
+  };
+}
+
+export async function getCompanyDomainPolicy(
+  id: string,
+  scope: CompanyScope,
+): Promise<PolicyOverrides> {
+  assertInScope(scope, id);
+  const [row] = await db
+    .select({
+      domainDnsIntervalDays: companies.domainDnsIntervalDays,
+      domainTlsIntervalDays: companies.domainTlsIntervalDays,
+      domainRdapIntervalDays: companies.domainRdapIntervalDays,
+      domainEmailIntervalDays: companies.domainEmailIntervalDays,
+      domainTlsWarnDays: companies.domainTlsWarnDays,
+    })
+    .from(companies)
+    .where(eq(companies.id, id))
+    .limit(1);
+  if (!row) throw new NotFoundError("Company");
+  return companyPolicyOf(row);
+}
+
+/**
+ * What this company's domain records follow instead of the instance. Records
+ * that say nothing of their own pick it up on their next run, which is the
+ * point: a company's timings are set once, not on every record.
+ */
+export async function setCompanyDomainPolicy(
+  id: string,
+  input: unknown,
+  actorId: string,
+  scope: CompanyScope,
+): Promise<void> {
+  assertInScope(scope, id);
+  const data = companyDomainPolicySchema.parse(input);
+
+  await db.transaction(async (tx) => {
+    const [updated] = await tx
+      .update(companies)
+      .set({
+        domainDnsIntervalDays: data.dns,
+        domainTlsIntervalDays: data.tls,
+        domainRdapIntervalDays: data.rdap,
+        domainEmailIntervalDays: data.email,
+        domainTlsWarnDays: data.tlsWarnDays,
+      })
+      .where(eq(companies.id, id))
+      .returning({ id: companies.id });
+    if (!updated) throw new NotFoundError("Company");
+
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "company.updated",
+        entity: "company",
+        entityId: id,
+        detail: { domainChecks: data },
+      },
+      tx,
+    );
+  });
+}
 
 export type CompanySummary = {
   id: string;
@@ -73,13 +181,22 @@ export async function listCompanies(
     .from(companies)
     .leftJoin(locationCount, eq(locationCount.companyId, companies.id))
     .leftJoin(documentCount, eq(documentCount.companyId, companies.id))
-    .where(and(includeArchived ? undefined : isNull(companies.archivedAt), scopeWhere(scope, companies.id)))
+    .where(
+      and(
+        includeArchived ? undefined : isNull(companies.archivedAt),
+        scopeWhere(scope, companies.id),
+      ),
+    )
     .orderBy(sql`${companies.isInternal} desc`, asc(companies.name));
 }
 
 /** A company the caller may see, or null. Out of scope reads as absent. */
 export async function getCompany(id: string, scope: CompanyScope) {
-  const [company] = await db.select().from(companies).where(eq(companies.id, id)).limit(1);
+  const [company] = await db
+    .select()
+    .from(companies)
+    .where(eq(companies.id, id))
+    .limit(1);
   if (!company || !isInScope(scope, company.id)) return null;
   return company;
 }
@@ -105,7 +222,11 @@ export async function createCompany(
   return db.transaction(async (tx) => {
     const [company] = await tx
       .insert(companies)
-      .values({ name: data.name, isInternal: data.isInternal, notes: data.notes ?? null })
+      .values({
+        name: data.name,
+        isInternal: data.isInternal,
+        notes: data.notes ?? null,
+      })
       .returning({ id: companies.id });
     if (!company) throw new Error("Failed to create company");
 
@@ -142,7 +263,11 @@ export async function updateCompany(
   await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(companies)
-      .set({ name: data.name, isInternal: data.isInternal, notes: data.notes ?? null })
+      .set({
+        name: data.name,
+        isInternal: data.isInternal,
+        notes: data.notes ?? null,
+      })
       .where(eq(companies.id, id))
       .returning({ id: companies.id });
     if (!updated) throw new NotFoundError("Company");
@@ -158,7 +283,11 @@ export async function updateCompany(
       tx,
     );
 
-    await queueEvent("company.updated", { id, name: data.name, is_internal: data.isInternal }, tx);
+    await queueEvent(
+      "company.updated",
+      { id, name: data.name, is_internal: data.isInternal },
+      tx,
+    );
   });
 }
 
@@ -185,7 +314,12 @@ export async function archiveCompany(
       .where(and(eq(locations.companyId, id), isNull(locations.archivedAt)));
 
     await writeAudit(
-      { userId: actorId, action: "company.archived", entity: "company", entityId: id },
+      {
+        userId: actorId,
+        action: "company.archived",
+        entity: "company",
+        entityId: id,
+      },
       tx,
     );
   });
@@ -206,7 +340,12 @@ export async function unarchiveCompany(
     if (!updated) throw new NotFoundError("Company");
 
     await writeAudit(
-      { userId: actorId, action: "company.unarchived", entity: "company", entityId: id },
+      {
+        userId: actorId,
+        action: "company.unarchived",
+        entity: "company",
+        entityId: id,
+      },
       tx,
     );
   });
@@ -229,7 +368,10 @@ export async function listCompaniesPage(input: CompanyPageInput) {
     filters.push(
       or(
         gt(companies.name, input.cursor.sort),
-        and(eq(companies.name, input.cursor.sort), gt(companies.id, input.cursor.id)),
+        and(
+          eq(companies.name, input.cursor.sort),
+          gt(companies.id, input.cursor.id),
+        ),
       ) as ReturnType<typeof isNull>,
     );
   }

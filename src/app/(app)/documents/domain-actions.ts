@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { checkbox, text, type FormState } from "@/lib/form";
-import { ForbiddenError, getCompanyScope, requireDocumentEditor } from "@/server/auth/session";
+import {
+  ForbiddenError,
+  getCompanyScope,
+  requireDocumentEditor,
+} from "@/server/auth/session";
 import { NotFoundError } from "@/server/services/errors";
 import {
   applyDomainSuggestion,
@@ -45,6 +49,18 @@ export async function saveDomainChecksAction(
       },
       user.id,
       await getCompanyScope(user),
+      {
+        auto: checkbox(formData, "auto"),
+        // Empty means "follow the company and the instance"; anything else is this record's own.
+        intervals: {
+          dns: text(formData, "dnsIntervalDays"),
+          tls: text(formData, "tlsIntervalDays"),
+          rdap: text(formData, "rdapIntervalDays"),
+          email: text(formData, "emailIntervalDays"),
+        },
+        tlsAutoRenews: checkbox(formData, "tlsAutoRenews"),
+        tlsWarnDays: text(formData, "tlsWarnDays"),
+      },
     );
   } catch (err) {
     return toFormState(err);
@@ -79,13 +95,20 @@ export async function applyDomainSuggestionAction(
   formData: FormData,
 ): Promise<FormState> {
   const documentId = text(formData, "documentId");
-  const role = text(formData, "role") as Exclude<DomainRole, "domain"> | undefined;
+  const role = text(formData, "role") as
+    Exclude<DomainRole, "domain"> | undefined;
   const value = text(formData, "value");
   if (!documentId || !role || !value) return { error: "Missing suggestion" };
 
   try {
     const user = await requireDocumentEditor();
-    await applyDomainSuggestion(documentId, role, value, user.id, await getCompanyScope(user));
+    await applyDomainSuggestion(
+      documentId,
+      role,
+      value,
+      user.id,
+      await getCompanyScope(user),
+    );
   } catch (err) {
     return toFormState(err);
   }

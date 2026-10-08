@@ -26,6 +26,7 @@ export async function register(): Promise<void> {
 
   const { deliverDueWebhooks } = await import("@/server/services/webhooks");
   const { announceDue } = await import("@/server/services/schedules");
+  const { runDueDomainChecks } = await import("@/server/services/domain-checks");
 
   let running = false;
   const tick = async () => {
@@ -48,6 +49,13 @@ export async function register(): Promise<void> {
       await announceDue();
     } catch (error) {
       console.error("trove-kb: schedule worker failed", error);
+    }
+    // Domain checks come round on the same cadence: a certificate or a name
+    // server does not change by the minute either.
+    try {
+      await runDueDomainChecks();
+    } catch (error) {
+      console.error("trove-kb: domain check worker failed", error);
     } finally {
       announcing = false;
     }

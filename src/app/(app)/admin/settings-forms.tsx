@@ -7,7 +7,17 @@ import { Field } from "@/components/ui/field";
 import { FormError } from "@/components/ui/alert";
 import { useMessages } from "@/i18n/client";
 import type { FormState } from "@/lib/form";
-import { setDefaultLocaleAction, setKbPublicAction } from "./settings-actions";
+import {
+  setDefaultLocaleAction,
+  setDomainCheckPolicyAction,
+  setKbPublicAction,
+} from "./settings-actions";
+import {
+  INTERVAL_CHOICES,
+  TLS_WARN_CHOICES,
+  type CheckKind,
+  type CheckPolicy,
+} from "@/server/domain/policy";
 import { Select } from "@/components/ui/select";
 
 /** The language a reader who has never chosen one gets. */
@@ -20,7 +30,10 @@ export function DefaultLocaleForm({
   fallback: string;
   locales: { value: string; label: string }[];
 }) {
-  const [state, formAction] = useActionState<FormState, FormData>(setDefaultLocaleAction, {});
+  const [state, formAction] = useActionState<FormState, FormData>(
+    setDefaultLocaleAction,
+    {},
+  );
   const { pending } = useFormStatus();
   const t = useMessages();
 
@@ -77,7 +90,10 @@ export function KbPublicForm({
   /** The address this administrator is arriving from, to save them looking it up. */
   visitor: string | null;
 }) {
-  const [state, formAction, pending] = useActionState<FormState, FormData>(setKbPublicAction, {});
+  const [state, formAction, pending] = useActionState<FormState, FormData>(
+    setKbPublicAction,
+    {},
+  );
   const [chosen, setChosen] = useState(mode);
   const t = useMessages();
 
@@ -85,7 +101,11 @@ export function KbPublicForm({
     <form action={formAction} className="flex max-w-xl flex-col gap-4">
       <FormError>{state.error}</FormError>
 
-      <Field id="kb-public-mode" label={t.admin.settings.publicMode} error={state.fieldErrors?.mode}>
+      <Field
+        id="kb-public-mode"
+        label={t.admin.settings.publicMode}
+        error={state.fieldErrors?.mode}
+      >
         <Select
           id="kb-public-mode"
           name="mode"
@@ -94,13 +114,18 @@ export function KbPublicForm({
           className={`h-10 ${controlClass}`}
         >
           <option value="off">{t.admin.settings.publicModes.off}</option>
-          <option value="addresses">{t.admin.settings.publicModes.addresses}</option>
+          <option value="addresses">
+            {t.admin.settings.publicModes.addresses}
+          </option>
           <option value="open">{t.admin.settings.publicModes.open}</option>
         </Select>
       </Field>
 
       {chosen === "open" && (
-        <p role="note" className="rounded-md border border-[var(--destructive)] px-3 py-2 text-sm">
+        <p
+          role="note"
+          className="rounded-md border border-[var(--destructive)] px-3 py-2 text-sm"
+        >
           {t.admin.settings.publicOpenWarning}
         </p>
       )}
@@ -141,8 +166,12 @@ export function KbPublicForm({
       </Field>
 
       <fieldset className="flex flex-col gap-3 rounded-md border p-3">
-        <legend className="px-1 text-sm font-medium">{t.admin.settings.publicAccess}</legend>
-        <p className="text-sm text-[var(--muted-foreground)]">{t.admin.settings.publicAccessHint}</p>
+        <legend className="px-1 text-sm font-medium">
+          {t.admin.settings.publicAccess}
+        </legend>
+        <p className="text-sm text-[var(--muted-foreground)]">
+          {t.admin.settings.publicAccessHint}
+        </p>
         <Field
           id="kb-public-access-team"
           label={t.admin.settings.publicAccessTeam}
@@ -180,11 +209,108 @@ export function KbPublicForm({
           {pending ? t.common.saving : t.admin.settings.publicSave}
         </Button>
         {state.ok && (
-          <span role="status" className="text-sm text-[var(--muted-foreground)]">
+          <span
+            role="status"
+            className="text-sm text-[var(--muted-foreground)]"
+          >
             {t.common.saved}
           </span>
         )}
       </div>
     </form>
   );
+}
+
+/** How often the worker re-runs each kind of domain check, instance-wide, and the certificate notice. */
+export function DomainPolicyForm({ policy }: { policy: CheckPolicy }) {
+  const [state, formAction, pending] = useActionState<FormState, FormData>(
+    setDomainCheckPolicyAction,
+    {},
+  );
+  const t = useMessages();
+  const kinds: { kind: CheckKind; label: string }[] = [
+    { kind: "dns", label: t.documents.domain.dns },
+    { kind: "tls", label: t.documents.domain.tls },
+    { kind: "rdap", label: t.documents.domain.rdap },
+    { kind: "email", label: t.documents.domain.email },
+  ];
+
+  return (
+    <form action={formAction} className="flex max-w-xl flex-col gap-4">
+      <FormError>{state.error}</FormError>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {kinds.map(({ kind, label }) => (
+          <Field
+            key={kind}
+            id={`domain-${kind}`}
+            label={label}
+            error={state.fieldErrors?.[kind]}
+          >
+            <Select
+              id={`domain-${kind}`}
+              name={kind}
+              defaultValue={String(policy.intervals[kind])}
+              className={`h-10 ${controlClass}`}
+            >
+              {withCurrent(
+                [0, ...INTERVAL_CHOICES],
+                policy.intervals[kind],
+              ).map((value) => (
+                <option key={value} value={String(value)}>
+                  {value === 0
+                    ? t.admin.settings.domainIntervals.off
+                    : value === 1
+                      ? t.admin.settings.domainIntervals.day
+                      : t.admin.settings.domainIntervals.days(value)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ))}
+      </div>
+
+      <Field
+        id="domain-tls-warn"
+        label={t.admin.settings.domainTlsWarn}
+        error={state.fieldErrors?.tlsWarnDays}
+      >
+        <Select
+          id="domain-tls-warn"
+          name="tlsWarnDays"
+          defaultValue={String(policy.tlsWarnDays)}
+          className={`h-10 ${controlClass}`}
+        >
+          {withCurrent([...TLS_WARN_CHOICES], policy.tlsWarnDays).map(
+            (value) => (
+              <option key={value} value={String(value)}>
+                {t.admin.settings.domainTlsWarnDays(value)}
+              </option>
+            ),
+          )}
+        </Select>
+      </Field>
+
+      <div className="flex items-center gap-3">
+        <Button type="submit" disabled={pending}>
+          {pending ? t.common.saving : t.admin.settings.domainChecksSave}
+        </Button>
+        {state.ok && (
+          <span
+            role="status"
+            className="text-sm text-[var(--muted-foreground)]"
+          >
+            {t.common.saved}
+          </span>
+        )}
+      </div>
+    </form>
+  );
+}
+
+/** The choices offered, plus whatever is set already, so an odd value is not silently moved. */
+function withCurrent(choices: number[], current: number): number[] {
+  return choices.includes(current)
+    ? choices
+    : [...choices, current].sort((a, b) => a - b);
 }

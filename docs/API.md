@@ -132,6 +132,10 @@ step id answers 400.
 ## Webhooks
 Events: `company.created|updated`, `location.created|updated`,
 `document.created|updated|archived`, `field.promoted`, `document.due`,
+`domain.changed` (`{ id, title, company_id, domain, checked_at, changes: [{ what, from, to, message }] }`,
+when a domain check finds something different from the run before),
+`domain.expiring` (`{ id, title, company_id, domain, checked_at, kind: "certificate"|"registration", expires_on, days_remaining }`; a certificate is announced inside the notice its record, company or instance sets, and never when the record says it renews itself without asking for a notice,
+once per expiry date),
 `kb.article.upserted|archived` (`{ collection_id, article_id, external_id, kind }`,
 sent for writes through the API, MCP, or the in-app editor).
 

@@ -16,6 +16,7 @@ import {
   parseRdap,
   parseSubjectAltNames,
   registrationFindings,
+  type CertificateNotice,
   type CertificateSummary,
   type EmailSummary,
   type Finding,
@@ -32,9 +33,19 @@ import {
 const TIMEOUT_MS = 5_000;
 
 /** Tried in order; most domains that sign mail use one of these. */
-const DKIM_SELECTORS = ["google", "selector1", "selector2", "default", "k1", "s1", "mail", "dkim"];
+const DKIM_SELECTORS = [
+  "google",
+  "selector1",
+  "selector2",
+  "default",
+  "k1",
+  "s1",
+  "mail",
+  "dkim",
+];
 
-export type Section<T> = { ok: true; data: T; findings: Finding[] } | { ok: false; error: string };
+export type Section<T> =
+  { ok: true; data: T; findings: Finding[] } | { ok: false; error: string };
 
 export type DnsSummary = {
   a: string[];
@@ -48,13 +59,22 @@ export type DnsSummary = {
 export type DomainCheckResult = {
   domain: string;
   checkedAt: string;
+  /** When each section was last fetched; sections run on their own clocks. */
+  checked?: Partial<Record<keyof CheckSelection, string>>;
   dns?: Section<DnsSummary>;
   tls?: Section<CertificateSummary>;
   rdap?: Section<RegistrationSummary>;
   email?: Section<EmailSummary>;
 };
 
-export type CheckSelection = { dns: boolean; tls: boolean; rdap: boolean; email: boolean };
+export type CheckSelection = {
+  dns: boolean;
+  tls: boolean;
+  rdap: boolean;
+  email: boolean;
+};
+
+export type RunOptions = { certificate?: CertificateNotice };
 
 function resolver(): Resolver {
   const instance = new Resolver({ timeout: TIMEOUT_MS, tries: 2 });
@@ -98,7 +118,10 @@ async function runDns(domain: string): Promise<Section<DnsSummary>> {
   const data: DnsSummary = {
     a: a ?? [],
     aaaa: aaaa ?? [],
-    mx: (mx ?? []).map((record) => ({ exchange: record.exchange, priority: record.priority })),
+    mx: (mx ?? []).map((record) => ({
+      exchange: record.exchange,
+      priority: record.priority,
+    })),
     ns: (ns ?? []).map((host) => host.toLowerCase()),
     txt: (txt ?? []).map((chunks) => chunks.join("")),
     cname: cname ?? [],
@@ -106,19 +129,31 @@ async function runDns(domain: string): Promise<Section<DnsSummary>> {
 
   const findings: Finding[] = [];
   if (data.mx.length === 0) {
-    findings.push({ severity: "warn", message: "No MX records: this domain receives no mail." });
+    findings.push({
+      severity: "warn",
+      message: "No MX records: this domain receives no mail.",
+    });
   }
   if (data.ns.length > 0) {
-    findings.push({ severity: "ok", message: `Answered by ${data.ns.join(", ")}.` });
+    findings.push({
+      severity: "ok",
+      message: `Answered by ${data.ns.join(", ")}.`,
+    });
   }
   return { ok: true, data, findings };
 }
 
-async function runTls(domain: string): Promise<Section<CertificateSummary>> {
+async function runTls(
+  domain: string,
+  notice?: CertificateNotice,
+): Promise<Section<CertificateSummary>> {
   if (isWorkers()) return unavailable();
   const dns = resolver();
 
-  const [a, aaaa] = await Promise.all([maybe(dns.resolve4(domain)), maybe(dns.resolve6(domain))]);
+  const [a, aaaa] = await Promise.all([
+    maybe(dns.resolve4(domain)),
+    maybe(dns.resolve6(domain)),
+  ]);
   const address = publicOnly([...(a ?? []), ...(aaaa ?? [])])[0];
   if (!address) {
     return {
@@ -163,7 +198,10 @@ async function runTls(domain: string): Promise<Section<CertificateSummary>> {
     return { ok: false, error: "Nothing answered on port 443." };
   }
 
-  const extras = certificate as PeerCertificate & { __authorized?: boolean; __error?: string | null };
+  const extras = certificate as PeerCertificate & {
+    __authorized?: boolean;
+    __error?: string | null;
+  };
   const validTo = parseCertificateDate(certificate.valid_to);
   const validFrom = parseCertificateDate(certificate.valid_from);
   const names = parseSubjectAltNames(certificate.subjectaltname);
@@ -171,7 +209,8 @@ async function runTls(domain: string): Promise<Section<CertificateSummary>> {
   const covered = [...names, ...(subject ? [subject.toLowerCase()] : [])];
 
   const data: CertificateSummary = {
-    issuer: firstValue(certificate.issuer?.O) ?? firstValue(certificate.issuer?.CN),
+    issuer:
+      firstValue(certificate.issuer?.O) ?? firstValue(certificate.issuer?.CN),
     subject,
     names,
     validFrom: validFrom?.toISOString() ?? null,
@@ -182,7 +221,7 @@ async function runTls(domain: string): Promise<Section<CertificateSummary>> {
     coversDomain: covered.some((pattern) => nameMatches(domain, pattern)),
   };
 
-  return { ok: true, data, findings: certificateFindings(data) };
+  return { ok: true, data, findings: certificateFindings(data, notice) };
 }
 
 /** A certificate name part repeats when the RDN does, so take the first. */
@@ -198,17 +237,22 @@ async function runRdap(domain: string): Promise<Section<RegistrationSummary>> {
   try {
     // rdap.org redirects to whichever registry actually holds the name. It
     // refuses a request with no User-Agent, and fetch sends none by default.
-    const response = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
-      headers: {
-        Accept: "application/rdap+json",
-        "User-Agent": `${PRODUCT_NAME}/1.0 (+${SOURCE_URL})`,
+    const response = await fetch(
+      `https://rdap.org/domain/${encodeURIComponent(domain)}`,
+      {
+        headers: {
+          Accept: "application/rdap+json",
+          "User-Agent": `${PRODUCT_NAME}/1.0 (+${SOURCE_URL})`,
+        },
+        signal: controller.signal,
+        redirect: "follow",
       },
-      signal: controller.signal,
-      redirect: "follow",
-    });
+    );
 
-    if (response.status === 404) return { ok: false, error: "No registration record was found." };
-    if (!response.ok) return { ok: false, error: `The registry answered ${response.status}.` };
+    if (response.status === 404)
+      return { ok: false, error: "No registration record was found." };
+    if (!response.ok)
+      return { ok: false, error: `The registry answered ${response.status}.` };
 
     const data = parseRdap(await response.json());
     return { ok: true, data, findings: registrationFindings(data) };
@@ -223,16 +267,21 @@ async function runEmail(domain: string): Promise<Section<EmailSummary>> {
   if (isWorkers()) return unavailable();
   const dns = resolver();
 
-  const [apex, dmarc] = await Promise.all([
+  // resolveTxt follows a CNAME on its own, so _dmarc hosted elsewhere still
+  // reads; the CNAME is looked up as well so the page can say where it lives.
+  const [apex, dmarc, dmarcCname] = await Promise.all([
     maybe(dns.resolveTxt(domain)),
     maybe(dns.resolveTxt(`_dmarc.${domain}`)),
+    maybe(dns.resolveCname(`_dmarc.${domain}`)),
   ]);
 
   // DKIM keys live under a selector that cannot be listed, so the common ones
   // are tried and the answer says which were looked for.
   const found = await Promise.all(
     DKIM_SELECTORS.map(async (selector) => {
-      const record = await maybe(dns.resolveTxt(`${selector}._domainkey.${domain}`));
+      const record = await maybe(
+        dns.resolveTxt(`${selector}._domainkey.${domain}`),
+      );
       return record && record.length > 0 ? selector : null;
     }),
   );
@@ -242,7 +291,10 @@ async function runEmail(domain: string): Promise<Section<EmailSummary>> {
     spf: findSpf(apex ?? []),
     dmarc: dmarcRecord,
     dmarcPolicy: dmarcPolicy(dmarcRecord),
-    dkimSelectors: found.filter((selector): selector is string => selector !== null),
+    dmarcCname: dmarcCname?.[0]?.toLowerCase() ?? null,
+    dkimSelectors: found.filter(
+      (selector): selector is string => selector !== null,
+    ),
   };
 
   return { ok: true, data, findings: emailFindings(data) };
@@ -252,17 +304,26 @@ async function runEmail(domain: string): Promise<Section<EmailSummary>> {
 export async function runChecks(
   domain: string,
   selection: CheckSelection,
+  options: RunOptions = {},
 ): Promise<DomainCheckResult> {
   const [dns, tls, rdap, email] = await Promise.all([
     selection.dns ? runDns(domain) : undefined,
-    selection.tls ? runTls(domain) : undefined,
+    selection.tls ? runTls(domain, options.certificate) : undefined,
     selection.rdap ? runRdap(domain) : undefined,
     selection.email ? runEmail(domain) : undefined,
   ]);
 
+  const checkedAt = new Date().toISOString();
+  const checked: DomainCheckResult["checked"] = {};
+  if (dns) checked.dns = checkedAt;
+  if (tls) checked.tls = checkedAt;
+  if (rdap) checked.rdap = checkedAt;
+  if (email) checked.email = checkedAt;
+
   return {
     domain,
-    checkedAt: new Date().toISOString(),
+    checkedAt,
+    checked,
     ...(dns ? { dns } : {}),
     ...(tls ? { tls } : {}),
     ...(rdap ? { rdap } : {}),

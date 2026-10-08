@@ -128,7 +128,7 @@ export function SecretField({
             {totp ? (
               <>
                 <SecretText value={totp.code} />
-                <span className="text-[var(--muted-foreground)]">· {totp.remaining}s</span>
+                <span className="text-[var(--muted-foreground)]">{` · ${totp.remaining}s`}</span>
               </>
             ) : (
               t.secrets.totp

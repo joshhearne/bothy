@@ -3,6 +3,12 @@ import { eq } from "drizzle-orm";
 import { db } from "@/server/db";
 import { instanceSettings } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
+import {
+  DEFAULT_INTERVALS,
+  DEFAULT_TLS_WARN_DAYS,
+  INTERVAL_MAX_DAYS,
+  type CheckPolicy,
+} from "@/server/domain/policy";
 import { z } from "zod";
 import { isLocale, type Locale } from "@/i18n/locales";
 import { parseAddressList } from "@/server/kb/addresses";
@@ -24,7 +30,10 @@ export async function getDefaultLocale(): Promise<Locale | null> {
   return isLocale(row?.defaultLocale) ? row.defaultLocale : null;
 }
 
-export async function setDefaultLocale(locale: string | null, actorId: string): Promise<void> {
+export async function setDefaultLocale(
+  locale: string | null,
+  actorId: string,
+): Promise<void> {
   const value = isLocale(locale) ? locale : null;
 
   await db.transaction(async (tx) => {
@@ -33,7 +42,11 @@ export async function setDefaultLocale(locale: string | null, actorId: string): 
       .values({ id: true, defaultLocale: value, updatedBy: actorId })
       .onConflictDoUpdate({
         target: instanceSettings.id,
-        set: { defaultLocale: value, updatedAt: new Date(), updatedBy: actorId },
+        set: {
+          defaultLocale: value,
+          updatedAt: new Date(),
+          updatedBy: actorId,
+        },
       });
 
     await writeAudit(
@@ -90,7 +103,10 @@ export const kbPublicInputSchema = z
       .trim()
       .toLowerCase()
       .max(100)
-      .regex(/^[a-z0-9-]*$/, "The team name is the part before .cloudflareaccess.com")
+      .regex(
+        /^[a-z0-9-]*$/,
+        "The team name is the part before .cloudflareaccess.com",
+      )
       .default(""),
     accessAud: z
       .string()
@@ -186,6 +202,80 @@ export async function setKbPublicSettings(
           kbPublicUrl: values.kbPublicUrl,
           kbPublicAccessTeam: values.kbPublicAccessTeam,
         },
+      },
+      tx,
+    );
+  });
+}
+
+/* ---------- Automatic domain checks ---------- */
+
+const intervalDays = z.coerce.number().int().min(0).max(INTERVAL_MAX_DAYS);
+
+/** The instance layer of the policy: an interval per kind (zero is off) and the certificate notice. */
+export const domainCheckPolicySchema = z.object({
+  dns: intervalDays,
+  tls: intervalDays,
+  rdap: intervalDays,
+  email: intervalDays,
+  tlsWarnDays: z.coerce.number().int().min(1).max(INTERVAL_MAX_DAYS),
+});
+
+export type DomainCheckPolicyInput = z.infer<typeof domainCheckPolicySchema>;
+
+/** What every company and record follows unless it says otherwise. */
+export async function getDomainCheckPolicy(): Promise<CheckPolicy> {
+  const [row] = await db
+    .select({
+      dns: instanceSettings.domainDnsIntervalDays,
+      tls: instanceSettings.domainTlsIntervalDays,
+      rdap: instanceSettings.domainRdapIntervalDays,
+      email: instanceSettings.domainEmailIntervalDays,
+      tlsWarnDays: instanceSettings.domainTlsWarnDays,
+    })
+    .from(instanceSettings)
+    .where(eq(instanceSettings.id, true))
+    .limit(1);
+  if (!row)
+    return {
+      intervals: { ...DEFAULT_INTERVALS },
+      tlsWarnDays: DEFAULT_TLS_WARN_DAYS,
+    };
+  return {
+    intervals: { dns: row.dns, tls: row.tls, rdap: row.rdap, email: row.email },
+    tlsWarnDays: row.tlsWarnDays,
+  };
+}
+
+export async function setDomainCheckPolicy(
+  input: unknown,
+  actorId: string,
+): Promise<void> {
+  const value = domainCheckPolicySchema.parse(input);
+  const set = {
+    domainDnsIntervalDays: value.dns,
+    domainTlsIntervalDays: value.tls,
+    domainRdapIntervalDays: value.rdap,
+    domainEmailIntervalDays: value.email,
+    domainTlsWarnDays: value.tlsWarnDays,
+  };
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(instanceSettings)
+      .values({ id: true, ...set, updatedBy: actorId })
+      .onConflictDoUpdate({
+        target: instanceSettings.id,
+        set: { ...set, updatedAt: new Date(), updatedBy: actorId },
+      });
+
+    await writeAudit(
+      {
+        userId: actorId,
+        action: "settings.updated",
+        entity: "instance",
+        entityId: null,
+        detail: { domainChecks: value },
       },
       tx,
     );

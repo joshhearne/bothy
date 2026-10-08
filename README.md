@@ -202,9 +202,25 @@ colour already in use in that rack, and when two things claim the same unit.
 A domain record can look itself up: DNS records and who is answering for the
 domain, the TLS certificate and how long it has left, the registry's own
 registration record, and whether SPF, DMARC and DKIM are published. Tick the
-checks you want on a record, press **Check now**, and the result is kept until
-you ask again — nothing runs in the background and reading a page costs no
-lookups.
+checks you want on a record and press **Check now**, or leave **Check
+automatically** on and the worker re-runs them, each on its own clock: DNS and
+the certificate daily, registration and mail posture weekly. Those are the
+instance's defaults, set under Admin → Settings; a company can set its own
+timings for its records on its edit page, and a record its own, so a new
+record follows its company and, through it, the instance. TXT records are
+listed one per line with what each is for named: SPF, DMARC, DKIM, and the
+verification tokens of Google, Atlassian, Microsoft 365 and the rest. The
+result is kept, so reading a page costs no lookups.
+
+When a run finds something different from the run before — the name servers
+moved, a new certificate, a registrar change, DMARC gone — a `domain.changed`
+webhook names each change. A certificate inside its notice (30 days unless
+the instance, the company or the record says otherwise) or a registration
+within 60 is a `domain.expiring` webhook, once per expiry date. A record can
+say its certificate renews on its own, and then nothing is announced about
+it unless the record asks for a notice anyway.
+**Admin → Notifications** lists what the last check of every domain record
+flagged, so nobody has to subscribe to a webhook to find out.
 
 What it finds is offered, never applied: RDAP knows the registrar and the
 expiry date, and the answer sits beside the field with a **Use this** button.

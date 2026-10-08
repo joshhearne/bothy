@@ -1,11 +1,11 @@
 import { requireRecentMfa, requireUser } from "@/server/auth/session";
-import { getDefaultLocale, getKbPublicSettings } from "@/server/services/settings";
+import { getDefaultLocale, getDomainCheckPolicy, getKbPublicSettings } from "@/server/services/settings";
 import { listAllCollections } from "@/server/services/kb";
 import { visitorAddress } from "@/server/kb/public";
 import { env } from "@/lib/env";
 import { getMessages } from "@/i18n/server";
 import { LOCALE_NAMES, LOCALES } from "@/i18n/locales";
-import { DefaultLocaleForm, KbPublicForm } from "../settings-forms";
+import { DefaultLocaleForm, DomainPolicyForm, KbPublicForm } from "../settings-forms";
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +17,13 @@ export const dynamic = "force-dynamic";
  */
 export default async function SettingsPage() {
   await requireRecentMfa(await requireUser(), "/admin/settings");
-  const [chosen, t, publicSite, collections, visitor] = await Promise.all([
+  const [chosen, t, publicSite, collections, visitor, domainPolicy] = await Promise.all([
     getDefaultLocale(),
     getMessages(),
     getKbPublicSettings(),
     listAllCollections(),
     visitorAddress(),
+    getDomainCheckPolicy(),
   ]);
   const published = collections.filter((row) => row.publicAccess && !row.archivedAt).length;
 
@@ -79,6 +80,17 @@ export default async function SettingsPage() {
           accessAud={publicSite.accessAud ?? ""}
           visitor={visitor}
         />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">{t.admin.settings.domainChecks}</h2>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            {t.admin.settings.domainChecksHint}
+          </p>
+        </div>
+
+        <DomainPolicyForm policy={domainPolicy} />
       </section>
 
       <section className="flex flex-col gap-3">

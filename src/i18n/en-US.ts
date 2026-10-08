@@ -226,6 +226,10 @@ export const enUS = {
   },
 
   companies: {
+    domainChecks: "Domain checks",
+    domainChecksHint:
+      "Timings for this company's domain records. Whatever is left on the instance default follows Admin → Settings; a record can still set its own.",
+    domainChecksSave: "Update domain checks",
     title: "Companies",
     empty: "No companies yet. Create one to start documenting.",
     noneGranted: "No companies have been shared with you yet. Ask an administrator for access.",
@@ -388,13 +392,32 @@ export const enUS = {
       unavailable: "Lookups are not available in this deployment.",
       automatic: "Check automatically",
       automaticHint:
-        "The worker re-runs the checks above on an interval, says what changed, and warns ahead of an expiry.",
+        "The worker re-runs each check on its own clock, says what changed, and warns ahead of an expiry.",
       interval: "How often",
-      intervalDefault: (days: number) =>
-        days === 0 ? "Instance default (off)" : `Instance default (every ${days} days)`,
+      every: (days: number) => (days === 1 ? "every day" : `every ${days} days`),
+      off: "off",
+      companyDefault: (label: string) => `Company default (${label})`,
+      instanceDefault: (label: string) => `Instance default (${label})`,
       intervalEvery: (days: number) => (days === 1 ? "Every day" : `Every ${days} days`),
       nextRun: (when: string) => `Next automatic check ${when}.`,
-      automaticOff: "Automatic checks are off for this instance. Turn them on under Admin → Settings.",
+      automaticOff:
+        "Nothing will run on its own: every chosen check is off for this company or this instance.",
+      autoRenews: "The certificate renews automatically",
+      autoRenewsHint:
+        "Its expiry is then no cause for alarm. Set a notice anyway if you do not trust the renewal.",
+      tlsWarn: "Warn when fewer than",
+      tlsWarnDefault: (days: number) => `Default (${days} days)`,
+      tlsWarnDays: (days: number) => `${days} days`,
+      tlsNoWarning: "No expiry warning: the certificate renews automatically.",
+      sectionChecked: (when: string) => `checked ${when}`,
+      sectionNext: (when: string) => `next ${when}`,
+      txt: "TXT",
+      cname: "CNAME",
+      spfRecord: "SPF",
+      dmarcRecord: "DMARC",
+      dmarcVia: (host: string) => `via CNAME to ${host}`,
+      dkimSelectors: "DKIM selectors",
+      none: "none",
       lastCheckedAuto: (when: string) => `Last checked ${when}, automatically.`,
       autoError: (reason: string) => `The last automatic check could not run: ${reason}`,
     },
@@ -687,13 +710,14 @@ export const enUS = {
       publicSave: "Update public site",
       domainChecks: "Automatic domain checks",
       domainChecksHint:
-        "How often the worker re-runs the checks a domain record has turned on. A record can set its own interval or opt out; this is what the rest follow.",
-      domainInterval: "Re-check every",
+        "How often the worker re-runs each kind of check a domain record has turned on. A company can set its own timings for its records, and a record its own; this is what the rest follow.",
       domainIntervals: {
-        off: "Never: checks run only when somebody presses Check now",
-        day: "Day",
-        days: (days: number) => `${days} days`,
+        off: "Never",
+        day: "Every day",
+        days: (days: number) => `Every ${days} days`,
       },
+      domainTlsWarn: "Warn about a certificate when fewer than",
+      domainTlsWarnDays: (days: number) => `${days} days`,
       domainChecksSave: "Update domain checks",
       configuration: "Configuration",
       configurationHint:
