@@ -253,6 +253,13 @@
       "when": 1791473916472,
       "tag": "0035_domain_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791474356028,
+      "tag": "0036_company_sign_in_domains",
+      "breakpoints": true
     }
   ]
 }

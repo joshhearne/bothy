@@ -413,6 +413,16 @@ appears in the documentation search.
   deleted: an article that no longer applies is archived, and writing it again
   restores it. Every change is an audit entry naming the key. What is written
   is Markdown, sanitized when drawn, like everything else.
+- **Customers on the public site**: when Cloudflare Access names a visitor
+  (below), the domain of their address is looked up in
+  `company_sign_in_domains`, set on the company's edit page, and the visitor
+  reads as that company's people would: collections for every company, and
+  those kept to theirs. A collection kept to a company is on the public site
+  only for visitors placed with it; a visitor nobody named sees what is for
+  every company alone. A domain places people with one company. No account is
+  made and nothing of the visitor is stored; the address is read, matched,
+  and dropped (`src/server/services/company-domains.ts`, `publicReader` in
+  `src/server/kb/public.ts`).
 - **The public site** (`/pub/kb`) is the knowledge base for readers who have
   not signed in. Nothing is on it by default, twice over: the site itself is
   off until an operator turns it on (`instance_settings.kb_public_mode`), and

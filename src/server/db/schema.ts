@@ -11,8 +11,8 @@ import {
   bigserial,
   boolean,
   check,
-  date,
   customType,
+  date,
   index,
   integer,
   jsonb,
@@ -957,6 +957,31 @@ export const kbCollections = pgTable("kb_collections", {
     .notNull()
     .default(now),
 });
+
+/**
+ * The email domains a company's own people sign in with. A visitor to the
+ * public knowledge base named by Cloudflare Access is placed with a company
+ * by the domain of their address, and then sees what that company's people
+ * may: collections for every company, and those kept to theirs. A domain
+ * names one company; a company may have several.
+ */
+export const companySignInDomains = pgTable(
+  "company_sign_in_domains",
+  {
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    /** Lower case, no leading dot: "example.com". */
+    domain: text("domain").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.companyId, t.domain] }),
+    uniqueIndex("company_sign_in_domains_domain_idx").on(t.domain),
+  ],
+);
 
 /** The companies a collection is kept to, when it is not for everyone. */
 export const kbCollectionCompanies = pgTable(

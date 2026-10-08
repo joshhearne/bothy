@@ -3,7 +3,9 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getKbPublicSettings } from "@/server/services/settings";
 import { isListed } from "@/server/kb/addresses";
-import { ALL_COMPANIES } from "@/server/auth/company-scope";
+import { only } from "@/server/auth/company-scope";
+import { publicIdentity } from "@/server/kb/identity";
+import { companiesForEmail } from "@/server/services/company-domains";
 import type { KbReader } from "@/server/services/kb";
 
 /**
@@ -17,10 +19,25 @@ import type { KbReader } from "@/server/services/kb";
  */
 
 /**
- * The scope is ignored for a public reader; it is here because the type asks
- * for one, and ALL is the one that adds no filter of its own.
+ * A visitor nobody has named belongs to no company: they see what is for
+ * every company and nothing kept to one.
  */
-export const PUBLIC_READER: KbReader = { scope: ALL_COMPANIES, via: "public" };
+export const PUBLIC_READER: KbReader = { scope: only([]), via: "public" };
+
+/**
+ * The reader for this visitor. When Cloudflare Access names them and the
+ * domain of their address is one a company claims, they read as that
+ * company's people would: what is for every company, and what is kept to
+ * theirs. Nobody else sees a collection kept to a company.
+ */
+async function publicReader(): Promise<KbReader> {
+  const identity = await publicIdentity();
+  if (!identity) return PUBLIC_READER;
+  const companyIds = await companiesForEmail(identity.email);
+  return companyIds.length > 0
+    ? { scope: only(companyIds), via: "public" }
+    : PUBLIC_READER;
+}
 
 /**
  * The visitor's address, as the proxy in front reports it. The app listens
@@ -50,7 +67,8 @@ const windows = new Map<string, { count: number; resetAt: number }>();
 function withinLimit(address: string, most = MAX_REQUESTS): boolean {
   const now = Date.now();
   if (windows.size > 10_000) {
-    for (const [key, window] of windows) if (window.resetAt <= now) windows.delete(key);
+    for (const [key, window] of windows)
+      if (window.resetAt <= now) windows.delete(key);
   }
 
   const window = windows.get(address);
@@ -82,7 +100,9 @@ async function arrivedOn(): Promise<string | null> {
 }
 
 /** Whether the request is on the hostname the site is published at, when one is set. */
-async function onPublishedHost(settings: { url: string | null }): Promise<boolean> {
+async function onPublishedHost(settings: {
+  url: string | null;
+}): Promise<boolean> {
   if (!settings.url) return true;
   try {
     return new URL(settings.url).hostname.toLowerCase() === (await arrivedOn());
@@ -98,10 +118,11 @@ export async function requirePublicReader(): Promise<KbReader> {
   if (!(await onPublishedHost(settings))) notFound();
 
   const address = await visitorAddress();
-  if (settings.mode === "addresses" && !isListed(address, settings.addresses)) notFound();
+  if (settings.mode === "addresses" && !isListed(address, settings.addresses))
+    notFound();
 
   if (!withinLimit(address ?? "unknown")) throw new TooManyRequestsError();
-  return PUBLIC_READER;
+  return publicReader();
 }
 
 /**
@@ -114,10 +135,11 @@ export async function admitPublicImageReader(): Promise<KbReader | null> {
   if (!(await onPublishedHost(settings))) return null;
 
   const address = await visitorAddress();
-  if (settings.mode === "addresses" && !isListed(address, settings.addresses)) return null;
+  if (settings.mode === "addresses" && !isListed(address, settings.addresses))
+    return null;
 
   if (!withinLimit(`image:${address ?? "unknown"}`, MAX_IMAGE_REQUESTS)) {
     throw new TooManyRequestsError();
   }
-  return PUBLIC_READER;
+  return publicReader();
 }

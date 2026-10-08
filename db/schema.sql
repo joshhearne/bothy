@@ -797,3 +797,15 @@ ALTER TABLE domain_checks ADD CONSTRAINT domain_checks_intervals_check CHECK (
   AND (email_interval_days IS NULL OR email_interval_days BETWEEN 1 AND 365)
   AND (brand_interval_days IS NULL OR brand_interval_days BETWEEN 1 AND 365)
   AND (tls_warn_days IS NULL OR tls_warn_days BETWEEN 1 AND 365));
+
+-- ---------- Customer sign-in domains ----------
+-- A visitor to the public knowledge base whom Cloudflare Access names is
+-- placed with a company by the domain of their email address, and sees what
+-- that company's people may. A domain names one company.
+CREATE TABLE company_sign_in_domains (
+  company_id  uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  domain      text NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (company_id, domain)
+);
+CREATE UNIQUE INDEX company_sign_in_domains_domain_idx ON company_sign_in_domains (domain);

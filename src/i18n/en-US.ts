@@ -257,6 +257,13 @@ export const enUS = {
       "The site offers no PNG, JPEG or WebP icon; an ICO or SVG cannot be a logo here.",
     brandNoColor: "The site publishes no theme colour.",
     brandApply: "Use as company theme",
+    customers: "Customers on the knowledge base",
+    customersHint:
+      "People of this company who reach the public knowledge base through Cloudflare Access are placed here by the domain of their email address, and then see the collections for every company plus those kept to this one.",
+    signInDomains: "Sign-in email domains",
+    signInDomainsHint:
+      "One per line, or comma separated: example.com. A domain can place people with one company only.",
+    signInDomainsSave: "Update sign-in domains",
     title: "Companies",
     empty: "No companies yet. Create one to start documenting.",
     noneGranted:

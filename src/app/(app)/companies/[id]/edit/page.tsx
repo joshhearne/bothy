@@ -8,6 +8,8 @@ import { getDomainCheckPolicy } from "@/server/services/settings";
 import { CompanyDomainPolicyForm } from "../../domain-policy-form";
 import { BrandFromDomain } from "../../brand-from-domain";
 import { listBrandCandidates } from "@/server/services/company-brand";
+import { listSignInDomains } from "@/server/services/company-domains";
+import { SignInDomainsForm } from "../../sign-in-domains-form";
 import { getMessages } from "@/i18n/server";
 import { getCompanyBranding, LOGO_ACCEPT } from "@/server/services/branding";
 import { CompanyBrandingForm } from "@/app/(app)/admin/branding-forms";
@@ -28,14 +30,21 @@ export default async function EditCompanyPage({
 
   const company = await getCompany(id, scope);
   if (!company) notFound();
-  const [t, branding, domainPolicy, instancePolicy, brandCandidates] =
-    await Promise.all([
-      getMessages(),
-      getCompanyBranding(id, scope),
-      getCompanyDomainPolicy(id, scope),
-      getDomainCheckPolicy(),
-      listBrandCandidates(id, scope),
-    ]);
+  const [
+    t,
+    branding,
+    domainPolicy,
+    instancePolicy,
+    brandCandidates,
+    signInDomains,
+  ] = await Promise.all([
+    getMessages(),
+    getCompanyBranding(id, scope),
+    getCompanyDomainPolicy(id, scope),
+    getDomainCheckPolicy(),
+    listBrandCandidates(id, scope),
+    listSignInDomains(id, scope),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -94,6 +103,19 @@ export default async function EditCompanyPage({
               </form>
             ),
         )}
+      </section>
+
+      <section className="flex flex-col gap-3 border-t pt-6">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">
+            {t.companies.customers}
+          </h2>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            {t.companies.customersHint}
+          </p>
+        </div>
+
+        <SignInDomainsForm companyId={company.id} domains={signInDomains} />
       </section>
 
       <section className="flex flex-col gap-3 border-t pt-6">

@@ -1,6 +1,16 @@
 import "server-only";
 import { z } from "zod";
-import { and, asc, count, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { db } from "@/server/db";
 import {
   companies,
@@ -52,14 +62,38 @@ export type KbReader = {
   audience?: "public";
 };
 
+/**
+ * A collection for every company, or kept to one of the reader's. For a
+ * reader who sees every company this is no filter; for one with none it is
+ * "for every company" alone.
+ */
+function forReadersCompanies(scope: CompanyScope): SQL {
+  if (scope.all) return sql`true`;
+  if (scope.companyIds.length === 0) return sql`${kbCollections.allCompanies}`;
+  return sql`(${kbCollections.allCompanies} OR EXISTS (
+    SELECT 1 FROM ${kbCollectionCompanies}
+    WHERE ${kbCollectionCompanies.collectionId} = ${kbCollections.id}
+      AND ${inArray(kbCollectionCompanies.companyId, [...scope.companyIds])}
+  ))`;
+}
+
 export function readable(reader: KbReader): SQL[] {
   const filters: SQL[] = [isNull(kbCollections.archivedAt) as SQL];
   if (reader.via === "public") {
-    filters.push(eq(kbCollections.publicAccess, true), eq(kbArticlesPublic(), true));
+    // On the public site a collection kept to a company is for that
+    // company's people alone: a visitor placed with it by their address, and
+    // nobody who was not.
+    filters.push(
+      eq(kbCollections.publicAccess, true),
+      eq(kbArticlesPublic(), true),
+      forReadersCompanies(reader.scope),
+    );
     return filters;
   }
   if (!reader.scope.all) {
-    const byKey = reader.granted?.length ? inArray(kbCollections.id, [...reader.granted]) : sql`false`;
+    const byKey = reader.granted?.length
+      ? inArray(kbCollections.id, [...reader.granted])
+      : sql`false`;
     const byPerson = reader.userId
       ? sql`EXISTS (
           SELECT 1 FROM ${userKbCollections}
@@ -88,7 +122,11 @@ export function readable(reader: KbReader): SQL[] {
   }
   if (reader.via === "mcp") filters.push(eq(kbCollections.mcpEnabled, true));
   if (reader.audience === "public") {
-    filters.push(eq(kbCollections.publicAccess, true), eq(kbArticlesPublic(), true));
+    filters.push(
+      eq(kbCollections.publicAccess, true),
+      eq(kbArticlesPublic(), true),
+      forReadersCompanies(reader.scope),
+    );
   }
   return filters;
 }
@@ -104,8 +142,19 @@ function kbArticlesPublic(): SQL<boolean> {
 
 /* ---------- Ordering ---------- */
 
-export const COLLECTION_SORTS = ["name", "modified", "articles", "favorites", "helpful"] as const;
-export const ARTICLE_SORTS = ["name", "modified", "favorites", "helpful"] as const;
+export const COLLECTION_SORTS = [
+  "name",
+  "modified",
+  "articles",
+  "favorites",
+  "helpful",
+] as const;
+export const ARTICLE_SORTS = [
+  "name",
+  "modified",
+  "favorites",
+  "helpful",
+] as const;
 export type CollectionSort = (typeof COLLECTION_SORTS)[number];
 export type ArticleSort = (typeof ARTICLE_SORTS)[number];
 export type SortDirection = "asc" | "desc";
@@ -129,7 +178,10 @@ export function collectionOrder(
   return { sort: chosen, dir: direction(chosen, dir) };
 }
 
-export function articleOrder(sort?: string, dir?: string): { sort: ArticleSort; dir: SortDirection } {
+export function articleOrder(
+  sort?: string,
+  dir?: string,
+): { sort: ArticleSort; dir: SortDirection } {
   const chosen = (ARTICLE_SORTS as readonly string[]).includes(sort ?? "")
     ? (sort as ArticleSort)
     : "name";
@@ -149,15 +201,21 @@ const articleChanged = sql<Date>`coalesce(${kbArticles.dateModified}, ${kbArticl
 const articleFavorites = sql<number>`(select count(*) from ${kbFavorites} f where f.article_id = ${kbArticles.id})::int`;
 const articleVotes = sql<number>`(select count(*) from ${kbVotes} v where v.article_id = ${kbArticles.id})::int`;
 /** 0 to 100, the share of votes that found it helpful; null before anyone has voted. */
-const articleHelpful = sql<number | null>`(select round(100.0 * count(*) filter (where v.helpful) / nullif(count(*), 0)) from ${kbVotes} v where v.article_id = ${kbArticles.id})::int`;
+const articleHelpful = sql<
+  number | null
+>`(select round(100.0 * count(*) filter (where v.helpful) / nullif(count(*), 0)) from ${kbVotes} v where v.article_id = ${kbArticles.id})::int`;
 
 /** The same, over every article a collection holds. */
 const collectionFavorites = sql<number>`(select count(*) from ${kbFavorites} f join ${kbArticles} a on a.id = f.article_id where a.collection_id = ${kbCollections.id} and a.archived_at is null)::int`;
-const collectionHelpful = sql<number | null>`(select round(100.0 * count(*) filter (where v.helpful) / nullif(count(*), 0)) from ${kbVotes} v join ${kbArticles} a on a.id = v.article_id where a.collection_id = ${kbCollections.id} and a.archived_at is null)::int`;
+const collectionHelpful = sql<
+  number | null
+>`(select round(100.0 * count(*) filter (where v.helpful) / nullif(count(*), 0)) from ${kbVotes} v join ${kbArticles} a on a.id = v.article_id where a.collection_id = ${kbCollections.id} and a.archived_at is null)::int`;
 
 function directed(expression: SQL, dir: SortDirection): SQL {
   // What has no value yet goes last whichever way the list runs.
-  return dir === "desc" ? sql`${expression} desc nulls last` : sql`${expression} asc nulls last`;
+  return dir === "desc"
+    ? sql`${expression} desc nulls last`
+    : sql`${expression} asc nulls last`;
 }
 
 /* ---------- Collections ---------- */
@@ -169,7 +227,10 @@ export const collectionInputSchema = z.object({
     .string()
     .trim()
     .max(2000)
-    .refine((value) => value === "" || safeUrl(value) !== null, "Enter an http or https address")
+    .refine(
+      (value) => value === "" || safeUrl(value) !== null,
+      "Enter an http or https address",
+    )
     .optional(),
   mcpEnabled: z.boolean().default(true),
   publicAccess: z.boolean().default(false),
@@ -217,7 +278,9 @@ const collectionColumns = {
   name: kbCollections.name,
   description: kbCollections.description,
   siteUrlSet: kbCollections.siteUrl,
-  siteUrl: sql<string | null>`coalesce(${kbCollections.siteUrl}, (select c.url from ${kbConnectors} c where c.collection_id = ${kbCollections.id} and c.archived_at is null order by c.created_at limit 1))`,
+  siteUrl: sql<
+    string | null
+  >`coalesce(${kbCollections.siteUrl}, (select c.url from ${kbConnectors} c where c.collection_id = ${kbCollections.id} and c.archived_at is null order by c.created_at limit 1))`,
   allCompanies: kbCollections.allCompanies,
   mcpEnabled: kbCollections.mcpEnabled,
   publicAccess: kbCollections.publicAccess,
@@ -231,7 +294,10 @@ const collectionColumns = {
   helpful: collectionHelpful,
 };
 
-function collectionOrderBy(order: { sort: CollectionSort; dir: SortDirection }): SQL[] {
+function collectionOrderBy(order: {
+  sort: CollectionSort;
+  dir: SortDirection;
+}): SQL[] {
   const by: Record<CollectionSort, SQL> = {
     name: sql`lower(${kbCollections.name})`,
     modified: sql`max(${articleChanged})`,
@@ -239,19 +305,28 @@ function collectionOrderBy(order: { sort: CollectionSort; dir: SortDirection }):
     favorites: collectionFavorites,
     helpful: collectionHelpful,
   };
-  return [directed(by[order.sort], order.dir), sql`lower(${kbCollections.name}) asc`];
+  return [
+    directed(by[order.sort], order.dir),
+    sql`lower(${kbCollections.name}) asc`,
+  ];
 }
 
 export async function listCollections(
   reader: KbReader,
-  order: { sort: CollectionSort; dir: SortDirection } = { sort: "name", dir: "asc" },
+  order: { sort: CollectionSort; dir: SortDirection } = {
+    sort: "name",
+    dir: "asc",
+  },
 ): Promise<CollectionRow[]> {
   return db
     .select(collectionColumns)
     .from(kbCollections)
     .leftJoin(
       kbArticles,
-      and(eq(kbArticles.collectionId, kbCollections.id), isNull(kbArticles.archivedAt)),
+      and(
+        eq(kbArticles.collectionId, kbCollections.id),
+        isNull(kbArticles.archivedAt),
+      ),
     )
     .where(and(...readable(reader)))
     .groupBy(kbCollections.id)
@@ -265,7 +340,10 @@ export async function listAllCollections(): Promise<CollectionRow[]> {
     .from(kbCollections)
     .leftJoin(
       kbArticles,
-      and(eq(kbArticles.collectionId, kbCollections.id), isNull(kbArticles.archivedAt)),
+      and(
+        eq(kbArticles.collectionId, kbCollections.id),
+        isNull(kbArticles.archivedAt),
+      ),
     )
     .groupBy(kbCollections.id)
     .orderBy(asc(kbCollections.name));
@@ -274,17 +352,26 @@ export async function listAllCollections(): Promise<CollectionRow[]> {
 /** The names of the companies each collection is kept to, for the administration list. */
 export async function collectionCompanyNames(): Promise<Map<string, string[]>> {
   const rows = await db
-    .select({ collectionId: kbCollectionCompanies.collectionId, name: companies.name })
+    .select({
+      collectionId: kbCollectionCompanies.collectionId,
+      name: companies.name,
+    })
     .from(kbCollectionCompanies)
     .innerJoin(companies, eq(companies.id, kbCollectionCompanies.companyId))
     .orderBy(asc(companies.name));
   const names = new Map<string, string[]>();
-  for (const row of rows) names.set(row.collectionId, [...(names.get(row.collectionId) ?? []), row.name]);
+  for (const row of rows)
+    names.set(row.collectionId, [
+      ...(names.get(row.collectionId) ?? []),
+      row.name,
+    ]);
   return names;
 }
 
 /** The companies a collection is kept to. Empty means every company. */
-export async function listCollectionCompanyIds(collectionId: string): Promise<string[]> {
+export async function listCollectionCompanyIds(
+  collectionId: string,
+): Promise<string[]> {
   const rows = await db
     .select({ companyId: kbCollectionCompanies.companyId })
     .from(kbCollectionCompanies)
@@ -292,13 +379,19 @@ export async function listCollectionCompanyIds(collectionId: string): Promise<st
   return rows.map((row) => row.companyId);
 }
 
-export async function getCollection(id: string, reader: KbReader): Promise<CollectionRow | null> {
+export async function getCollection(
+  id: string,
+  reader: KbReader,
+): Promise<CollectionRow | null> {
   const [row] = await db
     .select(collectionColumns)
     .from(kbCollections)
     .leftJoin(
       kbArticles,
-      and(eq(kbArticles.collectionId, kbCollections.id), isNull(kbArticles.archivedAt)),
+      and(
+        eq(kbArticles.collectionId, kbCollections.id),
+        isNull(kbArticles.archivedAt),
+      ),
     )
     .where(and(eq(kbCollections.id, id), ...readable(reader)))
     .groupBy(kbCollections.id);
@@ -306,12 +399,16 @@ export async function getCollection(id: string, reader: KbReader): Promise<Colle
 }
 
 function isUniqueViolation(error: unknown): boolean {
-  const code = (error as { code?: string; cause?: { code?: string } } | null)?.code
-    ?? (error as { cause?: { code?: string } } | null)?.cause?.code;
+  const code =
+    (error as { code?: string; cause?: { code?: string } } | null)?.code ??
+    (error as { cause?: { code?: string } } | null)?.cause?.code;
   return code === "23505";
 }
 
-export async function createCollection(input: CollectionInput, actorId: string | null): Promise<string> {
+export async function createCollection(
+  input: CollectionInput,
+  actorId: string | null,
+): Promise<string> {
   const data = collectionInputSchema.parse(input);
 
   try {
@@ -333,7 +430,12 @@ export async function createCollection(input: CollectionInput, actorId: string |
       if (data.companyIds.length > 0) {
         await tx
           .insert(kbCollectionCompanies)
-          .values(data.companyIds.map((companyId) => ({ collectionId: row.id, companyId })));
+          .values(
+            data.companyIds.map((companyId) => ({
+              collectionId: row.id,
+              companyId,
+            })),
+          );
       }
 
       await writeAudit(
@@ -377,11 +479,18 @@ export async function updateCollection(
         .returning({ id: kbCollections.id });
       if (!row) throw new NotFoundError("Collection");
 
-      await tx.delete(kbCollectionCompanies).where(eq(kbCollectionCompanies.collectionId, id));
+      await tx
+        .delete(kbCollectionCompanies)
+        .where(eq(kbCollectionCompanies.collectionId, id));
       if (data.companyIds.length > 0) {
         await tx
           .insert(kbCollectionCompanies)
-          .values(data.companyIds.map((companyId) => ({ collectionId: id, companyId })));
+          .values(
+            data.companyIds.map((companyId) => ({
+              collectionId: id,
+              companyId,
+            })),
+          );
       }
 
       await writeAudit(
@@ -509,7 +618,10 @@ export const articleListSchema = z.object({
   dir: z.enum(["asc", "desc"]).default("asc"),
 });
 
-function articleOrderBy(order: { sort: ArticleSort; dir: SortDirection }): SQL[] {
+function articleOrderBy(order: {
+  sort: ArticleSort;
+  dir: SortDirection;
+}): SQL[] {
   const by: Record<ArticleSort, SQL> = {
     name: sql`lower(${kbArticles.title})`,
     modified: articleChanged,
@@ -543,12 +655,16 @@ export async function listArticles(
   ];
   if (data.uncategorized) filters.push(isNull(kbArticles.category));
   else if (data.category) filters.push(eq(kbArticles.category, data.category));
-  if (data.subcategory) filters.push(eq(kbArticles.subcategory, data.subcategory));
-  if (data.unextractedOnly) filters.push(eq(kbArticles.extraction, "unextracted"));
+  if (data.subcategory)
+    filters.push(eq(kbArticles.subcategory, data.subcategory));
+  if (data.unextractedOnly)
+    filters.push(eq(kbArticles.extraction, "unextracted"));
   if (data.type) filters.push(typeFilter(data.type));
   if (data.kind) filters.push(eq(kbArticles.kind, data.kind));
-  if (data.updatedSince) filters.push(sql`${kbArticles.updatedAt} >= ${data.updatedSince}`);
-  if (data.sourceTypes?.length) filters.push(inArray(kbArticles.sourceType, data.sourceTypes));
+  if (data.updatedSince)
+    filters.push(sql`${kbArticles.updatedAt} >= ${data.updatedSince}`);
+  if (data.sourceTypes?.length)
+    filters.push(inArray(kbArticles.sourceType, data.sourceTypes));
 
   const rows = await db
     .select(articleSummaryColumns)
@@ -565,7 +681,11 @@ export async function listArticles(
   };
 }
 
-export type CategoryCount = { category: string | null; subcategory: string | null; articles: number };
+export type CategoryCount = {
+  category: string | null;
+  subcategory: string | null;
+  articles: number;
+};
 
 /** See ARTICLE_TYPES, declared with the ordering above. */
 
@@ -577,7 +697,10 @@ function typeFilter(type: ArticleType): SQL {
 
 export type TypeCount = { type: ArticleType; articles: number };
 
-export async function listTypes(collectionId: string, reader: KbReader): Promise<TypeCount[]> {
+export async function listTypes(
+  collectionId: string,
+  reader: KbReader,
+): Promise<TypeCount[]> {
   const rows = await db
     .select({
       type: sql<ArticleType>`case when ${kbArticles.sourceType} in ('pdf', 'docx') then ${kbArticles.sourceType} else 'article' end`,
@@ -594,7 +717,9 @@ export async function listTypes(collectionId: string, reader: KbReader): Promise
     )
     .groupBy(sql`1`);
   const order = new Map(ARTICLE_TYPES.map((type, index) => [type, index]));
-  return rows.sort((a, b) => (order.get(a.type) ?? 9) - (order.get(b.type) ?? 9));
+  return rows.sort(
+    (a, b) => (order.get(a.type) ?? 9) - (order.get(b.type) ?? 9),
+  );
 }
 
 export async function listCategories(
@@ -628,7 +753,10 @@ export type CollectionProfile = {
 };
 
 /** How a collection's readable articles break down, by kind and by what they were made from. */
-export async function collectionProfile(collectionId: string, reader: KbReader): Promise<CollectionProfile> {
+export async function collectionProfile(
+  collectionId: string,
+  reader: KbReader,
+): Promise<CollectionProfile> {
   const rows = await db
     .select({
       kind: sql<ArticleKind>`${kbArticles.kind}`,
@@ -637,24 +765,39 @@ export async function collectionProfile(collectionId: string, reader: KbReader):
     })
     .from(kbArticles)
     .innerJoin(kbCollections, eq(kbCollections.id, kbArticles.collectionId))
-    .where(and(eq(kbArticles.collectionId, collectionId), isNull(kbArticles.archivedAt), ...readable(reader)))
+    .where(
+      and(
+        eq(kbArticles.collectionId, collectionId),
+        isNull(kbArticles.archivedAt),
+        ...readable(reader),
+      ),
+    )
     .groupBy(kbArticles.kind, kbArticles.sourceType);
 
   const kinds: Record<ArticleKind, number> = { article: 0, runbook: 0 };
   const bySource = new Map<string, number>();
   for (const row of rows) {
     kinds[row.kind] = (kinds[row.kind] ?? 0) + row.articles;
-    bySource.set(row.sourceType, (bySource.get(row.sourceType) ?? 0) + row.articles);
+    bySource.set(
+      row.sourceType,
+      (bySource.get(row.sourceType) ?? 0) + row.articles,
+    );
   }
   return {
     kinds,
     sourceTypes: [...bySource.entries()]
       .map(([sourceType, articles]) => ({ sourceType, articles }))
-      .sort((a, b) => b.articles - a.articles || a.sourceType.localeCompare(b.sourceType)),
+      .sort(
+        (a, b) =>
+          b.articles - a.articles || a.sourceType.localeCompare(b.sourceType),
+      ),
   };
 }
 
-export async function getArticle(id: string, reader: KbReader): Promise<ArticleDetail | null> {
+export async function getArticle(
+  id: string,
+  reader: KbReader,
+): Promise<ArticleDetail | null> {
   const [row] = await db
     .select({
       id: kbArticles.id,
@@ -687,12 +830,22 @@ export async function getArticle(id: string, reader: KbReader): Promise<ArticleD
     })
     .from(kbArticles)
     .innerJoin(kbCollections, eq(kbCollections.id, kbArticles.collectionId))
-    .where(and(eq(kbArticles.id, id), isNull(kbArticles.archivedAt), ...readable(reader)))
+    .where(
+      and(
+        eq(kbArticles.id, id),
+        isNull(kbArticles.archivedAt),
+        ...readable(reader),
+      ),
+    )
     .limit(1);
   return row ?? null;
 }
 
-export type ArticleChunk = { ordinal: number; heading: string; content: string };
+export type ArticleChunk = {
+  ordinal: number;
+  heading: string;
+  content: string;
+};
 
 /** An article a piece at a time, for a reader that cannot take it whole. */
 export async function listChunks(
@@ -706,12 +859,24 @@ export async function listChunks(
 
   const [chunks, [totals]] = await Promise.all([
     db
-      .select({ ordinal: kbChunks.ordinal, heading: kbChunks.heading, content: kbChunks.content })
+      .select({
+        ordinal: kbChunks.ordinal,
+        heading: kbChunks.heading,
+        content: kbChunks.content,
+      })
       .from(kbChunks)
-      .where(and(eq(kbChunks.articleId, articleId), sql`${kbChunks.ordinal} >= ${from}`))
+      .where(
+        and(
+          eq(kbChunks.articleId, articleId),
+          sql`${kbChunks.ordinal} >= ${from}`,
+        ),
+      )
       .orderBy(asc(kbChunks.ordinal))
       .limit(limit),
-    db.select({ total: count() }).from(kbChunks).where(eq(kbChunks.articleId, articleId)),
+    db
+      .select({ total: count() })
+      .from(kbChunks)
+      .where(eq(kbChunks.articleId, articleId)),
   ]);
 
   return { chunks, total: totals?.total ?? 0 };
@@ -728,7 +893,11 @@ export async function setArticlePublicHidden(
       .update(kbArticles)
       .set({ publicHidden: hidden, hiddenBy: hidden ? "manual" : null })
       .where(eq(kbArticles.id, id))
-      .returning({ id: kbArticles.id, title: kbArticles.title, collectionId: kbArticles.collectionId });
+      .returning({
+        id: kbArticles.id,
+        title: kbArticles.title,
+        collectionId: kbArticles.collectionId,
+      });
     if (!row) throw new NotFoundError("Article");
     // Put back by hand, it is still held if a rule or its category holds it.
     if (!hidden) await applyVisibility(row.collectionId, row.id, tx);
@@ -788,7 +957,8 @@ export async function searchKb(
   input: KbSearchInput,
   reader: KbReader,
 ): Promise<{ hits: KbHit[]; nextCursor: string | null }> {
-  const { q, collectionId, category, kind, sourceTypes, limit, cursor } = kbSearchSchema.parse(input);
+  const { q, collectionId, category, kind, sourceTypes, limit, cursor } =
+    kbSearchSchema.parse(input);
   if (q === "") return { hits: [], nextCursor: null };
 
   const offset = decodeCursor(cursor);
@@ -802,7 +972,8 @@ export async function searchKb(
   if (collectionId) filters.push(eq(kbChunks.collectionId, collectionId));
   if (category) filters.push(eq(kbArticles.category, category));
   if (kind) filters.push(eq(kbArticles.kind, kind));
-  if (sourceTypes?.length) filters.push(inArray(kbArticles.sourceType, sourceTypes));
+  if (sourceTypes?.length)
+    filters.push(inArray(kbArticles.sourceType, sourceTypes));
 
   const rank = sql<number>`ts_rank_cd(${kbChunks.searchVec}, ${query}, 1)`;
 
