@@ -10,15 +10,23 @@
 
 import { normalizeHex } from "@/lib/brand-color";
 
-export type IconSource = "icon" | "apple-touch-icon" | "og:image" | "manifest";
+export type IconSource =
+  | "logo"
+  | "icon"
+  | "apple-touch-icon"
+  | "og:image"
+  | "manifest";
 
 export type BrandIcon = {
+  /** Where it is; for a logo drawn into the page itself, "inline:" and a number. */
   url: string;
   source: IconSource;
   /** "180x180" as declared, or null. */
   sizes: string | null;
   /** Declared type, lower case, or null. */
   type: string | null;
+  /** The markup of a logo drawn into the page as SVG, bounded; rendered when applied. */
+  inline?: string;
 };
 
 export type BrandSummary = {
@@ -31,7 +39,11 @@ export type BrandSummary = {
   manifestUrl: string | null;
 };
 
-const MAX_ICONS = 12;
+const MAX_ICONS = 16;
+/** How much of the page's body is read for logos. */
+const MAX_BODY_BYTES = 1024 * 1024;
+const MAX_LOGOS = 4;
+const MAX_INLINE_SVG_BYTES = 64 * 1024;
 
 function attrs(tag: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -186,6 +198,175 @@ export function parseManifest(
   return { colors, icons };
 }
 
+/** Everything the page links or carries that paints it: stylesheet addresses and inline CSS. */
+export function parseBrandAssets(
+  html: string,
+  pageUrl: string,
+): { stylesheets: string[]; inlineCss: string } {
+  const text = html.slice(0, MAX_BODY_BYTES);
+  const stylesheets: string[] = [];
+  for (const tag of text.match(/<link\b[^>]*>/gi) ?? []) {
+    const a = attrs(tag);
+    const rel = (a.rel ?? "").toLowerCase().split(/\s+/);
+    if (!rel.includes("stylesheet") || !a.href) continue;
+    const href = resolve(a.href, pageUrl);
+    if (href && !stylesheets.includes(href)) stylesheets.push(href);
+    if (stylesheets.length >= 4) break;
+  }
+  const inlineCss = (text.match(/<style\b[^>]*>([\s\S]*?)<\/style>/gi) ?? [])
+    .map((block) => block.replace(/^<style\b[^>]*>/i, "").replace(/<\/style>$/i, ""))
+    .join("\n");
+  return { stylesheets, inlineCss };
+}
+
+/**
+ * The names a logo file might carry: "logo" itself, and the site's own name
+ * as its hostname spells it, so acme.com's /images/acme.svg is found.
+ */
+export function brandNames(domain: string): string[] {
+  const labels = domain
+    .toLowerCase()
+    .split(".")
+    .filter((label) => label && label !== "www");
+  // The site's own label: the rightmost one that is not the suffix, nor a
+  // short second level like the "co" of co.uk.
+  const own = labels
+    .slice(0, -1)
+    .reverse()
+    .find((label) => label.length >= 4);
+  const names = ["logo", "wordmark", "brandmark"];
+  if (own && !names.includes(own)) names.push(own);
+  return names;
+}
+
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** The file name without its extension, lower case, or "". */
+function stemOf(url: string): string {
+  try {
+    const path = new URL(url).pathname;
+    const file = path.split("/").pop() ?? "";
+    return file.replace(/\.[a-z0-9]+$/i, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function typeFromUrl(url: string): string | null {
+  const m = /\.(png|jpe?g|webp|svg|gif|ico)(\?|$)/i.exec(url);
+  if (!m) return null;
+  const ext = m[1]!.toLowerCase();
+  if (ext === "svg") return "image/svg+xml";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "ico") return "image/x-icon";
+  return `image/${ext}`;
+}
+
+/** Whether a tag sits just inside a link to the site's front page: where a logo lives. */
+function underHomeLink(text: string, at: number): boolean {
+  const before = text.slice(Math.max(0, at - 400), at);
+  return /<a\b[^>]*href\s*=\s*["']?(?:\/|\.\/|index\.[a-z]+|https?:\/\/[^"'\s/>]+\/?)["'\s>][^>]*>(?:\s*<[^a][^>]*>)*\s*$/i.test(
+    before,
+  );
+}
+
+/**
+ * The logos the page itself shows: images named for it — logo.svg, acme.png —
+ * or described as one by alt, class or id, or sitting inside the link home at
+ * the top of the page; and marks drawn inline as SVG the same way. Hero
+ * pictures and footer badges fail those tests. The best few, best first.
+ */
+export function parseBrandLogos(
+  html: string,
+  pageUrl: string,
+  names: string[],
+): BrandIcon[] {
+  const text = html.slice(0, MAX_BODY_BYTES);
+  const nameTest = new RegExp(
+    `(^|[^a-z0-9])(${names.map(escapeRegex).join("|")})([^a-z0-9]|$)`,
+    "i",
+  );
+  const describedTest = /logo|wordmark|brandmark|site-?brand|navbar-brand/i;
+  const found: { icon: BrandIcon; score: number; at: number }[] = [];
+
+  let seen = 0;
+  for (const m of text.matchAll(/<img\b[^>]*>/gi)) {
+    if (seen++ >= 400) break;
+    const a = attrs(m[0]);
+    const raw =
+      a.src ??
+      a["data-src"] ??
+      a["data-lazy-src"] ??
+      (a.srcset ?? a["data-srcset"])?.split(",")[0]?.trim().split(/\s+/)[0];
+    const url = raw ? resolve(raw, pageUrl) : null;
+    if (!url) continue;
+    const type = a.type?.toLowerCase() ?? typeFromUrl(url);
+    if (type === "image/gif" || type === "image/x-icon") continue;
+
+    let score = 0;
+    const stem = stemOf(url);
+    if (nameTest.test(stem)) score += 3;
+    const described = [a.alt, a.class, a.id, a.title, a["aria-label"]]
+      .filter(Boolean)
+      .join(" ");
+    if (describedTest.test(described) || nameTest.test(described)) score += 2;
+    if (underHomeLink(text, m.index ?? 0)) score += 2;
+    if (score === 0) continue;
+
+    const w = Number(a.width);
+    const h = Number(a.height);
+    found.push({
+      icon: {
+        url,
+        source: "logo",
+        sizes: w > 0 && h > 0 ? `${w}x${h}` : null,
+        type,
+      },
+      score,
+      at: m.index ?? 0,
+    });
+  }
+
+  let inlineCount = 0;
+  for (const m of text.matchAll(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi)) {
+    if (inlineCount >= 20) break;
+    inlineCount += 1;
+    const markup = m[0];
+    if (markup.length > MAX_INLINE_SVG_BYTES) continue;
+    const open = /^<svg\b[^>]*>/i.exec(markup)?.[0] ?? "";
+    const a = attrs(open);
+    const described = [a.class, a.id, a["aria-label"], a["data-name"]]
+      .filter(Boolean)
+      .join(" ");
+    const title = /<title[^>]*>([^<]{0,100})<\/title>/i.exec(markup)?.[1] ?? "";
+    let score = 0;
+    if (describedTest.test(described) || nameTest.test(described)) score += 2;
+    if (describedTest.test(title) || nameTest.test(title)) score += 2;
+    if (underHomeLink(text, m.index ?? 0)) score += 2;
+    // A sprite reference draws nothing on its own.
+    if (score === 0 || /<use\b/i.test(markup)) continue;
+    found.push({
+      icon: {
+        url: `inline:${found.length}`,
+        source: "logo",
+        sizes: null,
+        type: "image/svg+xml",
+        inline: markup,
+      },
+      score,
+      at: m.index ?? 0,
+    });
+  }
+
+  return found
+    .sort((a, b) => b.score - a.score || a.at - b.at)
+    .filter((entry, index, all) => all.findIndex((other) => other.icon.url === entry.icon.url) === index)
+    .slice(0, MAX_LOGOS)
+    .map((entry) => entry.icon);
+}
+
 /** The declared size's larger side, or 0 when unknown. "any" counts as unknown. */
 export function iconSize(icon: BrandIcon): number {
   if (!icon.sizes) return 0;
@@ -208,6 +389,7 @@ export function isRasterIcon(icon: BrandIcon): boolean {
 
 /** An SVG, which is rendered to PNG when applied. */
 export function isSvgIcon(icon: BrandIcon): boolean {
+  if (icon.inline !== undefined) return true;
   if (icon.type) return icon.type === "image/svg+xml";
   return /\.svg(\?|$)/i.test(icon.url);
 }
@@ -223,12 +405,14 @@ function effectiveSize(icon: BrandIcon): number {
 }
 
 /**
- * The icon most likely to serve as a logo: a usable raster, the largest
- * declared, preferring the touch icon and the manifest's over a favicon and
- * a social image, which is often a photo.
+ * The icon most likely to serve as a logo: the logo the page itself shows,
+ * first of all, in the order the page reader ranked them; failing that a
+ * usable raster, the largest declared, preferring the touch icon and the
+ * manifest's over a favicon and a social image, which is often a photo.
  */
 export function pickIcon(icons: BrandIcon[]): BrandIcon | null {
   const rank: Record<IconSource, number> = {
+    logo: 4,
     "apple-touch-icon": 3,
     manifest: 2,
     icon: 1,
@@ -236,6 +420,8 @@ export function pickIcon(icons: BrandIcon[]): BrandIcon | null {
   };
   const usable = icons.filter(isUsableIcon);
   if (usable.length === 0) return null;
+  const logo = usable.find((icon) => icon.source === "logo");
+  if (logo) return logo;
   return (
     [...usable].sort(
       (a, b) =>

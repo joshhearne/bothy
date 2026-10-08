@@ -124,6 +124,13 @@ export async function brandIconFor(
 export async function fetchBrandIcon(
   icon: BrandIcon,
 ): Promise<{ bytes: Buffer; mime: string; extension: string }> {
+  // A logo drawn into the page itself: no fetch, the markup is the icon.
+  if (icon.inline !== undefined) {
+    const png = await svgToPng(Buffer.from(icon.inline, "utf8"));
+    if (png.byteLength > MAX_LOGO_BYTES) throw new LogoTooLargeError();
+    return { bytes: png, mime: "image/png", extension: "png" };
+  }
+
   let page;
   try {
     page = await fetchPublic(

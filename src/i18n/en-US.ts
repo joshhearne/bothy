@@ -258,7 +258,7 @@ export const enUS = {
     brandKeep: "Keep current",
     brandNoRaster:
       "The site offers no PNG, JPEG, WebP or SVG icon; an ICO cannot be a logo here. An SVG is rendered to PNG with its transparency kept.",
-    brandNoColor: "The site publishes no theme colour.",
+    brandNoColor: "The site publishes no theme colour, and its stylesheets paint with none.",
     brandApply: "Use as company theme",
     customers: "Customers on the knowledge base",
     customersHint:
@@ -427,7 +427,7 @@ export const enUS = {
       email: "Email posture",
       brand: "Website branding",
       brandHint:
-        "The site's own title, theme colour and icons, offered to the company's branding.",
+        "The site's own title, the logo it shows, the colours it paints with, and the icons it offers browsers, offered to the company's branding.",
       brandApplyHint:
         "Apply a website's look as the company theme from the company's edit page.",
       emailHint:

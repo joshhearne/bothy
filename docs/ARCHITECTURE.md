@@ -252,7 +252,19 @@ over RDAP, and whether SPF, DMARC and DKIM are published.
   the knowledge base crawler reads a page (`src/server/kb/fetch.ts`: every
   hop resolved, private addresses refused, the vetted address connected to)
   and keeps its title, theme colour, icons and manifest
-  (`src/server/domain/brand.ts`). Nothing is applied by itself: the company's
+  (`src/server/domain/brand.ts`). It also reads the page's body for the logo
+  the site actually shows — an `<img>` named `logo.*` or after the site's
+  own hostname label, described as a logo by alt/class/id, or sitting in the
+  link home — and a mark drawn inline as `<svg>` the same way (kept in the
+  result, bounded at 64 KB, rendered when applied); those rank ahead of
+  every head icon, which is how a favicon or a hero picture stops being the
+  pick. The colours the site paints with come from its inline CSS and up to
+  four linked stylesheets (`src/server/domain/palette.ts`): each colour
+  literal weighted by where it is used (a `--primary`/`--brand` custom
+  property most, fills and backgrounds some, shadows not at all), greys,
+  white and black left out unless they are all there is, the browser's own
+  link colours left out always, near-shades folded; the top six follow the
+  declared theme colour. Nothing is applied by itself: the company's
   edit page lists every domain record's findings and an administrator picks
   one, whose icon becomes the logo (fetched the same safe way, sniffed, PNG,
   JPEG or WebP, or an SVG rendered to PNG by sharp with its transparency kept

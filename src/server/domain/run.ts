@@ -7,10 +7,14 @@ import { publicOnly } from "@/server/domain/addresses";
 import { orderDns } from "@/server/domain/order";
 import { fetchPublic, FetchRefusedError } from "@/server/kb/fetch";
 import {
+  brandNames,
+  parseBrandAssets,
   parseBrandHtml,
+  parseBrandLogos,
   parseManifest,
   type BrandSummary,
 } from "@/server/domain/brand";
+import { colorsInCss, MAX_CSS_BYTES, rankPalette } from "@/server/domain/palette";
 import {
   certificateFindings,
   daysUntil,
@@ -368,7 +372,15 @@ async function runBrand(domain: string): Promise<Section<BrandSummary>> {
     return { ok: false, error: "The front page is not an HTML page." };
   }
 
-  const data = parseBrandHtml(page.body.toString("utf8"), page.url);
+  const html = page.body.toString("utf8");
+  const data = parseBrandHtml(html, page.url);
+
+  // The logos the page shows go ahead of the icons its head offers browsers.
+  const logos = parseBrandLogos(html, page.url, brandNames(domain));
+  data.icons = [
+    ...logos,
+    ...data.icons.filter((icon) => !logos.some((logo) => logo.url === icon.url)),
+  ];
 
   if (data.manifestUrl) {
     try {
@@ -397,6 +409,23 @@ async function runBrand(domain: string): Promise<Section<BrandSummary>> {
     }
   }
 
+  // What the site paints with, from its stylesheets, after what it declares.
+  const assets = parseBrandAssets(html, page.url);
+  const sheets = await Promise.all(
+    assets.stylesheets.map(async (url) => {
+      try {
+        const sheet = await fetchPublic(url, "text/css,*/*;q=0.1");
+        if (sheet.status < 200 || sheet.status >= 300) return "";
+        if (sheet.body.byteLength > MAX_CSS_BYTES) return "";
+        return sheet.body.toString("utf8");
+      } catch {
+        return "";
+      }
+    }),
+  );
+  const painted = rankPalette(colorsInCss([assets.inlineCss, ...sheets].join("\n")));
+  for (const color of painted) if (!data.colors.includes(color)) data.colors.push(color);
+
   const findings: Finding[] = [];
   if (data.icons.length === 0 && data.colors.length === 0) {
     findings.push({
@@ -405,10 +434,12 @@ async function runBrand(domain: string): Promise<Section<BrandSummary>> {
     });
   } else {
     const parts: string[] = [];
-    if (data.icons.length > 0) {
-      parts.push(
-        `${data.icons.length} icon${data.icons.length === 1 ? "" : "s"}`,
-      );
+    if (logos.length > 0) {
+      parts.push(`${logos.length} logo${logos.length === 1 ? "" : "s"}`);
+    }
+    const others = data.icons.length - logos.length;
+    if (others > 0) {
+      parts.push(`${others} icon${others === 1 ? "" : "s"}`);
     }
     if (data.colors.length > 0) {
       parts.push(

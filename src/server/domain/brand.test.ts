@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  brandNames,
   iconSize,
   isRasterIcon,
+  isSvgIcon,
+  parseBrandAssets,
   parseBrandHtml,
+  parseBrandLogos,
   parseManifest,
   pickIcon,
   toHex,
@@ -136,5 +140,62 @@ describe("pickIcon", () => {
     expect(iconSize(icon({ sizes: "16x16 32x32 any" }))).toBe(32);
     expect(isRasterIcon(icon({ url: "https://x/a.webp?v=2" }))).toBe(true);
     expect(isRasterIcon(icon({ url: "https://x/a.svg" }))).toBe(false);
+  });
+});
+
+describe("parseBrandLogos", () => {
+  const page = `<!doctype html><html><head><title>Acme</title></head><body>
+    <header>
+      <a href="/"><img src="/assets/acme.svg" alt="Acme Widgets" width="160" height="40"></a>
+      <nav><a href="/about">About</a></nav>
+    </header>
+    <section class="hero"><img src="/img/hero-office.jpg" alt="Our office"></section>
+    <img class="site-logo" data-src="https://cdn.acme.com/brand/logo.png">
+    <svg class="icon-cart" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>
+    <footer>
+      <svg aria-label="Acme logo" viewBox="0 0 10 10"><path d="M0 0h10v10z"/></svg>
+      <img src="/img/badge-partner.png" alt="Partner badge">
+      <svg class="logo"><use href="#sprite-logo"/></svg>
+    </footer>
+  </body></html>`;
+
+  it("finds images named for the site or called a logo, and the mark drawn inline, best first", () => {
+    const logos = parseBrandLogos(page, PAGE, brandNames("www.acme.com"));
+    expect(logos.map((l) => [l.url, l.source, l.type])).toEqual([
+      ["https://www.example.com/assets/acme.svg", "logo", "image/svg+xml"],
+      ["https://cdn.acme.com/brand/logo.png", "logo", "image/png"],
+      ["inline:2", "logo", "image/svg+xml"],
+    ]);
+    expect(logos[0]?.sizes).toBe("160x40");
+    expect(logos[2]?.inline).toContain('aria-label="Acme logo"');
+    expect(logos.some((l) => /hero|badge/.test(l.url))).toBe(false);
+  });
+
+  it("goes ahead of every head icon when picking", () => {
+    const logos = parseBrandLogos(page, PAGE, brandNames("acme.com"));
+    const head = parseBrandHtml(
+      `<head><link rel="apple-touch-icon" sizes="180x180" href="/t.png"></head>`,
+      PAGE,
+    );
+    expect(pickIcon([...head.icons, ...logos])?.url).toBe("https://www.example.com/assets/acme.svg");
+    expect(isSvgIcon(logos[2]!)).toBe(true);
+  });
+
+  it("names the site by its hostname", () => {
+    expect(brandNames("www.acme.com")).toEqual(["logo", "wordmark", "brandmark", "acme"]);
+    expect(brandNames("shop.acme.co.uk")).toContain("acme");
+    expect(brandNames("x.io")).toEqual(["logo", "wordmark", "brandmark"]);
+  });
+});
+
+describe("parseBrandAssets", () => {
+  it("lists the stylesheets and keeps the inline CSS", () => {
+    const got = parseBrandAssets(
+      `<head><link rel="stylesheet" href="/a.css"><link rel="preload" href="/b.css"><style>:root{--primary:#123456}</style></head><body><style>.x{color:red}</style></body>`,
+      PAGE,
+    );
+    expect(got.stylesheets).toEqual(["https://www.example.com/a.css"]);
+    expect(got.inlineCss).toContain("--primary:#123456");
+    expect(got.inlineCss).toContain(".x{color:red}");
   });
 });

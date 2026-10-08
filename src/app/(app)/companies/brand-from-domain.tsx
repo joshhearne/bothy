@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FormError } from "@/components/ui/alert";
 import { useMessages } from "@/i18n/client";
 import type { FormState } from "@/lib/form";
+import { isUsableIcon } from "@/server/domain/brand";
 import type { BrandCandidate } from "@/server/services/company-brand";
 import { applyDomainBrandingAction } from "./brand-actions";
 
@@ -53,17 +54,7 @@ function Candidate({
   const { brand } = candidate;
   const rasterIcons = brand.icons
     .map((icon, index) => ({ icon, index }))
-    .filter(({ icon }) =>
-      icon.type
-        ? [
-            "image/png",
-            "image/jpeg",
-            "image/jpg",
-            "image/webp",
-            "image/svg+xml",
-          ].includes(icon.type)
-        : /\.(png|jpe?g|webp|svg)(\?|$)/i.test(icon.url),
-    );
+    .filter(({ icon }) => isUsableIcon(icon));
 
   return (
     <form
