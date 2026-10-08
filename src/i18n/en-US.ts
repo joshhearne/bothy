@@ -53,6 +53,7 @@ export const enUS = {
     auditLog: "Audit log",
     knowledgeBase: "Knowledge base",
     allCollections: "All collections",
+    portal: "Portal",
   },
 
   common: {
@@ -759,6 +760,55 @@ export const enUS = {
       domainsEmpty: "Every checked domain looks fine.",
       checked: (when: string) => `checked ${when}`,
     },
+    portal: {
+      title: "Customer portal",
+      subtitle:
+        "The public knowledge base on a hostname of its own, such as kb.example.com: what is set, what answers, and what is on it.",
+      status: "Where it stands",
+      stepMode: "The public site is on",
+      stepUrl: "A published address is set",
+      urlUnset: "Not set. Enter it below once the hostname exists.",
+      stepHostname: "The published address reaches this installation",
+      hostnameUnset: "Set the published address first.",
+      hostnameAnswers: "It answers.",
+      hostnameAnswersOther: (status: number) =>
+        `It answers ${status}. A 404 means the site is off, or the hostname does not match what is set.`,
+      hostnameRefused: (reason: string) => `Not checked from here: ${reason}`,
+      hostnameUnreachable:
+        "It does not answer. Check the hostname's DNS and the tunnel's route.",
+      stepAccess: "Cloudflare Access names each visitor",
+      accessUnset:
+        "Not set. Without it visitors are anonymous: no favorites, no votes, and no company's own collections.",
+      accessNotSeen:
+        "Set, but no token has reached this installation since it last started.",
+      accessSeen: (when: string) => `Working: a token last verified ${when}.`,
+      stepCollections: "Collections are on the site",
+      onSite: "on the site",
+      notOnSite: "not on the site",
+      everyCompany: "for every company",
+      keptTo: (names: string) => `kept to ${names}`,
+      stepCustomers: "Companies place their people by email domain",
+      customersUnset:
+        "None yet. On a company's edit page, list the email domains its people sign in with.",
+      customersSet: (count: number) =>
+        count === 1
+          ? "1 company places its people."
+          : `${count} companies place their people.`,
+      stepBranding: "The site carries your branding",
+      brandingUnset:
+        "The footer still credits the vendor. Put your name on it under Branding.",
+      brandingSet: (name: string) =>
+        `The footer reads “Powered by Trove KB | ${name}”.`,
+      cloudflare: "In Cloudflare",
+      cloudflareSteps: [
+        "Zero Trust → Networks → Tunnels → your tunnel → Public Hostname → Add: the knowledge base's hostname, type HTTP, URL 127.0.0.1 and this installation's port, path left empty. Saving it creates the DNS record.",
+        "Zero Trust → Access → Applications → Add a self-hosted application on that hostname, with a policy for the people who may read it (their email domains, or an identity provider).",
+        "On the application's Overview, copy the Application Audience (AUD) tag. Enter the team name (the part before .cloudflareaccess.com) and the tag below.",
+        "Set “Who may read it” to anyone who can reach it: Access decides who gets in. Enter the published address, and the site answers only there.",
+        "Mark the collections for the site under Knowledge base, keep the ones that are a company's own to that company, and list each company's sign-in email domains on its edit page.",
+      ],
+    },
+
     settings: {
       language: "Language",
       languageHint: "What a reader gets before they choose for themselves.",
@@ -768,6 +818,7 @@ export const enUS = {
       fromEnvironment: (fallback: string) =>
         `From the environment (${fallback})`,
       publicKb: "Public knowledge base",
+      publicMoved: "Set up and watched over under",
       publicKbHint:
         "A read-only site for people who have not signed in. It shows only the collections marked for it, and nothing else in this installation.",
       publicMode: "Who may read it",

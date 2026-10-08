@@ -96,7 +96,13 @@ primary one: the primary rail is the documentation, which is what people come
 for. `instance_settings` is a single row holding what an operator chooses once
 — today the default locale, which sits between the reader's cookie and
 `APP_LOCALE`. Webhooks live under Notifications, since that is the job they do;
-`/admin/webhooks` redirects there.
+`/admin/webhooks` redirects there. Admin → Portal is the public knowledge
+base's setup page: what is set, whether the published address answers (tried
+from the server the safe way), whether an Access token has verified since
+the process started (`accessLastVerifiedAt`, held in memory on purpose),
+which collections are on the site and to whom they are kept, which
+companies place their people, and the branding it carries, with the
+Cloudflare steps inline and the public-site form beneath.
 
 ## Branding
 - `instance_branding` holds one row: a portal name, an accent color, and a logo

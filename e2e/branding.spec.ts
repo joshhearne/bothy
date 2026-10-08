@@ -591,7 +591,7 @@ test("the public knowledge base may carry the operator's own credit, and the app
   );
 
   // The public site reads the operator's name, with the licence still there.
-  await page.goto("/admin/settings");
+  await page.goto("/admin/portal");
   await page.getByLabel("Who may read it").selectOption("open");
   await page
     .getByLabel("Where it is published")

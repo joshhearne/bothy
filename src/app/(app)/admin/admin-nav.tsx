@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   BookOpen,
+  Globe,
   KeyRound,
   Layers,
   ListTree,
@@ -33,13 +34,22 @@ export function AdminNav() {
 
   const sections: { href: Route; label: string; icon: typeof Users }[] = [
     { href: "/admin/users" as Route, label: t.nav.users, icon: Users },
-    { href: "/admin/notifications" as Route, label: t.nav.notifications, icon: Bell },
+    {
+      href: "/admin/notifications" as Route,
+      label: t.nav.notifications,
+      icon: Bell,
+    },
     { href: "/admin/webhooks" as Route, label: t.nav.webhooks, icon: Webhook },
     { href: "/admin/settings" as Route, label: t.nav.settings, icon: Settings },
     { href: "/admin/branding" as Route, label: t.nav.branding, icon: Palette },
     { href: "/admin/doc-types" as Route, label: t.nav.docTypes, icon: Layers },
-    { href: "/admin/option-lists" as Route, label: t.nav.optionLists, icon: ListTree },
+    {
+      href: "/admin/option-lists" as Route,
+      label: t.nav.optionLists,
+      icon: ListTree,
+    },
     { href: "/admin/kb" as Route, label: t.nav.knowledgeBase, icon: BookOpen },
+    { href: "/admin/portal" as Route, label: t.nav.portal, icon: Globe },
     { href: "/admin/api-keys" as Route, label: t.nav.apiKeys, icon: KeyRound },
     { href: "/admin/vault" as Route, label: t.nav.vault, icon: ShieldCheck },
     { href: "/admin/audit" as Route, label: t.nav.auditLog, icon: ScrollText },
@@ -65,7 +75,10 @@ export function AdminNav() {
 
       <ul
         id="admin-sections"
-        className={cn("mt-1 flex-col gap-1 md:mt-0 md:flex", open ? "flex" : "hidden")}
+        className={cn(
+          "mt-1 flex-col gap-1 md:mt-0 md:flex",
+          open ? "flex" : "hidden",
+        )}
       >
         {sections.map((section) => {
           const active = pathname.startsWith(section.href);

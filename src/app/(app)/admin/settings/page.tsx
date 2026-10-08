@@ -1,11 +1,14 @@
 import { requireRecentMfa, requireUser } from "@/server/auth/session";
-import { getDefaultLocale, getDomainCheckPolicy, getKbPublicSettings } from "@/server/services/settings";
-import { listAllCollections } from "@/server/services/kb";
-import { visitorAddress } from "@/server/kb/public";
+import {
+  getDefaultLocale,
+  getDomainCheckPolicy,
+} from "@/server/services/settings";
 import { env } from "@/lib/env";
 import { getMessages } from "@/i18n/server";
 import { LOCALE_NAMES, LOCALES } from "@/i18n/locales";
-import { DefaultLocaleForm, DomainPolicyForm, KbPublicForm } from "../settings-forms";
+import Link from "next/link";
+import type { Route } from "next";
+import { DefaultLocaleForm, DomainPolicyForm } from "../settings-forms";
 
 export const dynamic = "force-dynamic";
 
@@ -17,15 +20,11 @@ export const dynamic = "force-dynamic";
  */
 export default async function SettingsPage() {
   await requireRecentMfa(await requireUser(), "/admin/settings");
-  const [chosen, t, publicSite, collections, visitor, domainPolicy] = await Promise.all([
+  const [chosen, t, domainPolicy] = await Promise.all([
     getDefaultLocale(),
     getMessages(),
-    getKbPublicSettings(),
-    listAllCollections(),
-    visitorAddress(),
     getDomainCheckPolicy(),
   ]);
-  const published = collections.filter((row) => row.publicAccess && !row.archivedAt).length;
 
   const configuration: [string, string][] = [
     [t.admin.settings.storage, env.STORAGE_DRIVER],
@@ -33,7 +32,9 @@ export default async function SettingsPage() {
     [t.admin.settings.vaultMode, env.VAULT_MODE],
     [
       t.admin.settings.sso,
-      env.OIDC_ISSUER ? t.admin.settings.configured : t.admin.settings.notConfigured,
+      env.OIDC_ISSUER
+        ? t.admin.settings.configured
+        : t.admin.settings.notConfigured,
     ],
     [t.admin.settings.appUrl, env.APP_URL],
   ];
@@ -42,7 +43,9 @@ export default async function SettingsPage() {
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">{t.admin.settings.language}</h2>
+          <h2 className="text-lg font-semibold tracking-tight">
+            {t.admin.settings.language}
+          </h2>
           <p className="text-sm text-[var(--muted-foreground)]">
             {t.admin.settings.languageHint}
           </p>
@@ -51,40 +54,32 @@ export default async function SettingsPage() {
         <DefaultLocaleForm
           chosen={chosen}
           fallback={env.APP_LOCALE}
-          locales={LOCALES.map((locale) => ({ value: locale, label: LOCALE_NAMES[locale] }))}
+          locales={LOCALES.map((locale) => ({
+            value: locale,
+            label: LOCALE_NAMES[locale],
+          }))}
         />
       </section>
 
       <section className="flex flex-col gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">{t.admin.settings.publicKb}</h2>
-          <p className="text-sm text-[var(--muted-foreground)]">{t.admin.settings.publicKbHint}</p>
+          <h2 className="text-lg font-semibold tracking-tight">
+            {t.admin.settings.publicKb}
+          </h2>
           <p className="text-sm text-[var(--muted-foreground)]">
-            {t.admin.settings.publicCollections(published)}
-            {publicSite.url && publicSite.mode !== "off" && (
-              <>
-                {" "}
-                <a href={publicSite.url} className="underline" target="_blank" rel="noreferrer">
-                  {publicSite.url}
-                </a>
-              </>
-            )}
+            {t.admin.settings.publicMoved}{" "}
+            <Link href={"/admin/portal" as Route} className="underline">
+              {t.nav.portal}
+            </Link>
           </p>
         </div>
-
-        <KbPublicForm
-          mode={publicSite.mode}
-          addresses={publicSite.addressText}
-          url={publicSite.url ?? ""}
-          accessTeam={publicSite.accessTeam ?? ""}
-          accessAud={publicSite.accessAud ?? ""}
-          visitor={visitor}
-        />
       </section>
 
       <section className="flex flex-col gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">{t.admin.settings.domainChecks}</h2>
+          <h2 className="text-lg font-semibold tracking-tight">
+            {t.admin.settings.domainChecks}
+          </h2>
           <p className="text-sm text-[var(--muted-foreground)]">
             {t.admin.settings.domainChecksHint}
           </p>
@@ -105,8 +100,13 @@ export default async function SettingsPage() {
 
         <dl className="flex flex-col divide-y rounded-md border">
           {configuration.map(([name, value]) => (
-            <div key={name} className="grid gap-1 px-4 py-3 sm:grid-cols-[14rem_1fr] sm:gap-4">
-              <dt className="text-sm font-medium text-[var(--muted-foreground)]">{name}</dt>
+            <div
+              key={name}
+              className="grid gap-1 px-4 py-3 sm:grid-cols-[14rem_1fr] sm:gap-4"
+            >
+              <dt className="text-sm font-medium text-[var(--muted-foreground)]">
+                {name}
+              </dt>
               <dd className="min-w-0 break-words font-mono text-sm">{value}</dd>
             </div>
           ))}

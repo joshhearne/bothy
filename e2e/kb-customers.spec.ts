@@ -112,7 +112,7 @@ test("a collection kept to a company is not on the public site for a visitor nob
   page,
   browser,
 }) => {
-  await page.goto("/admin/settings");
+  await page.goto("/admin/portal");
   await page.getByLabel("Who may read it").selectOption("open");
   await page.getByLabel("Where it is published").fill(PUBLIC_URL);
   await page.getByRole("button", { name: "Update public site" }).click();

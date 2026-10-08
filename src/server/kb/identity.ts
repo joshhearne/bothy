@@ -62,10 +62,13 @@ const keySets = new Map<string, JWTVerifyGetKey>();
 function keysFor(team: string): JWTVerifyGetKey {
   let keys = keySets.get(team);
   if (!keys) {
-    keys = createRemoteJWKSet(new URL(`${accessIssuer(team)}/cdn-cgi/access/certs`), {
-      cooldownDuration: 30_000,
-      cacheMaxAge: 60 * 60_000,
-    });
+    keys = createRemoteJWKSet(
+      new URL(`${accessIssuer(team)}/cdn-cgi/access/certs`),
+      {
+        cooldownDuration: 30_000,
+        cacheMaxAge: 60 * 60_000,
+      },
+    );
     keySets.set(team, keys);
   }
   return keys;
@@ -83,6 +86,22 @@ export async function publicIdentity(): Promise<PublicIdentity | null> {
   const token = (await headers()).get(TOKEN_HEADER)?.trim();
   if (!token) return null;
 
-  const email = await verifyAccessToken(token, settings.accessTeam, settings.accessAud);
+  const email = await verifyAccessToken(
+    token,
+    settings.accessTeam,
+    settings.accessAud,
+  );
+  if (email) lastVerified = new Date();
   return email ? { key: readerKey(email), email } : null;
+}
+
+/*
+ * When a token last verified, held in this process for the setup page: it
+ * answers "is Access actually reaching us" without storing anything about
+ * anyone, and forgets on restart, which the page says.
+ */
+let lastVerified: Date | null = null;
+
+export function accessLastVerifiedAt(): Date | null {
+  return lastVerified;
 }

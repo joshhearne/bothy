@@ -130,3 +130,34 @@ export async function companiesForEmail(email: string): Promise<string[]> {
     .limit(5);
   return rows.map((row) => row.companyId);
 }
+
+export type CompanySignInDomains = {
+  companyId: string;
+  name: string;
+  domains: string[];
+};
+
+/** Every company that places people, with its domains. Administration only. */
+export async function listAllSignInDomains(): Promise<CompanySignInDomains[]> {
+  const rows = await db
+    .select({
+      companyId: companySignInDomains.companyId,
+      name: companies.name,
+      domain: companySignInDomains.domain,
+    })
+    .from(companySignInDomains)
+    .innerJoin(companies, eq(companies.id, companySignInDomains.companyId))
+    .where(isNull(companies.archivedAt))
+    .orderBy(asc(companies.name), asc(companySignInDomains.domain));
+  const out = new Map<string, CompanySignInDomains>();
+  for (const row of rows) {
+    const entry = out.get(row.companyId) ?? {
+      companyId: row.companyId,
+      name: row.name,
+      domains: [],
+    };
+    entry.domains.push(row.domain);
+    out.set(row.companyId, entry);
+  }
+  return [...out.values()];
+}
