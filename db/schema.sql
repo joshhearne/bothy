@@ -836,3 +836,11 @@ INSERT INTO roles (key, name, description, permissions, builtin) VALUES
   ('readonly', 'Read-only', 'Views what their companies allow.', '{}', true);
 ALTER TABLE users DROP CONSTRAINT users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_roles_key_fk FOREIGN KEY (role) REFERENCES roles(key);
+
+-- ---------- An operator's own tab icon ----------
+-- One per mode. Without one the product mark in the accent is the tab icon;
+-- with one it serves both modes, and with two the browser picks by mode.
+ALTER TABLE instance_branding ADD COLUMN icon_key text;
+ALTER TABLE instance_branding ADD COLUMN icon_mime text;
+ALTER TABLE instance_branding ADD COLUMN alt_icon_key text;
+ALTER TABLE instance_branding ADD COLUMN alt_icon_mime text;

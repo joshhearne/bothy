@@ -1,3 +1,5 @@
+import pkg from "../../package.json";
+
 /**
  * What the software is, as opposed to what an operator has branded it. The
  * name and logo in the interface are theirs to replace; this is the notice that
@@ -16,4 +18,9 @@ export const VENDOR_URL = "https://hearnetech.com";
 export const VENDOR_LOGO_LIGHT = "/vendor/hearne-technologies-light.png";
 export const VENDOR_LOGO_DARK = "/vendor/hearne-technologies-dark.png";
 export const LICENSE = "AGPL-3.0";
+/**
+ * The release this build is, as people say it: the version in package.json,
+ * which a release tag (v1.2.3) is cut to match. Not a commit hash.
+ */
+export const APP_VERSION: string = pkg.version;
 export const SOURCE_URL = "https://github.com/joshhearne/trove-kb";

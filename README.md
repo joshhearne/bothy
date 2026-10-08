@@ -399,6 +399,19 @@ docker compose -p trove-kb-test down -v
 The tests read the database directly. If your `.env` sets a database role
 other than the default, pass it along with `E2E_DB_USER`.
 
+The footer of the signed-in pages names the release it is, `v1.2.3`, read
+from `package.json`. To cut a release, set that version first, then tag it
+the same, and the Release workflow publishes the notes:
+
+```bash
+npm version 0.2.0 --no-git-tag-version   # package.json and the lockfile
+git commit -sam "Release 0.2.0"
+git tag v0.2.0 && git push && git push --tags
+```
+
+The workflow refuses a tag that does not match `package.json`, so the
+version people see is always the one that was released.
+
 `db/schema.sql` is the reference data model, `src/server/db/schema.ts` mirrors it,
 and the SQL in `drizzle/` is what actually runs. Change all three together:
 `npm run db:generate` writes a new migration from the Drizzle schema.

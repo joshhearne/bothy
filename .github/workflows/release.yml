@@ -24,6 +24,16 @@ jobs:
         with:
           fetch-depth: 0   # full history so the previous tag lookup works
 
+      # The footer shows package.json's version, so the tag has to be that
+      # version: bump package.json first, then tag.
+      - name: Tag matches package.json
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ "v${VERSION}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} but package.json says ${VERSION}. Run: npm version ${GITHUB_REF_NAME#v} --no-git-tag-version, commit, then tag."
+            exit 1
+          fi
+
       - name: Determine previous tag
         id: prev
         run: |

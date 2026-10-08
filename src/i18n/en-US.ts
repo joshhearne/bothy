@@ -32,6 +32,7 @@ export const enUS = {
     poweredBy: (product: string, vendor: string) =>
       `Powered by ${product} | ${vendor}`,
     source: "Source code",
+    version: "Version",
   },
 
   nav: {

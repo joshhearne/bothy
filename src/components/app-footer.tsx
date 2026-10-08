@@ -1,4 +1,5 @@
 import {
+  APP_VERSION,
   LICENSE,
   PRODUCT_NAME,
   SOURCE_URL,
@@ -82,6 +83,13 @@ export async function AppFooter({
         >
           {t.app.source}
         </a>
+        {/* Which release this is, where the people who run it will look. */}
+        {site === "app" && (
+          <>
+            <span aria-hidden>·</span>
+            <span title={t.app.version}>{`v${APP_VERSION}`}</span>
+          </>
+        )}
       </p>
     </footer>
   );
