@@ -4,6 +4,7 @@ import { getArticle, listCategories, listCollections, type KbReader } from "@/se
 import { userMayWrite } from "@/server/services/kb-write";
 import { getI18n } from "@/i18n/server";
 import { KbEditor } from "../../../kb-editor";
+import { isAdministrator } from "@/server/auth/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export default async function EditArticlePage({
   // Only an article with a name of its own can be written again under it.
   if (!article || !article.externalId || article.format !== "markdown") notFound();
   if (!(await userMayWrite(user, article.collectionId))) notFound();
-  const canMove = user.role === "admin";
+  const canMove = isAdministrator(user.role);
   const [categories, collections, { messages: t }] = await Promise.all([
     listCategories(article.collectionId, reader),
     canMove ? listCollections(reader) : Promise.resolve([]),

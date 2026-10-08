@@ -14,6 +14,7 @@ import { moveArticle, writeArticle } from "@/server/services/kb-write";
 import { listCategories } from "@/server/services/kb";
 import { setArticlePublicHidden } from "@/server/services/kb";
 import { setFavorite, setVote } from "@/server/services/kb-reactions";
+import { can, isAdministrator } from "@/server/auth/roles";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -74,7 +75,7 @@ async function writerFor() {
     grants: await grantsForUser(user.id),
     userId: user.id,
     userName: user.name,
-    admin: user.role === "admin",
+    admin: can(user.role, "kb.write"),
   };
 }
 
@@ -126,7 +127,7 @@ export async function saveArticleAction(_prev: FormState, formData: FormData): P
     // A change of collection is a move, which only an administrator with a fresh second step may make.
     if (articleIdGiven && fromCollectionId && fromCollectionId !== collectionId) {
       const user = await requireUser();
-      if (user.role !== "admin" || !hasRecentMfa(user)) return { error: "Unlock moving with your second step first" };
+      if (!isAdministrator(user.role) || !hasRecentMfa(user)) return { error: "Unlock moving with your second step first" };
       await moveArticle(articleIdGiven, collectionId, writer);
     }
     const result = await writeArticle(

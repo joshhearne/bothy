@@ -1,6 +1,7 @@
 import "server-only";
 import { env } from "@/lib/env";
 import { getCurrentUser, type CurrentUser } from "@/server/auth/session";
+import { isAdministrator } from "@/server/auth/roles";
 
 /**
  * The guard on the import routes. They are called by the administration page,
@@ -37,7 +38,7 @@ export async function requireAdminRequest(
   const user = await getCurrentUser();
   if (!user) return { response: refuse(401, "unauthorized", "Sign in first") };
   // Not found rather than forbidden: the routes are nobody else's business.
-  if (user.role !== "admin") return { response: refuse(404, "not_found", "Not found") };
+  if (!isAdministrator(user.role)) return { response: refuse(404, "not_found", "Not found") };
 
   return { user };
 }

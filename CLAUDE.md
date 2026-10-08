@@ -130,5 +130,10 @@ app, passkeys, recovery codes; required for admins after a week, offered to ever
 session is stamped and the sensitive pages ask again. Admins reset a person's factors from the
 UI. See docs/ARCHITECTURE.md.
 
+### Phase 16: Roles
+Roles are rows with a permission set (`roles`, `src/server/auth/permissions.ts`); the built-in
+three are fixed, custom ones any subset, chosen under Admin → Roles. Every check names its
+permission. "Administrator" means the role holds the admin area. See docs/ARCHITECTURE.md.
+
 ### Later
 Tags, multi-tenant, importers (Hudu, IT Glue CSV).

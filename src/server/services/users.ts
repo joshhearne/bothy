@@ -5,7 +5,8 @@ import { db } from "@/server/db";
 import { userCompanies, users } from "@/server/db/schema";
 import { writeAudit } from "@/server/services/audit";
 import { NotFoundError } from "@/server/services/companies";
-import { ROLES, type Role } from "@/server/auth/roles";
+import { type Role, isAdministrator, loadRoles } from "@/server/auth/roles";
+import { roleExists } from "@/server/services/roles";
 import { ALL_COMPANIES, only, type CompanyScope } from "@/server/auth/company-scope";
 import { SECRET_STYLES, type SecretStyle } from "@/lib/secret-style";
 
@@ -71,7 +72,8 @@ export async function companyScopeForUser(user: {
   role: string;
 }): Promise<CompanyScope> {
   // Admins are who grant access; restricting them would lock the instance.
-  if (user.role === "admin") return ALL_COMPANIES;
+  await loadRoles();
+  if (isAdministrator(user.role)) return ALL_COMPANIES;
 
   const [row] = await db
     .select({ allCompanies: users.allCompanies })
@@ -129,7 +131,7 @@ export async function setUserCompanies(
 }
 
 export async function setUserRole(id: string, role: Role, actorId: string): Promise<void> {
-  if (!(ROLES as readonly string[]).includes(role)) throw new Error("Unknown role");
+  if (!(await roleExists(role))) throw new Error("Unknown role");
 
   await db.transaction(async (tx) => {
     const [row] = await tx
@@ -186,7 +188,7 @@ export async function setSecretStyle(id: string, style: SecretStyle): Promise<vo
 export const provisionUserSchema = z.object({
   email: z.email().trim().toLowerCase().max(320),
   name: z.string().trim().min(1).max(200),
-  role: z.enum(ROLES).default("tech"),
+  role: z.string().trim().min(1).max(40).default("tech"),
   allCompanies: z.boolean().optional(),
 });
 
@@ -201,6 +203,8 @@ export async function provisionUser(
   actor: { userId?: string; apiKeyId?: string; apiKeyName?: string },
 ): Promise<{ id: string; created: boolean }> {
   const data = provisionUserSchema.parse(input);
+  if (!(await roleExists(data.role))) throw new Error("Unknown role");
+  await loadRoles();
   const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, data.email)).limit(1);
   if (existing) return { id: existing.id, created: false };
 
@@ -212,7 +216,7 @@ export async function provisionUser(
         email: data.email,
         role: data.role,
         emailVerified: false,
-        allCompanies: data.allCompanies ?? data.role === "admin",
+        allCompanies: data.allCompanies ?? isAdministrator(data.role),
       })
       .returning({ id: users.id });
     if (!user) throw new Error("Failed to create the user");

@@ -15,6 +15,7 @@ import { sourceKey, storeArticle } from "@/server/services/kb-import";
 import { safeUrl } from "@/server/kb/extract";
 import { grantsForUser, type KbGrant } from "@/server/services/kb-grants";
 import type { CompanyScope } from "@/server/auth/company-scope";
+import { can } from "@/server/auth/roles";
 
 /**
  * Writing to the knowledge base from outside the interface: an application's
@@ -291,7 +292,7 @@ export async function archiveArticle(articleId: string, writer: KbWriter): Promi
 
 /** Whether a signed-in person may write to a collection: an administrator anywhere, others where granted. */
 export async function userMayWrite(user: { id: string; role: string }, collectionId: string): Promise<boolean> {
-  if (user.role === "admin") return true;
+  if (can(user.role, "kb.write")) return true;
   return (await grantsForUser(user.id)).some((grant) => grant.collectionId === collectionId && grant.canWrite);
 }
 

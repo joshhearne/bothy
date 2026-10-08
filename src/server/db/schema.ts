@@ -36,13 +36,38 @@ const tsvector = customType<{ data: string; driverData: string }>({
 
 /* ---------- Identity ---------- */
 
+/**
+ * What a role may do. The three the product started with are rows like any
+ * other, marked built in: their powers are the product's word and the rows
+ * cannot be changed or archived. A role an administrator makes carries any
+ * subset of the permissions in src/server/auth/permissions.ts.
+ */
+export const roles = pgTable("roles", {
+  /** The value users.role holds: "admin", "tech", "readonly", or a slug the operator chose. */
+  key: text("key").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  permissions: text("permissions")
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  builtin: boolean("builtin").notNull().default(false),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .default(now),
+});
+
 export const users = pgTable(
   "users",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     email: text("email").notNull().unique(),
     name: text("name").notNull(),
-    role: text("role").notNull().default("tech"),
+    role: text("role")
+      .notNull()
+      .default("tech")
+      .references(() => roles.key),
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
     canRevealSecrets: boolean("can_reveal_secrets").notNull().default(false),
@@ -70,7 +95,6 @@ export const users = pgTable(
       .default(now),
   },
   (t) => [
-    check("users_role_check", sql`${t.role} IN ('admin','tech','readonly')`),
     check(
       "users_secret_style_check",
       sql`${t.secretStyle} IN ('on','colorblind','off')`,

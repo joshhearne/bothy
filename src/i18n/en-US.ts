@@ -48,6 +48,7 @@ export const enUS = {
     webhooks: "Webhooks",
     vault: "Vault",
     users: "Users",
+    roles: "Roles",
     notifications: "Notifications",
     settings: "Settings",
     auditLog: "Audit log",
@@ -1054,6 +1055,62 @@ export const enUS = {
       degraded: (status: string) =>
         `The sidecar is ${status}, so secret fields have degraded to link mode.`,
     },
+    roles: {
+      title: "Roles",
+      subtitle:
+        "What each role may do. The three the product started with are fixed; add a role of your own with any mix of the same powers.",
+      role: "Role",
+      holders: "People",
+      permissions: "Permissions",
+      builtin: "Built in",
+      builtinHint:
+        "A built-in role cannot be changed or retired. A role with the administration area is an administrator in every sense: it sees every company, must keep a second factor, and is who grants access.",
+      custom: "Your roles",
+      newRole: "New role",
+      newRoleHint:
+        "Named by you, with the powers you tick. People are given it under Users.",
+      key: "Key",
+      keyHint:
+        "How the role is named in the database and the API: lower case, letters, digits and hyphens. Made from the name unless you change it.",
+      description: "Description",
+      create: "Create role",
+      created: "Role created.",
+      save: "Save role",
+      archive: "Retire role",
+      inUse: (count: number) =>
+        count === 1
+          ? "1 person holds it; give them another role first."
+          : `${count} people hold it; give them another role first.`,
+      yes: "yes",
+      no: "no",
+      permission: {
+        "hierarchy.manage": {
+          name: "Companies",
+          hint: "Create, edit and archive companies and locations, and set their branding and timings.",
+        },
+        "documents.edit": {
+          name: "Documents",
+          hint: "Create and edit documents, add local fields, promote them, add dropdown options, attachments, racks, schedules and domain checks.",
+        },
+        "doc_types.manage": {
+          name: "Doc types",
+          hint: "Doc types, template fields, and the shared option lists themselves.",
+        },
+        "secrets.fields": {
+          name: "Secrets",
+          hint: "Works with secret fields; revealing one still needs the per-person permission.",
+        },
+        "kb.write": {
+          name: "KB writing",
+          hint: "Write knowledge base articles in any collection without a grant.",
+        },
+        "admin.area": {
+          name: "Admin area",
+          hint: "The whole administration area. Makes the role an administrator in every sense.",
+        },
+      },
+    },
+
     users: {
       title: "Users",
       subtitle:

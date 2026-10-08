@@ -8,6 +8,7 @@ import {
   Bell,
   BookOpen,
   Globe,
+  IdCard,
   KeyRound,
   Layers,
   ListTree,
@@ -34,6 +35,7 @@ export function AdminNav() {
 
   const sections: { href: Route; label: string; icon: typeof Users }[] = [
     { href: "/admin/users" as Route, label: t.nav.users, icon: Users },
+    { href: "/admin/roles" as Route, label: t.nav.roles, icon: IdCard },
     {
       href: "/admin/notifications" as Route,
       label: t.nav.notifications,

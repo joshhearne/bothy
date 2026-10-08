@@ -15,6 +15,7 @@ import { userMayWrite } from "@/server/services/kb-write";
 import { readerReaction } from "@/server/services/kb-reactions";
 import { getI18n } from "@/i18n/server";
 import { setArticlePublicHiddenAction, toggleFavoriteAction, voteAction } from "../../actions";
+import { isAdministrator } from "@/server/auth/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,7 @@ export default async function ArticlePage({
           )}
           {
             // Only worth saying where the collection is on the public site at all.
-            user.role === "admin" && article.collectionPublic ? (
+            isAdministrator(user.role) && article.collectionPublic ? (
               <form action={setArticlePublicHiddenAction} className="flex items-center gap-2">
                 <input type="hidden" name="id" value={article.id} />
                 {!article.publicHidden && <input type="hidden" name="hidden" value="on" />}

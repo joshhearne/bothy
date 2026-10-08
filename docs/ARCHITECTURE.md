@@ -49,10 +49,23 @@ API responses return resolved values (option labels, linked doc titles, rendered
 6. Archiving a field hides it everywhere; values stay in JSONB so revisions still render.
 7. Every save writes a `document_revisions` row and an `audit_log` row, and queues webhooks.
 
-## Permissions (v1)
+## Permissions
+A role is a row in `roles` carrying a set of named permissions
+(`src/server/auth/permissions.ts`): companies, documents, doc types, secret
+fields, knowledge base writing, and the administration area. The three the
+product started with are rows marked built in and fixed:
 - admin: everything, including deleting doc types and managing API keys/webhooks
 - tech: create/edit docs, add local fields, promote fields, add dropdown options
 - readonly: view only
+
+An administrator adds roles under Admin → Roles with any subset. Every check
+names its permission and reads the role's set from a copy held per request
+(`src/server/auth/roles.ts`: loaded once a request has a user, refreshed every
+thirty seconds, dropped when a role changes here). A role holding the
+administration area is an administrator in every sense: it sees every
+company, must keep a second factor, is excluded from grant lists, and is who
+grants access. Revealing a secret stays a per-person flag. A role is retired,
+never deleted, and only when nobody holds it.
 
 ## Per-company access (v2)
 A principal — a signed-in user or an API key — either sees every company or

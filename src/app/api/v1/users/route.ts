@@ -31,7 +31,7 @@ export const POST = withApi("admin", async ({ key, request }) => {
     {
       email: body.email as string,
       name: body.name as string,
-      role: body.role as "admin" | "tech" | "readonly" | undefined,
+      role: body.role as string | undefined,
       allCompanies: body.all_companies as boolean | undefined,
     },
     { apiKeyId: key.id, apiKeyName: key.name },

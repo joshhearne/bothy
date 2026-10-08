@@ -409,7 +409,7 @@ export function buildOpenApiDocument(baseUrl: string) {
             z.object({
               email: z.email(),
               name: z.string().min(1).max(200),
-              role: z.enum(["admin", "tech", "readonly"]).optional(),
+              role: z.string().optional(),
               all_companies: z.boolean().optional(),
             }),
           ),

@@ -814,3 +814,25 @@ CREATE UNIQUE INDEX company_sign_in_domains_domain_idx ON company_sign_in_domain
 -- An MSP may put its own name and logo on the public site's "Powered by"
 -- line in place of the vendor's. The licence and the source link stay.
 ALTER TABLE instance_branding ADD COLUMN kb_powered_by_name text;
+
+-- ---------- Roles as rows ----------
+-- The three roles the product started with become rows, marked built in and
+-- fixed; an administrator may add roles carrying any subset of the named
+-- permissions. users.role now names a row rather than one of three words.
+CREATE TABLE roles (
+  key          text PRIMARY KEY,
+  name         text NOT NULL,
+  description  text,
+  permissions  text[] NOT NULL DEFAULT '{}',
+  builtin      boolean NOT NULL DEFAULT false,
+  archived_at  timestamptz,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO roles (key, name, description, permissions, builtin) VALUES
+  ('admin', 'Administrator', 'Everything, including the administration area.',
+    '{hierarchy.manage,documents.edit,doc_types.manage,secrets.fields,kb.write,admin.area}', true),
+  ('tech', 'Technician', 'Creates and edits documents, adds local fields, promotes fields, adds dropdown options.',
+    '{documents.edit,secrets.fields}', true),
+  ('readonly', 'Read-only', 'Views what their companies allow.', '{}', true);
+ALTER TABLE users DROP CONSTRAINT users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_roles_key_fk FOREIGN KEY (role) REFERENCES roles(key);

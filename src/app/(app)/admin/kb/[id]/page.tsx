@@ -28,6 +28,7 @@ import {
   setUserGrantAction,
 } from "../../kb-actions";
 import { Select } from "@/components/ui/select";
+import { isAdministrator } from "@/server/auth/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -176,13 +177,13 @@ export default async function KbCollectionAdminPage({
           <h3 className="text-sm font-medium">{t.admin.kb.people}</h3>
           <p className="text-sm text-[var(--muted-foreground)]">{t.admin.kb.peopleHint}</p>
         </div>
-        {people.filter((person) => person.role !== "admin").length === 0 ? (
+        {people.filter((person) => !isAdministrator(person.role)).length === 0 ? (
           <p className="text-sm text-[var(--muted-foreground)]">{t.admin.kb.noPeople}</p>
         ) : (
           <>
             <ul className="flex flex-col divide-y rounded-md border">
               {people
-                .filter((person) => person.role !== "admin")
+                .filter((person) => !isAdministrator(person.role))
                 .map((person) => (
                   <li key={person.userId}>
                     <form action={setUserGrantAction} className="flex flex-wrap items-center gap-3 px-4 py-3">

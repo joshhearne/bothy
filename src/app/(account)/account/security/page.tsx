@@ -3,6 +3,7 @@ import { mfaDeadline, mfaStatus } from "@/server/services/mfa";
 import { formatDateTime } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
 import { SecurityPanels } from "./security-panels";
+import { isAdministrator } from "@/server/auth/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export default async function SecurityPage({
   const [status, { locale, messages: t }] = await Promise.all([mfaStatus(user.id), getI18n()]);
   const forced = (await searchParams).required === "1";
 
-  const due = user.role === "admin" && !status.enrolled ? await mfaDeadline(user.id) : null;
+  const due = isAdministrator(user.role) && !status.enrolled ? await mfaDeadline(user.id) : null;
   const deadline = due?.deadline ?? null;
   const overdue = due?.overdue ?? false;
 
@@ -63,7 +64,7 @@ export default async function SecurityPage({
           recoveryCodesLeft: status.recoveryCodesLeft,
           enrolled: status.enrolled,
         }}
-        mustKeepOne={user.role === "admin"}
+        mustKeepOne={isAdministrator(user.role)}
         afterFirst={forced || overdue ? "/" : null}
       />
     </div>

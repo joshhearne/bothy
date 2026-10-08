@@ -312,7 +312,7 @@ operator's to remove.
 
 ## Who can see which companies
 
-Roles say what somebody may do; company access says where. A user or an API key
+Roles say what somebody may do; company access says where. The three roles the product starts with are fixed; under **Admin → Roles** you can see what each may do and add roles of your own with any mix of the same powers. A user or an API key
 either sees every company or only the ones granted to it, under **Admin →
 Users** and on the key itself. Administrators are never restricted — they are
 who grants access.

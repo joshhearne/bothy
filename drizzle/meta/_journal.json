@@ -267,6 +267,13 @@
       "when": 1791474895677,
       "tag": "0037_kb_powered_by",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791478172337,
+      "tag": "0038_roles",
+      "breakpoints": true
     }
   ]
 }

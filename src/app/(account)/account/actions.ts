@@ -27,6 +27,7 @@ import {
   type TotpEnrollment,
 } from "@/server/services/mfa";
 import { getMessages } from "@/i18n/server";
+import { isAdministrator } from "@/server/auth/roles";
 
 /**
  * A person's own account. These run for somebody with a session whether or
@@ -88,7 +89,7 @@ export async function removeTotpAction(): Promise<void> {
   const user = await requireSession();
   const status = await mfaStatus(user.id);
   // An administrator keeps at least one; the page says so and hides the button.
-  if (user.role === "admin" && status.passkeys.length === 0) return;
+  if (isAdministrator(user.role) && status.passkeys.length === 0) return;
   await removeTotp(user);
   revalidatePath(PATH);
 }
@@ -130,7 +131,7 @@ export async function removePasskeyAction(formData: FormData): Promise<void> {
   const id = text(formData, "id");
   if (!id) return;
   const status = await mfaStatus(user.id);
-  if (user.role === "admin" && !status.totp && status.passkeys.length <= 1) return;
+  if (isAdministrator(user.role) && !status.totp && status.passkeys.length <= 1) return;
   await removePasskey(user, id);
   revalidatePath(PATH);
 }

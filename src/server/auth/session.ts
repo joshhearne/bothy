@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 
-import { ROLES, type Role } from "@/server/auth/roles";
+import { can, isAdministrator, loadRoles, ROLES, type Role } from "@/server/auth/roles";
+import type { Permission } from "@/server/auth/permissions";
 import { DEFAULT_SECRET_STYLE, isSecretStyle, type SecretStyle } from "@/lib/secret-style";
 import { ForbiddenError } from "@/server/services/errors";
 import { companyScopeForUser } from "@/server/services/users";
@@ -47,7 +48,7 @@ async function cameFrom(fallback: string): Promise<string> {
 }
 
 function toRole(value: unknown): Role {
-  return (ROLES as readonly string[]).includes(value as string) ? (value as Role) : "readonly";
+  return typeof value === "string" && value !== "" ? value : "readonly";
 }
 
 /** The signed-in user, or null. Says nothing about whether they have finished signing in. */
@@ -56,6 +57,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   if (!session) return null;
   const user = session.user;
   const verifiedAt = (session.session as { mfaVerifiedAt?: Date | string | null }).mfaVerifiedAt;
+  // The roles are read here, once a request has somebody, so that every
+  // synchronous check below answers from this request's copy.
+  await loadRoles();
   return {
     id: user.id,
     email: user.email,
@@ -102,7 +106,7 @@ export async function requireUser(): Promise<CurrentUser> {
     redirect(`/mfa?next=${encodeURIComponent(await cameFrom("/"))}` as Route);
   }
   if (user.mustChangePassword) redirect("/account/password?required=1" as Route);
-  if (user.role === "admin" && !user.mfa.enrolled) {
+  if (isAdministrator(user.role) && !user.mfa.enrolled) {
     const deadline = await mfaDeadlineFor(user.id);
     if (deadline.getTime() <= Date.now()) redirect("/account/security?required=1" as Route);
   }
@@ -148,35 +152,39 @@ export async function requireScopedUser(): Promise<{ user: CurrentUser; scope: C
 export { ForbiddenError } from "@/server/services/errors";
 
 /*
- * Permissions v1, straight from docs/ARCHITECTURE.md:
- *   admin    everything, including deleting doc types and managing API keys/webhooks
- *   tech     create/edit docs, add local fields, promote fields, add dropdown options
- *   readonly view only
- * Anything the spec does not grant tech is admin-only.
+ * What a role may do is a set of permissions on the role, read from the
+ * database and held per request (src/server/auth/roles.ts). The built-in
+ * roles carry exactly what docs/ARCHITECTURE.md gives them; a role an
+ * administrator makes carries what they chose. Each check below names the
+ * permission it is.
  */
 
-/** Companies and locations: not among tech's granted powers, so admin-only. */
+export { can, isAdministrator };
+export type { Permission };
+
+/** Companies and locations. */
 export function canManageHierarchy(role: Role): boolean {
-  return role === "admin";
+  return can(role, "hierarchy.manage");
 }
 
 /** Doc types, template fields, and option lists themselves. */
 export function canManageDocTypes(role: Role): boolean {
-  return role === "admin";
+  return can(role, "doc_types.manage");
 }
 
 /** Create and edit documents, add local fields, promote fields. */
 export function canEditDocuments(role: Role): boolean {
-  return role === "admin" || role === "tech";
+  return can(role, "documents.edit");
 }
 
 /** The inline "+" on a dropdown, which appends to a shared option list. */
 export function canAddOptionItems(role: Role): boolean {
-  return role === "admin" || role === "tech";
+  return can(role, "documents.edit");
 }
 
+/** The administration area and everything in it. */
 export function canManageIntegrations(role: Role): boolean {
-  return role === "admin";
+  return can(role, "admin.area");
 }
 
 /**
@@ -184,7 +192,12 @@ export function canManageIntegrations(role: Role): boolean {
  * a secret is coloured is theirs alone; a read-only viewer never sees one.
  */
 export function canUseSecretFields(role: Role): boolean {
-  return role === "admin" || role === "tech";
+  return can(role, "secrets.fields");
+}
+
+/** Writes knowledge base articles anywhere, without a grant. */
+export function canWriteKb(role: Role): boolean {
+  return can(role, "kb.write");
 }
 
 async function require(check: (role: Role) => boolean): Promise<CurrentUser> {
@@ -196,4 +209,4 @@ async function require(check: (role: Role) => boolean): Promise<CurrentUser> {
 export const requireHierarchyManager = () => require(canManageHierarchy);
 export const requireDocTypeManager = () => require(canManageDocTypes);
 export const requireDocumentEditor = () => require(canEditDocuments);
-export const requireAdmin = () => require((role) => role === "admin");
+export const requireAdmin = () => require(isAdministrator);

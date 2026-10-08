@@ -36,7 +36,7 @@ export async function createUserAction(_prev: FormState, formData: FormData): Pr
       {
         name: text(formData, "name") ?? "",
         email: text(formData, "email") ?? "",
-        role: (text(formData, "role") ?? "tech") as "admin" | "tech" | "readonly",
+        role: text(formData, "role") ?? "tech",
         password: String(formData.get("password") ?? ""),
       },
       admin.id,

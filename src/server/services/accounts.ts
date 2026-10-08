@@ -8,7 +8,8 @@ import { NotFoundError } from "@/server/services/errors";
 import { hashPassword, verifyPassword } from "@/server/services/password";
 import { checkPasswordBreach } from "@/server/auth/password-breach";
 import { checkPassword, MAX_PASSWORD_LENGTH, type PasswordRule } from "@/server/auth/password-policy";
-import { ROLES, type Role } from "@/server/auth/roles";
+import { type Role, isAdministrator, loadRoles } from "@/server/auth/roles";
+import { roleExists } from "@/server/services/roles";
 
 /**
  * Local accounts: the password a person signs in with, and what happens when
@@ -176,7 +177,7 @@ export async function setTemporaryPassword(
 export const newUserSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
   email: z.email("Enter a valid email address").max(320).transform((value) => value.toLowerCase()),
-  role: z.enum(ROLES),
+  role: z.string().trim().min(1).max(40),
   password: z.string().min(1, "Enter a temporary password").max(MAX_PASSWORD_LENGTH),
 });
 
@@ -193,6 +194,8 @@ export async function createLocalUser(
   actorId: string,
 ): Promise<string> {
   const data = newUserSchema.parse(input);
+  if (!(await roleExists(data.role))) throw new Error("Unknown role");
+  await loadRoles();
   await judgePassword(data.password, data);
   const hash = await hashPassword(data.password);
 
@@ -212,7 +215,7 @@ export async function createLocalUser(
         role: data.role as Role,
         emailVerified: false,
         mustChangePassword: true,
-        allCompanies: data.role === "admin",
+        allCompanies: isAdministrator(data.role),
       })
       .returning({ id: users.id });
     if (!user) throw new Error("Failed to create the user");
