@@ -42,6 +42,7 @@ export function CompanyDomainPolicyForm({
     { kind: "tls", label: t.documents.domain.tls },
     { kind: "rdap", label: t.documents.domain.rdap },
     { kind: "email", label: t.documents.domain.email },
+    { kind: "brand", label: t.documents.domain.brand },
   ];
   const describe = (days: number) =>
     days === 0 ? t.documents.domain.off : t.documents.domain.every(days);

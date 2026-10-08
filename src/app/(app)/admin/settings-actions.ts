@@ -74,6 +74,7 @@ export async function setDomainCheckPolicyAction(
         tls: text(formData, "tls"),
         rdap: text(formData, "rdap"),
         email: text(formData, "email"),
+        brand: text(formData, "brand"),
         tlsWarnDays: text(formData, "tlsWarnDays"),
       },
       user.id,

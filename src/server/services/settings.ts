@@ -218,6 +218,7 @@ export const domainCheckPolicySchema = z.object({
   tls: intervalDays,
   rdap: intervalDays,
   email: intervalDays,
+  brand: intervalDays,
   tlsWarnDays: z.coerce.number().int().min(1).max(INTERVAL_MAX_DAYS),
 });
 
@@ -231,6 +232,7 @@ export async function getDomainCheckPolicy(): Promise<CheckPolicy> {
       tls: instanceSettings.domainTlsIntervalDays,
       rdap: instanceSettings.domainRdapIntervalDays,
       email: instanceSettings.domainEmailIntervalDays,
+      brand: instanceSettings.domainBrandIntervalDays,
       tlsWarnDays: instanceSettings.domainTlsWarnDays,
     })
     .from(instanceSettings)
@@ -242,7 +244,13 @@ export async function getDomainCheckPolicy(): Promise<CheckPolicy> {
       tlsWarnDays: DEFAULT_TLS_WARN_DAYS,
     };
   return {
-    intervals: { dns: row.dns, tls: row.tls, rdap: row.rdap, email: row.email },
+    intervals: {
+      dns: row.dns,
+      tls: row.tls,
+      rdap: row.rdap,
+      email: row.email,
+      brand: row.brand,
+    },
     tlsWarnDays: row.tlsWarnDays,
   };
 }
@@ -257,6 +265,7 @@ export async function setDomainCheckPolicy(
     domainTlsIntervalDays: value.tls,
     domainRdapIntervalDays: value.rdap,
     domainEmailIntervalDays: value.email,
+    domainBrandIntervalDays: value.brand,
     domainTlsWarnDays: value.tlsWarnDays,
   };
 

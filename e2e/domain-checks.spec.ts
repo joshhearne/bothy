@@ -296,6 +296,7 @@ test("a record can opt out, and the instance can turn the worker off", async ({
     "TLS certificate",
     "Domain registration",
     "Email posture",
+    "Website branding",
   ]) {
     await page.getByLabel(kind).selectOption("0");
   }
@@ -320,7 +321,7 @@ test("a record can opt out, and the instance can turn the worker off", async ({
 
   // Leave the instance as it was found.
   psql(
-    `update instance_settings set domain_dns_interval_days = 1, domain_tls_interval_days = 1, domain_rdap_interval_days = 7, domain_email_interval_days = 7;`,
+    `update instance_settings set domain_dns_interval_days = 1, domain_tls_interval_days = 1, domain_rdap_interval_days = 7, domain_email_interval_days = 7, domain_brand_interval_days = 7;`,
   );
 });
 
@@ -443,7 +444,9 @@ test("what the last check flagged is listed under Notifications", async ({
   await expect(item.getByText("The domain does not resolve.")).toBeVisible();
 });
 
-test("a record can name its own DKIM selectors, which are kept tidy", async ({ page }) => {
+test("a record can name its own DKIM selectors, which are kept tidy", async ({
+  page,
+}) => {
   await page.goto(`/documents/${documentId}`);
   await page
     .getByRole("textbox", { name: "DKIM selectors" })
@@ -451,11 +454,40 @@ test("a record can name its own DKIM selectors, which are kept tidy", async ({ p
   await page.getByRole("button", { name: "Save choices" }).click();
   await expect
     .poll(() =>
-      psql(`select dkim_selectors from domain_checks where document_id = '${documentId}';`),
+      psql(
+        `select dkim_selectors from domain_checks where document_id = '${documentId}';`,
+      ),
     )
     .toBe("selector1, ppe-1");
   await page.reload();
-  await expect(page.getByRole("textbox", { name: "DKIM selectors" })).toHaveValue(
-    "selector1, ppe-1",
-  );
+  await expect(
+    page.getByRole("textbox", { name: "DKIM selectors" }),
+  ).toHaveValue("selector1, ppe-1");
+});
+
+test("the website branding check reports a site it cannot reach, and the company page says so", async ({
+  page,
+}) => {
+  await page.goto(`/documents/${documentId}`);
+  await page.getByRole("checkbox", { name: "Website branding" }).check();
+  await page.getByRole("button", { name: "Save choices" }).click();
+  await expect
+    .poll(() =>
+      psql(
+        `select brand from domain_checks where document_id = '${documentId}';`,
+      ),
+    )
+    .toBe("t");
+  await page.getByRole("button", { name: "Check now" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Website branding" }),
+  ).toBeVisible();
+  expect(
+    psql(
+      `select result -> 'brand' ->> 'ok' from domain_checks where document_id = '${documentId}';`,
+    ),
+  ).toBe("false");
+
+  await page.goto(`/companies/${companyId}/edit`);
+  await expect(page.getByText("No website branding yet.")).toBeVisible();
 });

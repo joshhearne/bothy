@@ -216,6 +216,17 @@ over RDAP, and whether SPF, DMARC and DKIM are published.
   renews on its own (`tls_auto_renews`): then its expiry is no cause for alarm
   and nothing is announced, unless the record also sets a notice, which means
   "warn me anyway". Registration keeps a fixed 60-day notice.
+- A fifth kind, **website branding**, reads the site's front page the way
+  the knowledge base crawler reads a page (`src/server/kb/fetch.ts`: every
+  hop resolved, private addresses refused, the vetted address connected to)
+  and keeps its title, theme colour, icons and manifest
+  (`src/server/domain/brand.ts`). Nothing is applied by itself: the company's
+  edit page lists every domain record's findings and an administrator picks
+  one, whose icon becomes the logo (fetched the same safe way, sniffed, PNG,
+  JPEG or WebP only, 1 MB) and whose colour the accent
+  (`src/server/services/company-brand.ts`). With several websites the record
+  chosen is remembered (`companies.brand_domain_document_id`). Icons are
+  drawn through the record's own route, never hotlinked from a client's site.
 - Mail posture is shown as a table: the check, what was found, and the
   record itself. A DKIM key lives under a selector that cannot be listed, so
   the common selectors are tried and a record may name its own

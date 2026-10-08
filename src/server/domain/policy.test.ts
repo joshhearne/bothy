@@ -16,7 +16,7 @@ const instance: CheckPolicy = {
   intervals: DEFAULT_INTERVALS,
   tlsWarnDays: DEFAULT_TLS_WARN_DAYS,
 };
-const all = { dns: true, tls: true, rdap: true, email: true };
+const all = { dns: true, tls: true, rdap: true, email: true, brand: true };
 const now = new Date("2026-10-08T12:00:00Z");
 const day = 86_400_000;
 
@@ -32,7 +32,7 @@ describe("resolvePolicy", () => {
     const company = { intervals: { dns: 3, rdap: 30 }, tlsWarnDays: 14 };
     const record = { intervals: { dns: 1, email: null }, tlsWarnDays: null };
     expect(resolvePolicy(instance, company, record)).toEqual({
-      intervals: { dns: 1, tls: 1, rdap: 30, email: 7 },
+      intervals: { dns: 1, tls: 1, rdap: 30, email: 7, brand: 7 },
       tlsWarnDays: 14,
     });
   });
@@ -70,7 +70,7 @@ describe("certificateWarnDays", () => {
 describe("activeKinds and dueKinds", () => {
   it("skips kinds that are off or not chosen", () => {
     const policy = resolvePolicy(instance, { intervals: { rdap: 0 } }, null);
-    expect(activeKinds({ ...all, email: false }, policy)).toEqual([
+    expect(activeKinds({ ...all, email: false, brand: false }, policy)).toEqual([
       "dns",
       "tls",
     ]);
@@ -87,7 +87,7 @@ describe("activeKinds and dueKinds", () => {
       },
       now,
     );
-    expect(due).toEqual(["dns", "rdap", "email"]);
+    expect(due).toEqual(["dns", "rdap", "email", "brand"]);
   });
 });
 

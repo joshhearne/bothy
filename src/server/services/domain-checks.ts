@@ -156,13 +156,14 @@ function takeToken(): boolean {
 type CheckRow = typeof domainChecks.$inferSelect;
 
 function selectionOf(
-  row: Pick<CheckRow, "dns" | "tls" | "rdap" | "email"> | undefined,
+  row: Pick<CheckRow, "dns" | "tls" | "rdap" | "email" | "brand"> | undefined,
 ): CheckSelection {
   return {
     dns: row?.dns ?? false,
     tls: row?.tls ?? false,
     rdap: row?.rdap ?? false,
     email: row?.email ?? false,
+    brand: row?.brand ?? false,
   };
 }
 
@@ -173,6 +174,7 @@ function recordPolicyOf(row: CheckRow | undefined): RecordPolicy {
       tls: row?.tlsIntervalDays ?? null,
       rdap: row?.rdapIntervalDays ?? null,
       email: row?.emailIntervalDays ?? null,
+      brand: row?.brandIntervalDays ?? null,
     },
     tlsAutoRenews: row?.tlsAutoRenews ?? false,
     tlsWarnDays: row?.tlsWarnDays ?? null,
@@ -186,6 +188,7 @@ function nextRunsOf(row: CheckRow | undefined): Record<CheckKind, Date | null> {
     tls: row?.tlsNextRunAt ?? null,
     rdap: row?.rdapNextRunAt ?? null,
     email: row?.emailNextRunAt ?? null,
+    brand: row?.brandNextRunAt ?? null,
   };
 }
 
@@ -195,6 +198,7 @@ function nextRunColumns(next: Record<CheckKind, Date | null>) {
     tlsNextRunAt: next.tls,
     rdapNextRunAt: next.rdap,
     emailNextRunAt: next.email,
+    brandNextRunAt: next.brand,
     nextRunAt: soonest(next),
   };
 }
@@ -216,6 +220,7 @@ async function policyFor(
         domainTlsIntervalDays: companies.domainTlsIntervalDays,
         domainRdapIntervalDays: companies.domainRdapIntervalDays,
         domainEmailIntervalDays: companies.domainEmailIntervalDays,
+        domainBrandIntervalDays: companies.domainBrandIntervalDays,
         domainTlsWarnDays: companies.domainTlsWarnDays,
       })
       .from(companies)
@@ -368,6 +373,7 @@ export async function setDomainChecks(
       tls: intervalOrNull(automation.intervals.tls, 1),
       rdap: intervalOrNull(automation.intervals.rdap, 1),
       email: intervalOrNull(automation.intervals.email, 1),
+      brand: intervalOrNull(automation.intervals.brand, 1),
     },
     tlsAutoRenews: automation.tlsAutoRenews,
     tlsWarnDays: intervalOrNull(automation.tlsWarnDays, 1),
@@ -395,6 +401,7 @@ export async function setDomainChecks(
     tlsIntervalDays: own.intervals.tls,
     rdapIntervalDays: own.intervals.rdap,
     emailIntervalDays: own.intervals.email,
+    brandIntervalDays: own.intervals.brand,
     tlsAutoRenews: own.tlsAutoRenews,
     tlsWarnDays: own.tlsWarnDays,
     dkimSelectors:
@@ -479,6 +486,7 @@ async function performCheck(input: {
     tls: false,
     rdap: false,
     email: false,
+    brand: false,
   };
   for (const kind of kinds) ran[kind] = true;
   const fresh = await runChecks(domain, ran, {
@@ -603,7 +611,7 @@ export async function runDomainCheck(
   const anything = CHECK_KINDS.some((kind) => state.selection[kind]);
   const selection = anything
     ? state.selection
-    : { dns: true, tls: true, rdap: false, email: false };
+    : { dns: true, tls: true, rdap: false, email: false, brand: false };
 
   return performCheck({
     documentId,
@@ -646,6 +654,7 @@ export async function runDueDomainChecks(limit = 25): Promise<number> {
         domainTlsIntervalDays: companies.domainTlsIntervalDays,
         domainRdapIntervalDays: companies.domainRdapIntervalDays,
         domainEmailIntervalDays: companies.domainEmailIntervalDays,
+        domainBrandIntervalDays: companies.domainBrandIntervalDays,
         domainTlsWarnDays: companies.domainTlsWarnDays,
       },
     })
@@ -661,6 +670,7 @@ export async function runDueDomainChecks(limit = 25): Promise<number> {
           domainChecks.tls,
           domainChecks.rdap,
           domainChecks.email,
+          domainChecks.brand,
         ),
         or(isNull(domainChecks.nextRunAt), lte(domainChecks.nextRunAt, now)),
       ),

@@ -6,6 +6,8 @@ import {
 } from "@/server/services/companies";
 import { getDomainCheckPolicy } from "@/server/services/settings";
 import { CompanyDomainPolicyForm } from "../../domain-policy-form";
+import { BrandFromDomain } from "../../brand-from-domain";
+import { listBrandCandidates } from "@/server/services/company-brand";
 import { getMessages } from "@/i18n/server";
 import { getCompanyBranding, LOGO_ACCEPT } from "@/server/services/branding";
 import { CompanyBrandingForm } from "@/app/(app)/admin/branding-forms";
@@ -26,12 +28,14 @@ export default async function EditCompanyPage({
 
   const company = await getCompany(id, scope);
   if (!company) notFound();
-  const [t, branding, domainPolicy, instancePolicy] = await Promise.all([
-    getMessages(),
-    getCompanyBranding(id, scope),
-    getCompanyDomainPolicy(id, scope),
-    getDomainCheckPolicy(),
-  ]);
+  const [t, branding, domainPolicy, instancePolicy, brandCandidates] =
+    await Promise.all([
+      getMessages(),
+      getCompanyBranding(id, scope),
+      getCompanyDomainPolicy(id, scope),
+      getDomainCheckPolicy(),
+      listBrandCandidates(id, scope),
+    ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -66,6 +70,17 @@ export default async function EditCompanyPage({
           accept={LOGO_ACCEPT}
           hasLogo={branding.logoUrl !== null}
         />
+
+        <div className="flex flex-col gap-2 pt-2">
+          <h3 className="text-sm font-medium">{t.companies.brandFromDomain}</h3>
+          <p className="text-sm text-[var(--muted-foreground)]">
+            {t.companies.brandFromDomainHint}
+          </p>
+          <BrandFromDomain
+            companyId={company.id}
+            candidates={brandCandidates}
+          />
+        </div>
 
         {(["primary", "alt"] as const).map(
           (slot) =>

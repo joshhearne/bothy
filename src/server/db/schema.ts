@@ -222,7 +222,10 @@ export const companies = pgTable(
     domainTlsIntervalDays: integer("domain_tls_interval_days"),
     domainRdapIntervalDays: integer("domain_rdap_interval_days"),
     domainEmailIntervalDays: integer("domain_email_interval_days"),
+    domainBrandIntervalDays: integer("domain_brand_interval_days"),
     domainTlsWarnDays: integer("domain_tls_warn_days"),
+    /** The domain record whose website branding was last applied as this company's theme. */
+    brandDomainDocumentId: uuid("brand_domain_document_id"),
     archivedAt: timestamp("archived_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -235,6 +238,7 @@ export const companies = pgTable(
       AND (${t.domainTlsIntervalDays} IS NULL OR ${t.domainTlsIntervalDays} BETWEEN 0 AND 365)
       AND (${t.domainRdapIntervalDays} IS NULL OR ${t.domainRdapIntervalDays} BETWEEN 0 AND 365)
       AND (${t.domainEmailIntervalDays} IS NULL OR ${t.domainEmailIntervalDays} BETWEEN 0 AND 365)
+      AND (${t.domainBrandIntervalDays} IS NULL OR ${t.domainBrandIntervalDays} BETWEEN 0 AND 365)
       AND (${t.domainTlsWarnDays} IS NULL OR ${t.domainTlsWarnDays} BETWEEN 1 AND 365)`,
     ),
   ],
@@ -566,6 +570,8 @@ export const domainChecks = pgTable(
     tls: boolean("tls").notNull().default(false),
     rdap: boolean("rdap").notNull().default(false),
     email: boolean("email").notNull().default(false),
+    /** The website's own branding: icons and colours offered to the company's theme. */
+    brand: boolean("brand").notNull().default(false),
     /** The last result, as rendered. Never anything secret: these are public records. */
     result: jsonb("result"),
     checkedAt: timestamp("checked_at", { withTimezone: true }),
@@ -578,11 +584,13 @@ export const domainChecks = pgTable(
     tlsIntervalDays: integer("tls_interval_days"),
     rdapIntervalDays: integer("rdap_interval_days"),
     emailIntervalDays: integer("email_interval_days"),
+    brandIntervalDays: integer("brand_interval_days"),
     /** Each kind's own clock; next_run_at is the soonest of them, for the worker's query. */
     dnsNextRunAt: timestamp("dns_next_run_at", { withTimezone: true }),
     tlsNextRunAt: timestamp("tls_next_run_at", { withTimezone: true }),
     rdapNextRunAt: timestamp("rdap_next_run_at", { withTimezone: true }),
     emailNextRunAt: timestamp("email_next_run_at", { withTimezone: true }),
+    brandNextRunAt: timestamp("brand_next_run_at", { withTimezone: true }),
     nextRunAt: timestamp("next_run_at", { withTimezone: true }),
     /**
      * The certificate renews on its own (ACME, a managed host), so its expiry
@@ -615,6 +623,7 @@ export const domainChecks = pgTable(
         AND (${t.tlsIntervalDays} IS NULL OR ${t.tlsIntervalDays} BETWEEN 1 AND 365)
         AND (${t.rdapIntervalDays} IS NULL OR ${t.rdapIntervalDays} BETWEEN 1 AND 365)
         AND (${t.emailIntervalDays} IS NULL OR ${t.emailIntervalDays} BETWEEN 1 AND 365)
+        AND (${t.brandIntervalDays} IS NULL OR ${t.brandIntervalDays} BETWEEN 1 AND 365)
         AND (${t.tlsWarnDays} IS NULL OR ${t.tlsWarnDays} BETWEEN 1 AND 365)`,
     ),
     index("domain_checks_next_run_idx").on(t.nextRunAt),
@@ -664,6 +673,9 @@ export const instanceSettings = pgTable(
     domainEmailIntervalDays: integer("domain_email_interval_days")
       .notNull()
       .default(7),
+    domainBrandIntervalDays: integer("domain_brand_interval_days")
+      .notNull()
+      .default(7),
     /** Days ahead of a certificate's expiry to warn, unless a company or record says otherwise. */
     domainTlsWarnDays: integer("domain_tls_warn_days").notNull().default(30),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -683,6 +695,7 @@ export const instanceSettings = pgTable(
         AND ${t.domainTlsIntervalDays} BETWEEN 0 AND 365
         AND ${t.domainRdapIntervalDays} BETWEEN 0 AND 365
         AND ${t.domainEmailIntervalDays} BETWEEN 0 AND 365
+        AND ${t.domainBrandIntervalDays} BETWEEN 0 AND 365
         AND ${t.domainTlsWarnDays} BETWEEN 1 AND 365`,
     ),
   ],

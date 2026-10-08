@@ -765,3 +765,35 @@ ALTER TABLE domain_checks ADD CONSTRAINT domain_checks_intervals_check CHECK (
 -- A DKIM key lives under a selector that cannot be listed, so the common ones
 -- are tried and a record may name its own, comma separated, to try as well.
 ALTER TABLE domain_checks ADD COLUMN dkim_selectors text;
+
+-- ---------- Website branding as a fifth kind of domain check ----------
+-- A record may read its website's own look: title, theme colour, icons, and
+-- the manifest. What it finds is offered to the company's theme; the record
+-- whose look was applied is remembered so the choice can be shown and remade.
+ALTER TABLE instance_settings ADD COLUMN domain_brand_interval_days int NOT NULL DEFAULT 7;
+ALTER TABLE instance_settings DROP CONSTRAINT instance_settings_domain_intervals_check;
+ALTER TABLE instance_settings ADD CONSTRAINT instance_settings_domain_intervals_check CHECK (
+  domain_dns_interval_days BETWEEN 0 AND 365 AND domain_tls_interval_days BETWEEN 0 AND 365
+  AND domain_rdap_interval_days BETWEEN 0 AND 365 AND domain_email_interval_days BETWEEN 0 AND 365
+  AND domain_brand_interval_days BETWEEN 0 AND 365 AND domain_tls_warn_days BETWEEN 1 AND 365);
+ALTER TABLE companies ADD COLUMN domain_brand_interval_days int;
+ALTER TABLE companies ADD COLUMN brand_domain_document_id uuid;
+ALTER TABLE companies DROP CONSTRAINT companies_domain_intervals_check;
+ALTER TABLE companies ADD CONSTRAINT companies_domain_intervals_check CHECK (
+  (domain_dns_interval_days IS NULL OR domain_dns_interval_days BETWEEN 0 AND 365)
+  AND (domain_tls_interval_days IS NULL OR domain_tls_interval_days BETWEEN 0 AND 365)
+  AND (domain_rdap_interval_days IS NULL OR domain_rdap_interval_days BETWEEN 0 AND 365)
+  AND (domain_email_interval_days IS NULL OR domain_email_interval_days BETWEEN 0 AND 365)
+  AND (domain_brand_interval_days IS NULL OR domain_brand_interval_days BETWEEN 0 AND 365)
+  AND (domain_tls_warn_days IS NULL OR domain_tls_warn_days BETWEEN 1 AND 365));
+ALTER TABLE domain_checks ADD COLUMN brand boolean NOT NULL DEFAULT false;
+ALTER TABLE domain_checks ADD COLUMN brand_interval_days int;
+ALTER TABLE domain_checks ADD COLUMN brand_next_run_at timestamptz;
+ALTER TABLE domain_checks DROP CONSTRAINT domain_checks_intervals_check;
+ALTER TABLE domain_checks ADD CONSTRAINT domain_checks_intervals_check CHECK (
+  (dns_interval_days IS NULL OR dns_interval_days BETWEEN 1 AND 365)
+  AND (tls_interval_days IS NULL OR tls_interval_days BETWEEN 1 AND 365)
+  AND (rdap_interval_days IS NULL OR rdap_interval_days BETWEEN 1 AND 365)
+  AND (email_interval_days IS NULL OR email_interval_days BETWEEN 1 AND 365)
+  AND (brand_interval_days IS NULL OR brand_interval_days BETWEEN 1 AND 365)
+  AND (tls_warn_days IS NULL OR tls_warn_days BETWEEN 1 AND 365));

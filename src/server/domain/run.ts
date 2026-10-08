@@ -5,6 +5,12 @@ import { isWorkers } from "@/lib/runtime";
 import { PRODUCT_NAME, SOURCE_URL } from "@/lib/app-meta";
 import { publicOnly } from "@/server/domain/addresses";
 import { orderDns } from "@/server/domain/order";
+import { fetchPublic, FetchRefusedError } from "@/server/kb/fetch";
+import {
+  parseBrandHtml,
+  parseManifest,
+  type BrandSummary,
+} from "@/server/domain/brand";
 import {
   certificateFindings,
   daysUntil,
@@ -66,6 +72,7 @@ export type DomainCheckResult = {
   tls?: Section<CertificateSummary>;
   rdap?: Section<RegistrationSummary>;
   email?: Section<EmailSummary>;
+  brand?: Section<BrandSummary>;
 };
 
 export type CheckSelection = {
@@ -73,6 +80,7 @@ export type CheckSelection = {
   tls: boolean;
   rdap: boolean;
   email: boolean;
+  brand: boolean;
 };
 
 export type RunOptions = {
@@ -325,17 +333,108 @@ async function runEmail(
   return { ok: true, data, findings: emailFindings(data) };
 }
 
+/** A manifest is small; anything bigger is not one. */
+const MAX_MANIFEST_BYTES = 256 * 1024;
+
+/**
+ * The website's own branding: its front page's head, and the manifest it
+ * points at. Fetched the way the knowledge base crawler fetches, so every
+ * hop resolves first, refuses a private address, and connects to the address
+ * it checked. https is tried, then plain http for a site that has none.
+ */
+async function runBrand(domain: string): Promise<Section<BrandSummary>> {
+  if (isWorkers()) return unavailable();
+
+  let page: Awaited<ReturnType<typeof fetchPublic>> | null = null;
+  let refused: string | null = null;
+  for (const scheme of ["https", "http"]) {
+    try {
+      const got = await fetchPublic(`${scheme}://${domain}/`);
+      if (got.status >= 200 && got.status < 300) {
+        page = got;
+        break;
+      }
+      refused = `The site answered ${got.status}.`;
+    } catch (error) {
+      refused =
+        error instanceof FetchRefusedError
+          ? error.message
+          : "The site could not be reached.";
+    }
+  }
+  if (!page)
+    return { ok: false, error: refused ?? "The site could not be reached." };
+  if (!/html/i.test(page.contentType ?? "")) {
+    return { ok: false, error: "The front page is not an HTML page." };
+  }
+
+  const data = parseBrandHtml(page.body.toString("utf8"), page.url);
+
+  if (data.manifestUrl) {
+    try {
+      const manifest = await fetchPublic(
+        data.manifestUrl,
+        "application/manifest+json,application/json,*/*;q=0.5",
+      );
+      if (
+        manifest.status >= 200 &&
+        manifest.status < 300 &&
+        manifest.body.byteLength <= MAX_MANIFEST_BYTES
+      ) {
+        const extra = parseManifest(
+          JSON.parse(manifest.body.toString("utf8")),
+          manifest.url,
+        );
+        for (const color of extra.colors)
+          if (!data.colors.includes(color)) data.colors.push(color);
+        for (const icon of extra.icons) {
+          if (!data.icons.some((seen) => seen.url === icon.url))
+            data.icons.push(icon);
+        }
+      }
+    } catch {
+      // A manifest that will not parse or fetch takes nothing away from the page.
+    }
+  }
+
+  const findings: Finding[] = [];
+  if (data.icons.length === 0 && data.colors.length === 0) {
+    findings.push({
+      severity: "warn",
+      message: "The site publishes no icon and no theme colour.",
+    });
+  } else {
+    const parts: string[] = [];
+    if (data.icons.length > 0) {
+      parts.push(
+        `${data.icons.length} icon${data.icons.length === 1 ? "" : "s"}`,
+      );
+    }
+    if (data.colors.length > 0) {
+      parts.push(
+        `${data.colors.length} colour${data.colors.length === 1 ? "" : "s"}`,
+      );
+    }
+    findings.push({
+      severity: "ok",
+      message: `The site publishes ${parts.join(" and ")}.`,
+    });
+  }
+  return { ok: true, data, findings };
+}
+
 /** Runs the checks that are turned on, in parallel, and never throws. */
 export async function runChecks(
   domain: string,
   selection: CheckSelection,
   options: RunOptions = {},
 ): Promise<DomainCheckResult> {
-  const [dns, tls, rdap, email] = await Promise.all([
+  const [dns, tls, rdap, email, brand] = await Promise.all([
     selection.dns ? runDns(domain) : undefined,
     selection.tls ? runTls(domain, options.certificate) : undefined,
     selection.rdap ? runRdap(domain) : undefined,
     selection.email ? runEmail(domain, options.dkimSelectors) : undefined,
+    selection.brand ? runBrand(domain) : undefined,
   ]);
 
   const checkedAt = new Date().toISOString();
@@ -344,6 +443,7 @@ export async function runChecks(
   if (tls) checked.tls = checkedAt;
   if (rdap) checked.rdap = checkedAt;
   if (email) checked.email = checkedAt;
+  if (brand) checked.brand = checkedAt;
 
   return {
     domain,
@@ -353,5 +453,6 @@ export async function runChecks(
     ...(tls ? { tls } : {}),
     ...(rdap ? { rdap } : {}),
     ...(email ? { email } : {}),
+    ...(brand ? { brand } : {}),
   };
 }

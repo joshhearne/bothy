@@ -244,6 +244,19 @@ export const enUS = {
     domainChecksHint:
       "Timings for this company's domain records. Whatever is left on the instance default follows Admin → Settings; a record can still set its own.",
     domainChecksSave: "Update domain checks",
+    brandFromDomain: "From the company's websites",
+    brandFromDomainHint:
+      "What each website publishes about its own look, read by the Website branding check on the company's domain records. Pick one to make it the company theme; with several websites, the one chosen is marked.",
+    brandFromDomainEmpty:
+      "No website branding yet. Turn on the Website branding check on one of this company's domain records and run it.",
+    brandApplied: "Applied",
+    brandLogo: "Logo",
+    brandAccent: "Accent",
+    brandKeep: "Keep current",
+    brandNoRaster:
+      "The site offers no PNG, JPEG or WebP icon; an ICO or SVG cannot be a logo here.",
+    brandNoColor: "The site publishes no theme colour.",
+    brandApply: "Use as company theme",
     title: "Companies",
     empty: "No companies yet. Create one to start documenting.",
     noneGranted:
@@ -402,6 +415,11 @@ export const enUS = {
       rdapHint:
         "The registry's own record: registrar, expiry, and transfer lock.",
       email: "Email posture",
+      brand: "Website branding",
+      brandHint:
+        "The site's own title, theme colour and icons, offered to the company's branding.",
+      brandApplyHint:
+        "Apply a website's look as the company theme from the company's edit page.",
       emailHint:
         "Whether SPF, DMARC and DKIM are published, and what DMARC enforces.",
       save: "Save choices",

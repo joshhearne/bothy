@@ -33,6 +33,7 @@ export async function setCompanyDomainPolicyAction(
         tls: days(formData, "tls"),
         rdap: days(formData, "rdap"),
         email: days(formData, "email"),
+        brand: days(formData, "brand"),
         tlsWarnDays: days(formData, "tlsWarnDays"),
       },
       user.id,

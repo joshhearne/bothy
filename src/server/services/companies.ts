@@ -38,6 +38,7 @@ export const companyDomainPolicySchema = z.object({
   tls: overrideDays,
   rdap: overrideDays,
   email: overrideDays,
+  brand: overrideDays,
   tlsWarnDays: z.coerce.number().int().min(1).max(INTERVAL_MAX_DAYS).nullable(),
 });
 
@@ -50,6 +51,7 @@ type CompanyPolicyRow = {
   domainTlsIntervalDays: number | null;
   domainRdapIntervalDays: number | null;
   domainEmailIntervalDays: number | null;
+  domainBrandIntervalDays: number | null;
   domainTlsWarnDays: number | null;
 };
 
@@ -63,6 +65,7 @@ export function companyPolicyOf(
       tls: row?.domainTlsIntervalDays ?? null,
       rdap: row?.domainRdapIntervalDays ?? null,
       email: row?.domainEmailIntervalDays ?? null,
+      brand: row?.domainBrandIntervalDays ?? null,
     },
     tlsWarnDays: row?.domainTlsWarnDays ?? null,
   };
@@ -79,6 +82,7 @@ export async function getCompanyDomainPolicy(
       domainTlsIntervalDays: companies.domainTlsIntervalDays,
       domainRdapIntervalDays: companies.domainRdapIntervalDays,
       domainEmailIntervalDays: companies.domainEmailIntervalDays,
+      domainBrandIntervalDays: companies.domainBrandIntervalDays,
       domainTlsWarnDays: companies.domainTlsWarnDays,
     })
     .from(companies)
@@ -110,6 +114,7 @@ export async function setCompanyDomainPolicy(
         domainTlsIntervalDays: data.tls,
         domainRdapIntervalDays: data.rdap,
         domainEmailIntervalDays: data.email,
+        domainBrandIntervalDays: data.brand,
         domainTlsWarnDays: data.tlsWarnDays,
       })
       .where(eq(companies.id, id))

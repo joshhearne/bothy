@@ -294,6 +294,76 @@ function EmailTable({
   );
 }
 
+/**
+ * What the website says it looks like. Icons are drawn through the record's
+ * own route, which fetches them the safe way, never straight from the site.
+ */
+function BrandPreview({
+  documentId,
+  brand,
+}: {
+  documentId: string;
+  brand: {
+    pageUrl: string;
+    title: string | null;
+    colors: string[];
+    icons: { url: string; source: string; sizes: string | null }[];
+  };
+}) {
+  const t = useMessages();
+  return (
+    <div className="flex flex-col gap-2 text-sm">
+      {brand.title && (
+        <p className="text-[var(--muted-foreground)]">{brand.title}</p>
+      )}
+      {brand.colors.length > 0 && (
+        <ul className="flex flex-wrap items-center gap-2">
+          {brand.colors.map((color) => (
+            <li
+              key={color}
+              className="inline-flex items-center gap-1.5 font-mono text-xs"
+            >
+              <span
+                aria-hidden
+                className="size-4 rounded border"
+                style={{ backgroundColor: color }}
+              />
+              {color}
+            </li>
+          ))}
+        </ul>
+      )}
+      {brand.icons.length > 0 && (
+        <ul className="flex flex-wrap items-end gap-3">
+          {brand.icons.map((icon, index) => (
+            <li
+              key={icon.url}
+              className="flex flex-col items-center gap-1 text-xs text-[var(--muted-foreground)]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`/api/documents/${documentId}/brand-icon?i=${index}`}
+                alt=""
+                width={48}
+                height={48}
+                className="size-12 rounded border object-contain"
+                loading="lazy"
+              />
+              <span>
+                {icon.source}
+                {icon.sizes ? ` ${icon.sizes}` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-xs text-[var(--muted-foreground)]">
+        {t.documents.domain.brandApplyHint}
+      </p>
+    </div>
+  );
+}
+
 function RunButton({ label, busy }: { label: string; busy: string }) {
   const { pending } = useFormStatus();
   return (
@@ -400,6 +470,11 @@ export function DomainPanel({
       kind: "email",
       label: t.documents.domain.email,
       hint: t.documents.domain.emailHint,
+    },
+    {
+      kind: "brand",
+      label: t.documents.domain.brand,
+      hint: t.documents.domain.brandHint,
     },
   ];
   const anythingChosen = kinds.some(({ kind }) => state.selection[kind]);
@@ -764,6 +839,16 @@ export function DomainPanel({
                 data={result.email.data}
                 findings={result.email.findings}
               />
+            )}
+          </Section>
+
+          <Section
+            title={t.documents.domain.brand}
+            section={result.brand}
+            meta={sectionMeta("brand")}
+          >
+            {result.brand?.ok && (
+              <BrandPreview documentId={documentId} brand={result.brand.data} />
             )}
           </Section>
         </div>

@@ -9,7 +9,7 @@
  * service only fetches the three layers and stores what comes back.
  */
 
-export const CHECK_KINDS = ["dns", "tls", "rdap", "email"] as const;
+export const CHECK_KINDS = ["dns", "tls", "rdap", "email", "brand"] as const;
 
 export type CheckKind = (typeof CHECK_KINDS)[number];
 
@@ -30,14 +30,16 @@ export type CheckPolicy = {
 
 /**
  * DNS and the certificate daily: both are cheap, and a certificate warning
- * is only as current as the last look. Registration and mail posture weekly:
- * they change rarely, and registries rate-limit RDAP.
+ * is only as current as the last look. Registration, mail posture and the
+ * website's own branding weekly: they change rarely, and registries
+ * rate-limit RDAP.
  */
 export const DEFAULT_INTERVALS: IntervalSet = {
   dns: 1,
   tls: 1,
   rdap: 7,
   email: 7,
+  brand: 7,
 };
 
 export const DEFAULT_TLS_WARN_DAYS = 30;

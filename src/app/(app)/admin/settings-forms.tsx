@@ -233,6 +233,7 @@ export function DomainPolicyForm({ policy }: { policy: CheckPolicy }) {
     { kind: "tls", label: t.documents.domain.tls },
     { kind: "rdap", label: t.documents.domain.rdap },
     { kind: "email", label: t.documents.domain.email },
+    { kind: "brand", label: t.documents.domain.brand },
   ];
 
   return (
