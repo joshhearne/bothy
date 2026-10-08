@@ -27,7 +27,8 @@ No coupling to any specific PSA in core code.
 - Business logic lives in `src/server/services/*`, shared by server actions and API routes. No logic in route files.
 - Drizzle schema in `src/server/db/schema.ts`, mirroring `db/schema.sql`. Migrations via drizzle-kit.
 - Tests: Vitest for services, Playwright for the inline-editing flows.
-- Commits signed off (`git commit -s`).
+- Commits signed off (`git commit -s`). Commit messages are en-US only, like everything else
+  here: "color", not "colour"; "license", not "licence".
 - en-US is the source language: code, comments, docs, identifiers, and the base catalog in `src/i18n/en-US.ts`. Never hardcode interface copy in a component — add a key and read it through `getMessages()` (server) or `useMessages()` (client).
 - Other locales are overrides on the base catalog (`src/i18n/en-GB.ts`), so a translation only states what differs and can never miss a key.
 - Format dates and numbers with the reader's locale through `src/i18n/format.ts`, never the server default and never a hardcoded `en-US`.
