@@ -46,7 +46,7 @@ describe("isNeutral", () => {
 });
 
 describe("rankPalette", () => {
-  it("puts the colours a site paints with first, leaving out its paper, ink and the browser's links", () => {
+  it("puts the colors a site paints with first, leaving out its paper, ink and the browser's links", () => {
     const css = `
       :root { --color-primary: #ee2c24; --muted: #6b7280; }
       body { color: #111111; background: #ffffff; }
@@ -65,7 +65,7 @@ describe("rankPalette", () => {
     expect(rankPalette(colorsInCss(css))).toEqual(["#000000", "#ffffff"]);
   });
 
-  it("gives nothing for a stylesheet with no colour in it", () => {
+  it("gives nothing for a stylesheet with no color in it", () => {
     expect(rankPalette(colorsInCss(`body { margin: 0 }`))).toEqual([]);
   });
 });

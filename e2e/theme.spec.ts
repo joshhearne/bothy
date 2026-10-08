@@ -120,7 +120,7 @@ test("system can be chosen back", async ({ page }) => {
   expect((await painted(page)).body).toBe(back.light);
 });
 
-test("secrets are coloured by default, the choice is kept on the account, and a viewer has none", async ({ page }) => {
+test("secrets are colored by default, the choice is kept on the account, and a viewer has none", async ({ page }) => {
   const shell = page.locator("[data-secret-style]");
 
   await page.goto("/companies");

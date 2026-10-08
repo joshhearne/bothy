@@ -12,7 +12,7 @@ export const PERMISSIONS = [
   "documents.edit",
   /** Doc types, template fields, and the shared option lists themselves. */
   "doc_types.manage",
-  /** Works with secret fields: the colouring preference is offered. */
+  /** Works with secret fields: the coloring preference is offered. */
   "secrets.fields",
   /** Writes knowledge base articles in any collection without a grant. */
   "kb.write",

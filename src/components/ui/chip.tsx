@@ -10,7 +10,7 @@ const TONES: Record<ChipTone, string> = {
   gray: "border-[var(--border)] bg-[var(--muted)] text-[var(--muted-foreground)]",
 };
 
-/** A small coloured label that says one thing about a row. */
+/** A small colored label that says one thing about a row. */
 export function Chip({
   tone,
   icon: Icon,
@@ -38,7 +38,7 @@ export function Chip({
 }
 
 /**
- * A chip with more to say on hover or focus: what the colour stands for, or
+ * A chip with more to say on hover or focus: what the color stands for, or
  * the list behind the count. No script; the note is in the page and shown
  * by the pointer or the keyboard.
  */

@@ -258,7 +258,8 @@ export const enUS = {
     brandKeep: "Keep current",
     brandNoRaster:
       "The site offers no PNG, JPEG, WebP or SVG icon; an ICO cannot be a logo here. An SVG is rendered to PNG with its transparency kept.",
-    brandNoColor: "The site publishes no theme colour, and its stylesheets paint with none.",
+    brandNoColor:
+      "The site publishes no theme color, and its stylesheets paint with none.",
     brandApply: "Use as company theme",
     customers: "Customers on the knowledge base",
     customersHint:
@@ -394,11 +395,10 @@ export const enUS = {
       label: "Or a label",
       labelHint: "For a patch panel or a shelf nobody will ever document.",
       type: "Kind",
-      typeHint:
-        "Decides its colour. Taken from the document when you pick one.",
+      typeHint: "Decides its color. Taken from the document when you pick one.",
       add: "Mount it",
       remove: "Remove",
-      key: "Colour key",
+      key: "Color key",
       overridden: "client override",
       defaultIs: (color: string) => `default is ${color}`,
       setGlobal: "Set for every client",
@@ -407,7 +407,7 @@ export const enUS = {
       tooClose: (a: string, b: string) =>
         `${a} and ${b} are too close to tell apart in print.`,
       overrideShadows: (type: string, other: string) =>
-        `This client's ${type} colour is the one ${other} already uses here — change the override.`,
+        `This client's ${type} color is the one ${other} already uses here — change the override.`,
       overlap: (a: string, b: string, units: string) =>
         `${a} and ${b} both claim unit ${units}.`,
       outOfRange: (name: string) => `${name} runs past the top of the rack.`,
@@ -427,7 +427,7 @@ export const enUS = {
       email: "Email posture",
       brand: "Website branding",
       brandHint:
-        "The site's own title, the logo it shows, the colours it paints with, and the icons it offers browsers, offered to the company's branding.",
+        "The site's own title, the logo it shows, the colors it paints with, and the icons it offers browsers, offered to the company's branding.",
       brandApplyHint:
         "Apply a website's look as the company theme from the company's edit page.",
       emailHint:
@@ -921,12 +921,13 @@ export const enUS = {
       kbPoweredByPlaceholder: "Your company name",
       poweredBy: "Show the “Powered by” credit",
       poweredByHint:
-        "Names the product and who makes it, at the foot of every page. The licence and the link to the source stay either way — anyone using this over a network is entitled to them.",
+        "Names the product and who makes it, at the foot of every page. The license and the link to the source stay either way — anyone using this over a network is entitled to them.",
       tabIcon: "Tab icon",
       iconFor: (mode: string) => `Tab icon for ${mode}`,
       iconHint:
         "Optional. PNG, WebP, or ICO, square, 32 px or larger, up to 1 MB. Without one, the mark in your accent is the tab icon.",
-      altIconHint: (mode: string) => `Optional. Left empty, the other icon is shown on ${mode} too.`,
+      altIconHint: (mode: string) =>
+        `Optional. Left empty, the other icon is shown on ${mode} too.`,
       uploadIcon: "Upload icon",
       replaceIcon: "Replace icon",
       removeIcon: "Remove icon",

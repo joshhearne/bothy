@@ -84,7 +84,7 @@ named by kind. Field roles (`fields.domain_role`) decide which field holds the d
 docs/ARCHITECTURE.md.
 
 ### Phase 12: Rack elevations
-Rack doc types (`doc_types.is_rack`) with `racks` / `rack_mounts` / `rack_type_colors`. Colour is
+Rack doc types (`doc_types.is_rack`) with `racks` / `rack_mounts` / `rack_type_colors`. Color is
 per equipment kind: MSP default, client override, built-in palette. Closeness is judged in Oklab.
 See docs/ARCHITECTURE.md.
 

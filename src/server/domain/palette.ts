@@ -1,5 +1,5 @@
 /**
- * The colours a site actually paints with, read from its stylesheets. The
+ * The colors a site actually paints with, read from its stylesheets. The
  * head's theme-color is what a site says; its CSS is what it does, and many
  * sites say nothing. Pure text work on other people's CSS: bounded, tolerant,
  * never executed.
@@ -10,7 +10,7 @@ import { toRgb, type Rgb } from "@/lib/brand-color";
 /** More than this and it is not a stylesheet worth reading. */
 export const MAX_CSS_BYTES = 512 * 1024;
 
-/** Browsers' own link colours: on a page by default, not by design. */
+/** Browsers' own link colors: on a page by default, not by design. */
 const DEFAULT_LINK_COLORS = new Set(["#0000ee", "#551a8b", "#0000ff", "#800080"]);
 
 const part = (n: number) =>
@@ -26,7 +26,7 @@ function hslToRgb(h: number, s: number, l: number): Rgb {
   return { r: f(0) * 255, g: f(8) * 255, b: f(4) * 255 };
 }
 
-/** Saturation and lightness of a colour, 0..1, for telling a grey from a hue. */
+/** Saturation and lightness of a color, 0..1, for telling a grey from a hue. */
 export function saturationLightness({ r, g, b }: Rgb): { s: number; l: number } {
   const max = Math.max(r, g, b) / 255;
   const min = Math.min(r, g, b) / 255;
@@ -45,8 +45,8 @@ export function isNeutral(hex: string): boolean {
 }
 
 /**
- * Every colour literal in a CSS value, as #rrggbb. Hex in any of its lengths,
- * rgb()/rgba() and hsl()/hsla() in either syntax; a colour painted mostly
+ * Every color literal in a CSS value, as #rrggbb. Hex in any of its lengths,
+ * rgb()/rgba() and hsl()/hsla() in either syntax; a color painted mostly
  * transparent is left out, since it is not what the eye sees.
  */
 export function colorsInValue(value: string): string[] {
@@ -97,7 +97,7 @@ export function weightOf(property: string): number {
   return 0;
 }
 
-/** Every colour in a stylesheet with the weight of where it was used. */
+/** Every color in a stylesheet with the weight of where it was used. */
 export function colorsInCss(css: string): Map<string, number> {
   const counts = new Map<string, number>();
   const text = css.slice(0, MAX_CSS_BYTES).replace(/\/\*[\s\S]*?\*\//g, " ");
@@ -111,7 +111,7 @@ export function colorsInCss(css: string): Map<string, number> {
   return counts;
 }
 
-/** Two colours nobody could tell apart at a glance. */
+/** Two colors nobody could tell apart at a glance. */
 function near(a: string, b: string): boolean {
   const x = toRgb(a);
   const y = toRgb(b);
@@ -122,7 +122,7 @@ function near(a: string, b: string): boolean {
 /**
  * The site's palette, most used first: the hues it paints with, with white,
  * black and the greys left out — unless those are all it uses, in which case
- * they are the palette — and the browser's own link colours left out always.
+ * they are the palette — and the browser's own link colors left out always.
  * Near-duplicates fold into the heavier one, so a hover shade does not count
  * twice.
  */

@@ -101,7 +101,7 @@ describe("renderRackSvg", () => {
     expect(svg).toContain("&lt;b&gt;");
   });
 
-  it("draws an unparseable colour grey rather than writing it into the file", () => {
+  it("draws an unparseable color gray rather than writing it into the file", () => {
     const svg = renderRackSvg(
       drawing({
         blocks: [

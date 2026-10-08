@@ -48,7 +48,7 @@ function result(overrides: Partial<DomainCheckResult> = {}): DomainCheckResult {
 }
 
 describe("summarize", () => {
-  test("keeps the facts worth comparing, normalised", () => {
+  test("keeps the facts worth comparing, normalized", () => {
     const summary = summarize(result());
     expect(summary.ns).toEqual(["dale.ns.cloudflare.com", "serena.ns.cloudflare.com"]);
     expect(summary.certValidTo).toBe("2026-11-30");

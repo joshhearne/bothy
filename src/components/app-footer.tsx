@@ -19,7 +19,7 @@ import { BrandLogo } from "@/components/brand";
  * whoever runs it — an operator may turn it off, which is what the toggle in
  * Admin → Branding does.
  *
- * The licence and the source link stay either way: AGPL-3.0 §13 asks that
+ * The license and the source link stay either way: AGPL-3.0 §13 asks that
  * people using this over a network can get at the source, and that is not an
  * operator's to remove.
  */

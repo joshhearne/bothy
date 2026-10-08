@@ -27,7 +27,7 @@ import type { DomainCheckResult } from "@/server/domain/run";
 /**
  * A company's look, taken from its own websites. Each domain record that ran
  * the branding check is a candidate; the admin picks one, and its icon and
- * colour become the company's logo and accent. Nothing is applied on its
+ * color become the company's logo and accent. Nothing is applied on its
  * own: a lookup offers, a person chooses.
  */
 
@@ -163,7 +163,7 @@ export async function fetchBrandIcon(
 }
 
 /**
- * Makes a record's website look the company's: its icon the logo, its colour
+ * Makes a record's website look the company's: its icon the logo, its color
  * the accent, and the record remembered as the one chosen, so a company with
  * several websites can say which one it is. Either part may be left out.
  */
@@ -186,10 +186,10 @@ export async function applyDomainBranding(
   if (icon && !isUsableIcon(icon)) throw new UnsupportedLogoError();
   const color = input.color;
   if (color !== null && !candidate.brand.colors.includes(color)) {
-    throw new BrandApplyError("That colour is not one the site published.");
+    throw new BrandApplyError("That color is not one the site published.");
   }
   if (!icon && !color)
-    throw new BrandApplyError("Choose an icon, a colour, or both.");
+    throw new BrandApplyError("Choose an icon, a color, or both.");
 
   if (icon) {
     const fetched = await fetchBrandIcon(icon);

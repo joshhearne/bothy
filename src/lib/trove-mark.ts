@@ -9,14 +9,14 @@
 export const DEFAULT_ACCENT_LIGHT = "#0f766e";
 export const DEFAULT_ACCENT_DARK = "#2dd4bf";
 
-/** The surfaces, for the browser chrome that asks for a colour. */
+/** The surfaces, for the browser chrome that asks for a color. */
 export const SURFACE_LIGHT = "#ffffff";
 export const SURFACE_DARK = "#1e2129";
 
 /**
- * Each facet of the gem on a 32×32 grid, with how much of the colour it
+ * Each facet of the gem on a 32×32 grid, with how much of the color it
  * carries: the pavilion is solid, the crown lets light through. Drawn in one
- * colour, which is what makes it a mark rather than an illustration.
+ * color, which is what makes it a mark rather than an illustration.
  */
 export const FACETS: { d: string; opacity: number }[] = [
   { d: "M10 4 L3 12 L11 12 Z", opacity: 0.72 },
@@ -27,20 +27,20 @@ export const FACETS: { d: string; opacity: number }[] = [
   { d: "M21 12 L29 12 L16 29 Z", opacity: 0.84 },
 ];
 
-/** The facet paths in SVG, in the colour the parent sets. */
+/** The facet paths in SVG, in the color the parent sets. */
 function facets(): string {
   return FACETS.map((facet) => `<path d="${facet.d}" fill-opacity="${facet.opacity}"/>`).join("");
 }
 
-/** A tile colour and the colour the gem is cut in on it. */
+/** A tile color and the color the gem is cut in on it. */
 export type IconColors = { tile: string; gem: string };
 
 /**
  * The icon as an SVG document: a rounded tile in the accent with the gem on
- * it, which is what a favicon or home-screen icon wants. Given colours for
+ * it, which is what a favicon or home-screen icon wants. Given colors for
  * dark as well, the document carries a media query and the browser picks:
  * an SVG favicon can follow the reader's mode where a PNG cannot. Every
- * colour is a hex the caller has already normalized; nothing else is
+ * color is a hex the caller has already normalized; nothing else is
  * interpolated.
  */
 export function iconSvg(light: IconColors, dark?: IconColors): string {

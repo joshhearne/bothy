@@ -16,6 +16,22 @@ export type DeepPartial<T> = {
 export const enGB: DeepPartial<Messages> = {
   companies: {
     isInternal: "This is my own organisation",
+    brandNoColor:
+      "The site publishes no theme colour, and its stylesheets paint with none.",
+  },
+
+  documents: {
+    rack: {
+      typeHint:
+        "Decides its colour. Taken from the document when you pick one.",
+      key: "Colour key",
+      overrideShadows: (type: string, other: string) =>
+        `This client's ${type} colour is the one ${other} already uses here — change the override.`,
+    },
+    domain: {
+      brandHint:
+        "The site's own title, the logo it shows, the colours it paints with, and the icons it offers browsers, offered to the company's branding.",
+    },
   },
 
   kb: {
@@ -34,7 +50,12 @@ export const enGB: DeepPartial<Messages> = {
       organizationId: "Organisation id",
     },
     optionLists: {
-      subtitle: "Shared sources for dropdown fields. Any doc type can point at the same list.",
+      subtitle:
+        "Shared sources for dropdown fields. Any doc type can point at the same list.",
+    },
+    branding: {
+      poweredByHint:
+        "Names the product and who makes it, at the foot of every page. The licence and the link to the source stay either way — anyone using this over a network is entitled to them.",
     },
   },
 };

@@ -55,7 +55,7 @@ export function parseSecret(text: string): SecretToken[] {
     if (NUMBER_WORDS[char]) return { char, kind: "digit", word: NUMBER_WORDS[char] };
     if (SYMBOL_NAMES[char]) return { char, kind: "symbol", word: SYMBOL_NAMES[char] };
     // Outside the tables: a letter with an accent, a non-Latin script, an
-    // emoji. Still classed so the colours stay honest about what it is.
+    // emoji. Still classed so the colors stay honest about what it is.
     if (/\p{L}/u.test(char)) return { char, kind: "letter", word: null };
     if (/\p{N}/u.test(char)) return { char, kind: "digit", word: null };
     if (/[\p{P}\p{S}\p{Z}]/u.test(char)) return { char, kind: "symbol", word: null };

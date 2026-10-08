@@ -19,7 +19,7 @@ describe("parseSignInDomains", () => {
 });
 
 describe("emailDomain", () => {
-  it("is the part after the last @, normalised", () => {
+  it("is the part after the last @, normalized", () => {
     expect(emailDomain("Jo.Bloggs@Example.COM")).toBe("example.com");
     expect(emailDomain("odd@name@sub.example.com")).toBe("sub.example.com");
   });

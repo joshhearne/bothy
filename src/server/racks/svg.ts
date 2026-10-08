@@ -41,7 +41,7 @@ export function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-/** A colour that did not parse is drawn grey rather than injected into the file. */
+/** A color that did not parse is drawn gray rather than injected into the file. */
 function safeColor(value: string): string {
   return toRgb(value) ? value : "#9ca3af";
 }

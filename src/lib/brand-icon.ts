@@ -1,5 +1,9 @@
 import { brandTokens, type BrandTokens } from "@/lib/brand-color";
-import { DEFAULT_ACCENT_DARK, DEFAULT_ACCENT_LIGHT, type IconColors } from "@/lib/trove-mark";
+import {
+  DEFAULT_ACCENT_DARK,
+  DEFAULT_ACCENT_LIGHT,
+  type IconColors,
+} from "@/lib/trove-mark";
 
 /** An uploaded tab icon as the page needs to know it: a version and a type. */
 export type UploadedIcon = { version: string; mime: string };
@@ -17,11 +21,14 @@ export type IconBranding = {
 };
 
 /**
- * The tile and gem colours for each mode: the accent, and the text colour the
+ * The tile and gem colors for each mode: the accent, and the text color the
  * interface puts on it, which is what a mark on a tile wants too. Already
  * normalized hex, or the defaults; never what someone typed.
  */
-export function iconColors(branding: IconBranding): { light: IconColors; dark: IconColors } {
+export function iconColors(branding: IconBranding): {
+  light: IconColors;
+  dark: IconColors;
+} {
   const tokens: BrandTokens = brandTokens(branding) ?? {
     light: DEFAULT_ACCENT_LIGHT,
     dark: DEFAULT_ACCENT_DARK,
@@ -35,25 +42,35 @@ export function iconColors(branding: IconBranding): { light: IconColors; dark: I
 }
 
 /** Whether the two modes want different icons at all. */
-export function iconDiffers(colors: { light: IconColors; dark: IconColors }): boolean {
-  return colors.light.tile !== colors.dark.tile || colors.light.gem !== colors.dark.gem;
+export function iconDiffers(colors: {
+  light: IconColors;
+  dark: IconColors;
+}): boolean {
+  return (
+    colors.light.tile !== colors.dark.tile ||
+    colors.light.gem !== colors.dark.gem
+  );
 }
 
 /**
  * The uploaded icon each mode shows: its own, or the other mode's when only
  * one was uploaded. Null in both when the mark is the icon.
  */
-export function uploadedIcons(branding: IconBranding): { light: UploadedIcon | null; dark: UploadedIcon | null } {
+export function uploadedIcons(branding: IconBranding): {
+  light: UploadedIcon | null;
+  dark: UploadedIcon | null;
+} {
   const light = branding.icon ?? branding.altIcon ?? null;
   const dark = branding.altIcon ?? branding.icon ?? null;
   return { light, dark };
 }
 
-const version = (colors: IconColors) => colors.tile.slice(1) + colors.gem.slice(1);
+const version = (colors: IconColors) =>
+  colors.tile.slice(1) + colors.gem.slice(1);
 
 /**
  * What the tab wants: one icon for both modes, or one per mode. With
- * uploads, each mode's own; without, the mark in each mode's colours.
+ * uploads, each mode's own; without, the mark in each mode's colors.
  */
 export function iconPlan(branding: IconBranding): {
   /** The light icon's type, for the link that names it; the SVG mark otherwise. */
@@ -85,7 +102,7 @@ export function iconPlan(branding: IconBranding): {
 
 /**
  * The address of the tab icon, or of the icon one mode would show. The
- * version is the icon itself — its colours, or the upload's key — so a
+ * version is the icon itself — its colors, or the upload's key — so a
  * cached icon is this exact icon and a change is a new address. The SVG
  * with no mode pinned is the one for the tab: it carries both modes when
  * they differ, and the browser picks.
@@ -103,6 +120,13 @@ export function iconHref(
   }
   if (mode) params.set("mode", mode);
   const both = !mode && !format && plan.switches;
-  params.set("v", both ? `${plan.light}-${plan.dark}` : mode === "dark" ? plan.dark : plan.light);
+  params.set(
+    "v",
+    both
+      ? `${plan.light}-${plan.dark}`
+      : mode === "dark"
+        ? plan.dark
+        : plan.light,
+  );
   return `/api/branding/icon?${params.toString()}`;
 }

@@ -148,7 +148,7 @@ test("without a logo, the product mark stands, in the header and in the tab", as
     /format=png&size=180/,
   );
 
-  // Public, and in whatever colour the instance has chosen: here the default.
+  // Public, and in whatever color the instance has chosen: here the default.
   const href = (await icon.getAttribute("href")) as string;
   const svg = await request.get(href);
   expect(svg.status()).toBe(200);
@@ -178,7 +178,7 @@ test("the tab icon takes each mode's accent, and is one icon when they are the s
   await page.getByLabel("Accent color for dark mode").first().fill("#7c3aed");
   await page.getByRole("button", { name: "Save branding" }).click();
 
-  // One address naming both modes' colours, and an SVG that switches itself.
+  // One address naming both modes' colors, and an SVG that switches itself.
   // The head is rendered by the layout the save revalidates, so the new
   // address is the signal that it landed.
   const icon = page.locator('link[rel="icon"][type="image/svg+xml"]');
@@ -414,7 +414,7 @@ test("the footer credits the product and who makes it", async ({ page }) => {
   ).toHaveAttribute("href", "https://github.com/joshhearne/trove-kb");
 });
 
-test("an operator may turn the credit off, but not the licence", async ({
+test("an operator may turn the credit off, but not the license", async ({
   page,
 }) => {
   await signInAsAdmin(page);
@@ -630,7 +630,7 @@ test("the public knowledge base may carry the operator's own credit, and the app
     "Powered by Trove KB | Hearne Technologies",
   );
 
-  // The public site reads the operator's name, with the licence still there.
+  // The public site reads the operator's name, with the license still there.
   await page.goto("/admin/portal");
   await page.getByLabel("Who may read it").selectOption("open");
   await page

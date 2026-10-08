@@ -45,7 +45,7 @@ export function summaryFrom(
 ): VaultItemSummary {
   return {
     id: path,
-    // The leaf is the name a person recognises; the prefix is the client.
+    // The leaf is the name a person recognizes; the prefix is the client.
     name: path.slice(prefix.length).replace(/^\//, "") || path,
     username: pick(data, USERNAME_KEYS),
     uri: pick(data, URL_KEYS),

@@ -25,7 +25,7 @@ describe("the product mark", () => {
     expect(svg.match(/<path /g)).toHaveLength(6);
   });
 
-  it("carries the dark colours as a media query when asked to follow the mode", () => {
+  it("carries the dark colors as a media query when asked to follow the mode", () => {
     const svg = iconSvg(WHITE, INK);
     expect(svg).toContain("@media (prefers-color-scheme: dark){.t{fill:#abcdef}.g{fill:#101317}}");
     expect(svg).toContain('class="t"');
@@ -43,24 +43,24 @@ describe("the product mark", () => {
   });
 });
 
-describe("the tab icon's colours", () => {
+describe("the tab icon's colors", () => {
   const bare = { accent: null, altAccent: null, scheme: "light" as const };
 
-  it("are the defaults when nothing is set, with the gem in the colour text takes on them", () => {
+  it("are the defaults when nothing is set, with the gem in the color text takes on them", () => {
     expect(iconColors(bare)).toEqual({
       light: { tile: DEFAULT_ACCENT_LIGHT, gem: "#ffffff" },
       dark: { tile: DEFAULT_ACCENT_DARK, gem: "#101317" },
     });
   });
 
-  it("follow the instance's accent and stated text colour", () => {
+  it("follow the instance's accent and stated text color", () => {
     const colors = iconColors({ ...bare, accent: "#1f6feb", accentText: "#ffff00" });
     expect(colors.light).toEqual({ tile: "#1f6feb", gem: "#ffff00" });
     // Derived from the light accent, readable on dark.
     expect(colors.dark.tile).not.toBe("#1f6feb");
   });
 
-  it("address the icon by its colours, both modes' when they differ", () => {
+  it("address the icon by its colors, both modes' when they differ", () => {
     expect(iconHref(bare)).toBe("/api/branding/icon?v=0f766effffff-2dd4bf101317");
     // The same accent stated for both modes is one icon.
     expect(iconHref({ ...bare, accent: "#ee2c24", altAccent: "#ee2c24" })).toBe("/api/branding/icon?v=ee2c24101317");

@@ -1,6 +1,6 @@
 /**
  * What a website says about its own look, read from the head of its front
- * page: a title, a theme colour, the icons it offers browsers, a social
+ * page: a title, a theme color, the icons it offers browsers, a social
  * image, and a web app manifest that may carry more of each. Pure parsing;
  * the page and the manifest are fetched elsewhere.
  *
@@ -33,7 +33,7 @@ export type BrandSummary = {
   /** The page this came from, after redirects. */
   pageUrl: string;
   title: string | null;
-  /** Hex colours, theme-color first, then the manifest's, distinct. */
+  /** Hex colors, theme-color first, then the manifest's, distinct. */
   colors: string[];
   icons: BrandIcon[];
   manifestUrl: string | null;
@@ -80,7 +80,7 @@ function resolve(href: string, base: string): string | null {
   }
 }
 
-/** A colour as CSS might state it, as hex, or null. rgb() is accepted; names are not. */
+/** A color as CSS might state it, as hex, or null. rgb() is accepted; names are not. */
 export function toHex(value: string | undefined): string | null {
   if (!value) return null;
   const hex = normalizeHex(value);
@@ -166,7 +166,7 @@ export function parseBrandHtml(html: string, pageUrl: string): BrandSummary {
   return { pageUrl, title, colors, icons, manifestUrl };
 }
 
-/** What a web app manifest adds: its colours and its icons. Tolerant of anything. */
+/** What a web app manifest adds: its colors and its icons. Tolerant of anything. */
 export function parseManifest(
   json: unknown,
   manifestUrl: string,

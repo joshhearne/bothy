@@ -128,11 +128,11 @@ Cloudflare steps inline and the public-site form beneath.
   a tile in the accent, logo or not, from `/api/branding/icon`: SVG, or PNG
   with `format=png&size=N` (a 32px PNG is listed first for browsers that
   will not take an SVG, the SVG last so the others prefer it; the touch icon
-  is 180px). The gem is cut in the accent's text colour. When the two modes'
-  colours differ the SVG carries a `prefers-color-scheme: dark` style block
+  is 180px). The gem is cut in the accent's text color. When the two modes'
+  colors differ the SVG carries a `prefers-color-scheme: dark` style block
   switching to the dark ones — the one way a favicon can follow the reader's
   mode; `mode=light|dark` pins one, for the previews on the branding page,
-  and a PNG is always one mode. The address carries the colours (`?v=`, from
+  and a PNG is always one mode. The address carries the colors (`?v=`, from
   `src/lib/brand-icon.ts`), so it caches hard and changes with the accent.
   The default palette is a teal (`globals.css`, hex twins in `trove-mark.ts`).
 - An operator may upload a tab icon per mode instead (`icon_key` /
@@ -149,7 +149,7 @@ Cloudflare steps inline and the public-site form beneath.
   public knowledge base alone, an operator may put their own name on the
   credit (`kb_powered_by_name`): "Powered by Trove KB | <name>" beside the
   instance logo, in front of their customers; the product stays named and
-  the licence stays put. A visitor placed with a company by their address
+  the license stays put. A visitor placed with a company by their address
   sees that company's logo in the corner before the knowledge base's name,
   served by `/pub/kb/company-logo` to that visitor alone.
 - A logo is stored under a key we generate and served back with the type
@@ -165,8 +165,8 @@ Cloudflare steps inline and the public-site form beneath.
   nobody stated is derived from the one they did, moved far enough from that
   surface to clear WCAG AA (`src/lib/brand-color.ts`). Only hex values reach a
   stylesheet, never the string that was typed. The accent is a fill with its
-  label colour computed against it, never text on the page background, so an
-  exact brand colour cannot make anything unreadable.
+  label color computed against it, never text on the page background, so an
+  exact brand color cannot make anything unreadable.
 - Both logos are rendered and CSS shows one, keyed on the theme, so the right
   one is there in the first paint and keeps up when a reader's machine turns
   dark at sunset. With one logo, it is shown in both.
@@ -179,7 +179,7 @@ Cloudflare steps inline and the public-site form beneath.
   the instance's, so it stays obvious which portal you are in.
 - A revealed secret (vault password, TOTP, recovery codes, a new API key or
   webhook secret) is shown one `<span>` per character, marked by what it is,
-  and coloured by `data-secret-style` on `<html>`: `on` (letters blue, digits
+  and colored by `data-secret-style` on `<html>`: `on` (letters blue, digits
   orange, symbols violet, AlphabetSoup's hues), `colorblind` (Paul Tol's
   vibrant set) or `off`. The choice is `users.secret_style`, on by default,
   picked from the user menu and carried on the application shell rather than
@@ -251,25 +251,25 @@ over RDAP, and whether SPF, DMARC and DKIM are published.
 - A fifth kind, **website branding**, reads the site's front page the way
   the knowledge base crawler reads a page (`src/server/kb/fetch.ts`: every
   hop resolved, private addresses refused, the vetted address connected to)
-  and keeps its title, theme colour, icons and manifest
+  and keeps its title, theme color, icons and manifest
   (`src/server/domain/brand.ts`). It also reads the page's body for the logo
   the site actually shows — an `<img>` named `logo.*` or after the site's
   own hostname label, described as a logo by alt/class/id, or sitting in the
   link home — and a mark drawn inline as `<svg>` the same way (kept in the
   result, bounded at 64 KB, rendered when applied); those rank ahead of
   every head icon, which is how a favicon or a hero picture stops being the
-  pick. The colours the site paints with come from its inline CSS and up to
-  four linked stylesheets (`src/server/domain/palette.ts`): each colour
+  pick. The colors the site paints with come from its inline CSS and up to
+  four linked stylesheets (`src/server/domain/palette.ts`): each color
   literal weighted by where it is used (a `--primary`/`--brand` custom
   property most, fills and backgrounds some, shadows not at all), greys,
   white and black left out unless they are all there is, the browser's own
-  link colours left out always, near-shades folded; the top six follow the
-  declared theme colour. Nothing is applied by itself: the company's
+  link colors left out always, near-shades folded; the top six follow the
+  declared theme color. Nothing is applied by itself: the company's
   edit page lists every domain record's findings and an administrator picks
   one, whose icon becomes the logo (fetched the same safe way, sniffed, PNG,
   JPEG or WebP, or an SVG rendered to PNG by sharp with its transparency kept
   (`src/server/domain/svg.ts`), 1 MB; never on Workers, which run no native
-  code) and whose colour the accent
+  code) and whose color the accent
   (`src/server/services/company-brand.ts`). With several websites the record
   chosen is remembered (`companies.brand_domain_document_id`). Icons are
   drawn through the record's own route, never hotlinked from a client's site.
@@ -324,19 +324,19 @@ the rear is used, and what is mounted where.
 - `rack_mounts` holds one row per thing: a document when it is written up, a
   plain label when it never will be (a patch panel, a shelf), its lowest unit,
   its height, and which face.
-- Colour comes from the kind of thing, not the thing: `rack_type_colors` with
+- Color comes from the kind of thing, not the thing: `rack_type_colors` with
   no company is the MSP default, with one it is that client's override. The
   client wins, then the MSP, then a built-in palette whose every pair is far
   enough apart to tell apart in print.
 - "Too close" is measured perceptually in Oklab, not by comparing hex digits,
-  because two different numbers can be the same colour to a reader
-  (`src/server/racks/colors.ts`). Three things are warned about: colours a
-  reader could not distinguish, an override that has landed on a colour already
+  because two different numbers can be the same color to a reader
+  (`src/server/racks/colors.ts`). Three things are warned about: colors a
+  reader could not distinguish, an override that has landed on a color already
   in use here — where the fix is to move the override, which nobody would think
   to look for — and two things claiming the same unit.
 - The drawing is SVG, generated from a pure function and served as a file, so
   the page, the print, and the download are the same picture. Every label is
-  escaped and a colour that does not parse is drawn grey rather than written
+  escaped and a color that does not parse is drawn gray rather than written
   into the file. The URL carries a signature of what the rack contains, or a
   browser would keep showing the rack as it was.
 

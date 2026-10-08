@@ -55,7 +55,7 @@ export function CopyBlock({
   label: string;
   /** Wrap long lines, for prose. Commands and keys scroll instead. */
   wrap?: boolean;
-  /** A key, a code, a password: colour each character by what it is. */
+  /** A key, a code, a password: color each character by what it is. */
   secret?: boolean;
   /** Offer the spoken form too, for reading it down a phone. Implies secret. */
   spellOut?: boolean;

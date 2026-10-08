@@ -1,7 +1,7 @@
 /**
- * How a revealed secret is shown. "on" colours each character by what it is
+ * How a revealed secret is shown. "on" colors each character by what it is
  * (AlphabetSoup's letters / digits / symbols); "colorblind" does the same in
- * a palette that stays apart under a colour-vision deficiency; "off" leaves
+ * a palette that stays apart under a color-vision deficiency; "off" leaves
  * it plain monospace. On by default: a 1, an l and an I should never have to
  * be told apart by shape alone.
  */

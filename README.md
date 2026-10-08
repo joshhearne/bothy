@@ -126,7 +126,7 @@ ticketing system that links the runbook can keep per-ticket progress by step.
 Trove KB stores none of that progress itself.
 
 The **public site** publishes the collections you choose at a hostname of its
-own, with search, favorites, and "was this helpful" votes, and recognises
+own, with search, favorites, and "was this helpful" votes, and recognizes
 readers who arrive through Cloudflare Access without any account here. Keyword
 rules (phrases or regular expressions, by title, category, or file type) and
 per-category switches keep the rest off it, and apply to what arrives later.
@@ -191,11 +191,11 @@ Switch or Server document, or a plain label for the patch panel nobody will
 ever write up. You get a printable SVG for each face and a list of what is
 where, with the documented items linked.
 
-Colour comes from the kind of equipment. Set it once for every client, and let
+Color comes from the kind of equipment. Set it once for every client, and let
 a client override it where their own conventions differ; the key says which
-colours are overrides and what the default was. Trove KB also says when two
-colours are too close to tell apart in print, when an override has landed on a
-colour already in use in that rack, and when two things claim the same unit.
+colors are overrides and what the default was. Trove KB also says when two
+colors are too close to tell apart in print, when an override has landed on a
+color already in use in that rack, and when two things claim the same unit.
 
 ## Domain checks
 
@@ -309,7 +309,7 @@ and a logo is drawn on every page.
 The footer carries two things that are not the same. The credit — "Powered by
 Trove KB | Hearne Technologies" — names the product and who makes it, and an
 operator who would rather not show it can turn it off in Admin → Branding. The
-licence and the link to the source stay either way: AGPL-3.0 §13 asks that
+license and the link to the source stay either way: AGPL-3.0 §13 asks that
 anyone using this over a network can get at the source, which is not an
 operator's to remove.
 

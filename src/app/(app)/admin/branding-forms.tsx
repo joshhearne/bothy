@@ -84,7 +84,7 @@ function AccentField({
 
 /**
  * Which mode the brand was drawn for. Choosing it renames the fields either
- * side, so it is always clear which colour and logo belong to which theme.
+ * side, so it is always clear which color and logo belong to which theme.
  */
 function SchemeChoice({
   scheme,

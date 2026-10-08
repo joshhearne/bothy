@@ -603,7 +603,7 @@ export const domainChecks = pgTable(
     tls: boolean("tls").notNull().default(false),
     rdap: boolean("rdap").notNull().default(false),
     email: boolean("email").notNull().default(false),
-    /** The website's own branding: icons and colours offered to the company's theme. */
+    /** The website's own branding: icons and colors offered to the company's theme. */
     brand: boolean("brand").notNull().default(false),
     /** The last result, as rendered. Never anything secret: these are public records. */
     result: jsonb("result"),
@@ -838,7 +838,7 @@ export const rackMounts = pgTable(
 );
 
 /**
- * What colour a kind of equipment is drawn in. A row with no company is the
+ * What color a kind of equipment is drawn in. A row with no company is the
  * MSP's default for everyone; a row with one is that client's override, which
  * the interface says so out loud.
  */

@@ -31,7 +31,7 @@ describe("toOklab", () => {
 });
 
 describe("colorDistance", () => {
-  it("is zero for the same colour and symmetric", () => {
+  it("is zero for the same color and symmetric", () => {
     expect(colorDistance("#2563eb", "#2563eb")).toBeCloseTo(0, 6);
     expect(colorDistance("#2563eb", "#16a34a")).toBeCloseTo(
       colorDistance("#16a34a", "#2563eb") as number,
@@ -39,7 +39,7 @@ describe("colorDistance", () => {
     );
   });
 
-  it("is null when either colour is not a colour", () => {
+  it("is null when either color is not a color", () => {
     expect(colorDistance("#2563eb", "nonsense")).toBeNull();
     expect(colorDistance("", "#2563eb")).toBeNull();
   });
@@ -56,7 +56,7 @@ describe("tooClose", () => {
     expect(tooClose("#2563eb", "#2563ec")).toBe(true);
   });
 
-  it("leaves genuinely different colours alone", () => {
+  it("leaves genuinely different colors alone", () => {
     expect(tooClose("#2563eb", "#16a34a")).toBe(false);
     expect(tooClose("#2563eb", "#ea580c")).toBe(false);
   });
@@ -116,7 +116,7 @@ describe("resolveColors", () => {
     expect(only?.color).toBe("#aabbcc");
   });
 
-  it("ignores a colour that is not one", () => {
+  it("ignores a color that is not one", () => {
     const [only] = resolveColors([
       { docTypeId: "x", docTypeName: "X", company: "red", global: "#16a34a" },
     ]);
@@ -126,7 +126,7 @@ describe("resolveColors", () => {
 });
 
 describe("colorWarnings", () => {
-  it("says nothing about a rack of distinct colours", () => {
+  it("says nothing about a rack of distinct colors", () => {
     expect(
       colorWarnings(
         resolveColors([
@@ -137,7 +137,7 @@ describe("colorWarnings", () => {
     ).toEqual([]);
   });
 
-  it("names both types when two colours are too close", () => {
+  it("names both types when two colors are too close", () => {
     const warnings = colorWarnings(
       resolveColors([
         { docTypeId: "a", docTypeName: "Switch", global: "#2563eb" },
@@ -150,7 +150,7 @@ describe("colorWarnings", () => {
     expect(warnings[0]).toMatchObject({ types: ["Switch", "Router"] });
   });
 
-  it("says so when a client override lands on a colour already in use", () => {
+  it("says so when a client override lands on a color already in use", () => {
     // The client set Server to the blue the MSP uses for switches.
     const warnings = colorWarnings(
       resolveColors([
@@ -164,7 +164,7 @@ describe("colorWarnings", () => {
     expect(collision).toMatchObject({ type: "Server", collidesWith: "Switch" });
   });
 
-  it("does not blame an override when neither colour is one", () => {
+  it("does not blame an override when neither color is one", () => {
     const warnings = colorWarnings(
       resolveColors([
         { docTypeId: "a", docTypeName: "Switch", global: "#2563eb" },

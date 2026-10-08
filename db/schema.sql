@@ -321,7 +321,7 @@ ALTER TABLE companies ADD COLUMN vault_provider_id uuid REFERENCES vault_provide
 -- Collection mappings are per provider: 'vault:<provider id>' rather than a
 -- single 'bitwarden', so two vaults can both map the same company.
 
--- The "Powered by" credit is an operator's choice; the licence notice and the
+-- The "Powered by" credit is an operator's choice; the license notice and the
 -- source link below it are not, since AGPL-3.0 §13 asks for them.
 ALTER TABLE instance_branding ADD COLUMN show_powered_by boolean NOT NULL DEFAULT true;
 
@@ -689,9 +689,9 @@ ALTER TABLE instance_branding ADD COLUMN alt_accent_text text;
 ALTER TABLE api_key_kb_collections ADD COLUMN can_read boolean NOT NULL DEFAULT true;
 ALTER TABLE api_key_kb_collections ADD COLUMN reactions boolean NOT NULL DEFAULT true;
 
--- ---------- Secret colours: a person's own choice ----------
--- How a revealed secret is shown to them: each character coloured by what it
--- is (on), the same in a colour-blind-safe palette, or plain. On by default.
+-- ---------- Secret colors: a person's own choice ----------
+-- How a revealed secret is shown to them: each character colored by what it
+-- is (on), the same in a color-blind-safe palette, or plain. On by default.
 -- Only administrators and technicians see the choice; they are who reveal.
 ALTER TABLE users ADD COLUMN secret_style text NOT NULL DEFAULT 'on';
 ALTER TABLE users ADD CONSTRAINT users_secret_style_check CHECK (secret_style IN ('on','colorblind','off'));
@@ -767,7 +767,7 @@ ALTER TABLE domain_checks ADD CONSTRAINT domain_checks_intervals_check CHECK (
 ALTER TABLE domain_checks ADD COLUMN dkim_selectors text;
 
 -- ---------- Website branding as a fifth kind of domain check ----------
--- A record may read its website's own look: title, theme colour, icons, and
+-- A record may read its website's own look: title, theme color, icons, and
 -- the manifest. What it finds is offered to the company's theme; the record
 -- whose look was applied is remembered so the choice can be shown and remade.
 ALTER TABLE instance_settings ADD COLUMN domain_brand_interval_days int NOT NULL DEFAULT 7;
@@ -812,7 +812,7 @@ CREATE UNIQUE INDEX company_sign_in_domains_domain_idx ON company_sign_in_domain
 
 -- ---------- The public knowledge base's own credit ----------
 -- An MSP may put its own name and logo on the public site's "Powered by"
--- line in place of the vendor's. The licence and the source link stay.
+-- line in place of the vendor's. The license and the source link stay.
 ALTER TABLE instance_branding ADD COLUMN kb_powered_by_name text;
 
 -- ---------- Roles as rows ----------

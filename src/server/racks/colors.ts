@@ -1,10 +1,10 @@
 import { normalizeHex, toRgb, type Rgb } from "@/lib/brand-color";
 
 /**
- * What colour each kind of equipment is drawn in, and what is worth warning
+ * What color each kind of equipment is drawn in, and what is worth warning
  * about once the rack is full of them.
  *
- * Two colours that are numerically different can still be indistinguishable on
+ * Two colors that are numerically different can still be indistinguishable on
  * a printed elevation, so "too close" is measured perceptually in Oklab rather
  * than by comparing hex digits.
  */
@@ -74,7 +74,7 @@ export const DEFAULT_PALETTE = [
   "#7c2d12", // brown
 ];
 
-/** A stable colour for a type nobody has assigned one to. */
+/** A stable color for a type nobody has assigned one to. */
 export function fallbackColor(docTypeId: string, index: number): string {
   if (index >= 0 && index < DEFAULT_PALETTE.length) {
     return DEFAULT_PALETTE[index] as string;
@@ -130,22 +130,22 @@ export function resolveColors(types: ColorInput[]): ResolvedColor[] {
 export type ColorWarning =
   | {
       kind: "too_close";
-      /** The two types whose colours a reader would struggle to tell apart. */
+      /** The two types whose colors a reader would struggle to tell apart. */
       types: [string, string];
       distance: number;
     }
   | {
       kind: "override_shadows_global";
-      /** A client override that has landed on a colour already in use here. */
+      /** A client override that has landed on a color already in use here. */
       type: string;
       collidesWith: string;
     };
 
 /**
- * What is worth saying about a set of colours once they are all on one page.
+ * What is worth saying about a set of colors once they are all on one page.
  *
- * Two things: colours a reader cannot tell apart, and a client override that
- * has taken on a colour another type is already using here — the second is
+ * Two things: colors a reader cannot tell apart, and a client override that
+ * has taken on a color another type is already using here — the second is
  * worth its own warning because the fix is to change the override, and nobody
  * would think to look for it otherwise.
  */

@@ -430,7 +430,7 @@ async function runBrand(domain: string): Promise<Section<BrandSummary>> {
   if (data.icons.length === 0 && data.colors.length === 0) {
     findings.push({
       severity: "warn",
-      message: "The site publishes no icon and no theme colour.",
+      message: "The site publishes no icon and no theme color.",
     });
   } else {
     const parts: string[] = [];
@@ -443,7 +443,7 @@ async function runBrand(domain: string): Promise<Section<BrandSummary>> {
     }
     if (data.colors.length > 0) {
       parts.push(
-        `${data.colors.length} colour${data.colors.length === 1 ? "" : "s"}`,
+        `${data.colors.length} color${data.colors.length === 1 ? "" : "s"}`,
       );
     }
     findings.push({

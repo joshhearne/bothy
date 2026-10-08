@@ -13,7 +13,7 @@ import type { RackBlock, RackFace } from "@/server/racks/svg";
 
 /**
  * Rack elevations. A rack is an ordinary document with a size, a numbering
- * direction, and a list of what is mounted where; the colours come from the
+ * direction, and a list of what is mounted where; the colors come from the
  * doc type of each mounted thing, which an MSP sets once and a client may
  * override.
  */
@@ -380,8 +380,8 @@ export async function removeMount(
 }
 
 /**
- * Sets the colour for a kind of equipment: with no company, the MSP default
- * for everyone; with one, that client's override. An empty colour clears it,
+ * Sets the color for a kind of equipment: with no company, the MSP default
+ * for everyone; with one, that client's override. An empty color clears it,
  * which falls back to whatever is above.
  */
 export async function setTypeColor(

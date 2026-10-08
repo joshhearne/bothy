@@ -24,9 +24,9 @@ function Char({ token }: { token: SecretToken }) {
 }
 
 /**
- * A secret, character by character, each coloured by what it is: letters
+ * A secret, character by character, each colored by what it is: letters
  * blue, digits orange, symbols violet, in a monospace face so an l, a 1 and an
- * I take the same width and a different hue. The colours come from the
+ * I take the same width and a different hue. The colors come from the
  * reader's choice on <html> (data-secret-style, see src/lib/secret-style.ts),
  * so this only marks what each character is. The element's text content is
  * exactly the value, so selecting or reading it gives the secret and nothing

@@ -51,7 +51,7 @@
   --light-sidebar-border: oklch(0.915 0.006 258);
   --light-selection: oklch(0.51 0.1 186 / 0.18);
   /*
-   * A revealed secret colours each character by what it is, so a 1, an l and
+   * A revealed secret colors each character by what it is, so a 1, an l and
    * an I can be told apart by hue as well as shape. The hues are AlphabetSoup's
    * (letters blue, digits orange, symbols violet), darkened for a white page.
    */
@@ -85,7 +85,7 @@
 }
 
 /*
- * Paul Tol's vibrant set, which stays apart under every common colour-vision
+ * Paul Tol's vibrant set, which stays apart under every common color-vision
  * deficiency. The choice sits on the application shell (data-secret-style,
  * from the person's account), so the aliases are declared again there: a
  * custom property inherits already resolved, and overriding the raw values
@@ -141,7 +141,7 @@
 .secret-text [data-kind="symbol"] { color: var(--secret-symbol); font-weight: 600; }
 /* A space is invisible on its own; a dotted floor shows that it is there. */
 .secret-text [data-space] { text-decoration: underline dotted var(--secret-symbol); text-underline-offset: 0.2em; }
-/* The reader asked for plain text: same spans, no colour, so nothing else moves. */
+/* The reader asked for plain text: same spans, no color, so nothing else moves. */
 [data-secret-style="off"] .secret-text [data-kind] { color: inherit; font-weight: inherit; text-decoration: none; }
 
 
@@ -168,8 +168,8 @@
 }
 
 /*
- * Colour inherits already resolved, so a panel that names its own theme has to
- * restate it or it would keep the surrounding page's text colour on its own
+ * Color inherits already resolved, so a panel that names its own theme has to
+ * restate it or it would keep the surrounding page's text color on its own
  * background — black on black in the worst case.
  */
 [data-theme]:not(:root) {

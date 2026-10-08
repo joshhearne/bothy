@@ -80,7 +80,7 @@ const NEAR_BLACK: Rgb = { r: 16, g: 19, b: 23 };
 /**
  * An accent has two jobs at once: it is link text on the page, and it is the
  * fill behind a button's label. A mid-tone can satisfy the first and fail the
- * second — grey reads against white but nothing reads on grey — so both are
+ * second — gray reads against white but nothing reads on gray — so both are
  * required here.
  */
 function isUsable(color: Rgb, surface: Rgb): boolean {
@@ -98,7 +98,7 @@ function isUsable(color: Rgb, surface: Rgb): boolean {
  * light one; this keeps either usable without asking for two colors.
  *
  * Moving away from the surface improves both tests at once, so the walk is
- * monotonic and stops at the first colour that works.
+ * monotonic and stops at the first color that works.
  */
 function adjustFor(color: Rgb, surface: Rgb): Rgb {
   const away = luminance(surface) > 0.5 ? BLACK : LIGHT_SURFACE;

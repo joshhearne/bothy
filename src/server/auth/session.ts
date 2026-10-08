@@ -189,7 +189,7 @@ export function canManageIntegrations(role: Role): boolean {
 
 /**
  * Who works with secret fields: the people who reveal them. The choice of how
- * a secret is coloured is theirs alone; a read-only viewer never sees one.
+ * a secret is colored is theirs alone; a read-only viewer never sees one.
  */
 export function canUseSecretFields(role: Role): boolean {
   return can(role, "secrets.fields");

@@ -4,9 +4,9 @@ import { createCompany, signInAsAdmin, unique } from "./support";
 
 /**
  * Rack elevations: what is mounted where, drawn as something you can print,
- * and coloured by what kind of thing it is — an MSP default that a client may
- * override, with a word of warning when two colours are too close to tell
- * apart or an override lands on a colour already in use.
+ * and colored by what kind of thing it is — an MSP default that a client may
+ * override, with a word of warning when two colors are too close to tell
+ * apart or an override lands on a color already in use.
  */
 
 const COMPANY = unique("Rack Co");
@@ -109,13 +109,13 @@ test("what is mounted appears in the list and in the drawing", async ({ page }) 
   expect(drawing).toContain('height="42"');
 });
 
-test("a kind carries a colour, and a client may override it", async ({ page }) => {
+test("a kind carries a color, and a client may override it", async ({ page }) => {
   await page.goto(`/documents/${rackId}`);
 
-  const key = page.getByRole("list", { name: "Colour key" });
+  const key = page.getByRole("list", { name: "Color key" });
   await expect(key).toContainText("Switch");
 
-  // The row for switches, so neither the colour nor the button is a guess.
+  // The row for switches, so neither the color nor the button is a guess.
   const row = key.getByRole("listitem").filter({ hasText: "Switch" }).first();
 
   await row.locator(`#color-${switchTypeId}`).fill("#2563eb");
@@ -128,7 +128,7 @@ test("a kind carries a colour, and a client may override it", async ({ page }) =
 
   await page.reload();
   const again = page
-    .getByRole("list", { name: "Colour key" })
+    .getByRole("list", { name: "Color key" })
     .getByRole("listitem")
     .filter({ hasText: "Switch" })
     .first();
@@ -136,13 +136,13 @@ test("a kind carries a colour, and a client may override it", async ({ page }) =
   await again.getByRole("button", { name: "Override for this client" }).click();
 
   // The key says so out loud, and remembers what the default was.
-  await expect(page.getByRole("list", { name: "Colour key" })).toContainText("client override");
+  await expect(page.getByRole("list", { name: "Color key" })).toContainText("client override");
   expect(
     psql(`select color from rack_type_colors where company_id = '${companyId}';`),
   ).toBe("#be123c");
 });
 
-test("colours nobody could tell apart are called out", async ({ page }) => {
+test("colors nobody could tell apart are called out", async ({ page }) => {
   // Give servers a red a hair from the switch override.
   psql(
     `insert into rack_type_colors (doc_type_id, company_id, color) ` +

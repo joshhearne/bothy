@@ -26,7 +26,7 @@ describe("parseBrandHtml", () => {
     <link rel="stylesheet" href="/x.css">
   </head><body><link rel="icon" href="/not-in-head.png"></body></html>`;
 
-  it("reads the title, colours, icons and manifest, resolving addresses", () => {
+  it("reads the title, colors, icons and manifest, resolving addresses", () => {
     const brand = parseBrandHtml(html, PAGE);
     expect(brand.title).toBe("Example & Co — Home");
     expect(brand.colors).toEqual(["#0a7f5a"]);
@@ -61,7 +61,7 @@ describe("parseBrandHtml", () => {
 });
 
 describe("parseManifest", () => {
-  it("adds the manifest's colours and icons, relative to the manifest", () => {
+  it("adds the manifest's colors and icons, relative to the manifest", () => {
     const got = parseManifest(
       {
         theme_color: "rgb(10, 127, 90)",

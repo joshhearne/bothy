@@ -43,7 +43,7 @@ function warningText(warning: RackWarning, t: ReturnType<typeof useMessages>): s
   }
 }
 
-/** The colour of one kind of equipment, set for everyone or for this client. */
+/** The color of one kind of equipment, set for everyone or for this client. */
 function ColorRow({
   documentId,
   companyId,

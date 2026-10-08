@@ -17,7 +17,7 @@ import {
   BrandApplyError,
 } from "@/server/services/company-brand";
 
-/** Makes a website's icon and colour the company's logo and accent. */
+/** Makes a website's icon and color the company's logo and accent. */
 export async function applyDomainBrandingAction(
   _prev: FormState,
   formData: FormData,
