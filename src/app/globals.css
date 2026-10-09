@@ -301,8 +301,30 @@
 }
 .prose-editor pre code { background: none; padding: 0; }
 .prose-editor a { text-decoration: underline; }
-.prose-editor table { border-collapse: collapse; margin-block: 0.5em; }
-.prose-editor :where(th, td) { border: 1px solid var(--border); padding: 0.35em 0.6em; }
+.prose-editor table { border-collapse: collapse; margin-block: 0.5em; max-width: 100%; }
+.prose-editor :where(th, td) {
+  border: 1px solid var(--border);
+  padding: 0.35em 0.6em;
+  vertical-align: top;
+  position: relative;
+}
+.prose-editor th { background: var(--muted); font-weight: 600; text-align: start; }
+.prose-editor :where(th, td) > p { margin-block: 0; }
+.prose-editor .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: color-mix(in oklab, var(--primary) 15%, transparent);
+}
+/* Checklists: the editor's task items, and the ones Markdown renders to. */
+.prose-editor ul[data-type="taskList"] { list-style: none; padding-inline-start: 0.25em; }
+.prose-editor ul[data-type="taskList"] > li { display: flex; gap: 0.5em; align-items: flex-start; }
+.prose-editor ul[data-type="taskList"] > li > label { flex: none; margin-top: 0.2em; }
+.prose-editor ul[data-type="taskList"] > li > div { flex: 1; min-width: 0; }
+.prose-editor ul[data-type="taskList"] > li > div > p { margin-block: 0; }
+.prose-editor li:has(> input[type="checkbox"]:first-child) { list-style: none; margin-inline-start: -1.25em; }
+.prose-editor li > input[type="checkbox"] { margin-inline-end: 0.5em; vertical-align: -0.1em; }
 .prose-editor p:first-child { margin-top: 0; }
 .prose-editor p:last-child { margin-bottom: 0; }
 

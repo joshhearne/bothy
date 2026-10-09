@@ -14,6 +14,7 @@ import {
 import { getMessages } from "@/i18n/server";
 import { DocTypeScheduleForm } from "../schedule-form";
 import { DocTypeForm } from "../../doc-type-form";
+import { DocTypeIcon } from "@/components/doc-type-icon";
 import { AddTemplateFieldForm } from "../../template-field-form";
 import {
   archiveDocTypeAction,
@@ -51,7 +52,10 @@ export default async function DocTypePage({ params }: { params: Promise<{ id: st
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{docType.name}</h1>
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            <DocTypeIcon name={docType.icon} className="size-6 shrink-0 text-[var(--muted-foreground)]" />
+            {docType.name}
+          </h1>
           <p className="text-sm text-[var(--muted-foreground)]">
             {docType.scope === "company" ? t.documents.companyScope : t.documents.locationScope}
             {docType.archivedAt ? ` · ${t.common.archived}` : ""}

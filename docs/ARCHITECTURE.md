@@ -40,6 +40,18 @@ Single container plus Postgres, with an optional bw-serve sidecar for Bitwarden/
 
 API responses return resolved values (option labels, linked doc titles, rendered HTML for markdown) alongside raw IDs.
 
+### The markdown and richtext editor
+One TipTap editor (`src/components/fields/rich-text-editor.tsx`) serves both
+field types, with tables (`@tiptap/extension-table`) and checklists
+(`TaskList`/`TaskItem`). Text pasted in is parsed as Markdown
+(`tiptap-markdown`, `transformPastedText`), so a `.md` file pasted whole keeps
+its headings, lists, tables, and `- [ ]` items instead of arriving as literal
+markers that the serializer would then escape (`\#`, `\|`); Shift+paste keeps
+it plain. A markdown field also has a **Visual | Markdown** switch: the second
+is the source in a textarea, and going back re-parses it. On the view side
+`marked` (GFM) renders the source and `sanitizeRichText` allows the result: an
+`<input>` survives only as a disabled checkbox, whatever it claimed to be.
+
 ## Inline editing rules (the whole point of the project)
 1. Edit mode shows every field of the document, template fields first, then local fields, respecting `field_order` if set.
 2. "Add field" in edit mode creates a local field on that document.
@@ -116,6 +128,17 @@ the process started (`accessLastVerifiedAt`, held in memory on purpose),
 which collections are on the site and to whom they are kept, which
 companies place their people, and the branding it carries, with the
 Cloudflare steps inline and the public-site form beneath.
+
+### Doc type icons
+`doc_types.icon` holds a lucide name as the lucide site spells it
+(`globe-lock`). The admin form picks one from every icon lucide-react ships
+(`src/components/ui/icon-picker.tsx`, loaded only with that form, since the
+whole set rides with it) and the service refines the value to that shape.
+`DocTypeIcon` (`src/components/doc-type-icon.tsx`) resolves a name to the
+component by a key both spellings share (`src/lib/icon-name.ts`), so
+`arrow-down-a-z` and `ArrowDownAZ` meet, and falls back to a plain document.
+It is shown beside the type's name on the company page, the document and edit
+pages, and the admin list.
 
 ## Branding
 - `instance_branding` holds one row: a portal name, an accent color, and a logo

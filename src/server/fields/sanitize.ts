@@ -14,12 +14,17 @@ const OPTIONS: sanitizeHtml.IOptions = {
     "a", "img",
     "table", "thead", "tbody", "tr", "th", "td",
     "span", "div",
+    // A checklist item: the box is only ever a disabled checkbox.
+    "input", "label",
   ],
   allowedAttributes: {
     a: ["href", "title", "target", "rel"],
     img: ["src", "alt", "title", "width", "height"],
     td: ["colspan", "rowspan"],
     th: ["colspan", "rowspan", "scope"],
+    input: ["type", "checked", "disabled"],
+    ul: ["data-type"],
+    li: ["data-type", "data-checked"],
     "*": ["class"],
   },
   allowedSchemes: ["http", "https", "mailto", "tel"],
@@ -28,6 +33,15 @@ const OPTIONS: sanitizeHtml.IOptions = {
   transformTags: {
     // Outbound links open safely or not at all.
     a: sanitizeHtml.simpleTransform("a", { rel: "noopener noreferrer nofollow" }),
+    // Whatever an input claimed to be, it is a read-only checkbox here.
+    input: (tagName, attribs) => ({
+      tagName,
+      attribs: {
+        type: "checkbox",
+        disabled: "",
+        ...("checked" in attribs ? { checked: "" } : {}),
+      },
+    }),
   },
   disallowedTagsMode: "discard",
 };

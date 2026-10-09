@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { isIconName } from "@/lib/icon-name";
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { db, type Executor } from "@/server/db";
 import { docTypes, documents, fields } from "@/server/db/schema";
@@ -16,7 +17,14 @@ const editableFieldType = z.enum(EDITABLE_FIELD_TYPES);
 
 export const docTypeInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
-  icon: z.string().trim().max(64).optional().nullable(),
+  icon: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .max(64)
+    .refine((value) => value === "" || isIconName(value), "Use a lucide icon name, such as globe-lock")
+    .optional()
+    .nullable(),
   scope: z.enum(["company", "location"]),
 });
 

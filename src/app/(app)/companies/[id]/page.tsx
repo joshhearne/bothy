@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { FileText, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -15,6 +15,7 @@ import { listLocations } from "@/server/services/locations";
 import { listCompanyDocumentsGrouped } from "@/server/services/documents";
 import { getCompanyBranding } from "@/server/services/branding";
 import { BrandAccent, BrandLogo } from "@/components/brand";
+import { DocTypeIcon } from "@/components/doc-type-icon";
 import { AddLocationForm } from "../location-form";
 import {
   archiveCompanyAction,
@@ -223,7 +224,8 @@ export default async function CompanyPage({
           <div className="flex flex-col gap-5">
             {documentGroups.map((group) => (
               <div key={group.docType.id} className="flex flex-col gap-2">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[var(--muted-foreground)]">
+                  <DocTypeIcon name={group.docType.icon} className="size-4 shrink-0" />
                   {group.docType.name}
                 </h3>
                 <ul className="flex flex-col gap-2">
@@ -232,9 +234,9 @@ export default async function CompanyPage({
                       key={document.id}
                       className="flex items-center gap-3 rounded-md border px-4 py-3"
                     >
-                      <FileText
+                      <DocTypeIcon
+                        name={group.docType.icon}
                         className="size-4 shrink-0 text-[var(--muted-foreground)]"
-                        aria-hidden
                       />
                       <Link
                         href={`/documents/${document.id}`}

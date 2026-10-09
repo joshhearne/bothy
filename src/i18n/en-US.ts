@@ -504,6 +504,27 @@ export const enUS = {
     uploadLimit: (mb: number) => `Up to ${mb} MB per file.`,
     companyScope: "Company scope",
     locationScope: "Location scope",
+    richText: {
+      bold: "Bold",
+      italic: "Italic",
+      heading: "Heading",
+      quote: "Quote",
+      bulletList: "Bullet list",
+      numberedList: "Numbered list",
+      taskList: "Checklist",
+      codeBlock: "Code block",
+      table: "Table",
+      addRow: "Add row",
+      addColumn: "Add column",
+      deleteRow: "Delete row",
+      deleteColumn: "Delete column",
+      deleteTable: "Delete table",
+      view: "View",
+      visual: "Visual",
+      source: "Markdown",
+      sourceHint:
+        "Write or paste Markdown here. Headings, lists, tables, and checklists are kept as written.",
+    },
   },
 
   editor: {
@@ -954,7 +975,14 @@ export const enUS = {
       scopeHint:
         "Company documents attach to the company. Location documents attach to one site.",
       icon: "Icon",
-      iconHint: "Optional lucide icon name.",
+      iconHint: "Shown beside the type's name wherever it appears. Search by what the picture shows.",
+      chooseIcon: "Choose an icon",
+      searchIcons: "Search icons",
+      noIcon: "No icon",
+      noIconMatches: (query: string) => `Nothing matches “${query}”.`,
+      iconsShown: (shown: number, total: number) =>
+        shown === total ? `${total} icons` : `${shown} of ${total} icons; search to narrow`,
+      loadingIcons: "Loading icons…",
       templateFields: "Template fields",
       noFields: "No fields yet.",
       addField: "Add a template field",

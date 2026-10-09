@@ -34,6 +34,7 @@
     "@opennextjs/cloudflare": "^1.20.6",
     "@simplewebauthn/browser": "^13.3.0",
     "@simplewebauthn/server": "^14.0.3",
+    "@tiptap/extension-table": "^3.31.3",
     "@tiptap/pm": "^3.31.3",
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",

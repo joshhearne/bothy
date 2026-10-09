@@ -7,6 +7,7 @@ import {
 import { getCompany } from "@/server/services/companies";
 import { getDocumentDetail } from "@/server/services/documents";
 import { getCompanyBranding } from "@/server/services/branding";
+import { DocTypeIcon } from "@/components/doc-type-icon";
 import { BrandAccent } from "@/components/brand";
 import { listOptionLists } from "@/server/services/option-lists";
 import {
@@ -43,9 +44,11 @@ export default async function EditDocumentPage({
   return (
     <BrandAccent brand={branding} className="flex flex-col gap-6">
       <div>
-        <p className="text-sm text-[var(--muted-foreground)]">
+        <p className="flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
           {company.name}
-          {detail.location ? ` · ${detail.location.name}` : ""} · {detail.docType.name}
+          {detail.location ? ` · ${detail.location.name}` : ""} ·{" "}
+          <DocTypeIcon name={detail.docType.icon} className="size-4 shrink-0" />
+          {detail.docType.name}
         </p>
         <h1 className="text-2xl font-semibold tracking-tight">
           {t.documents.editHeading(detail.document.title)}

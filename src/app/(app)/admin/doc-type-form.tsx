@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
@@ -10,6 +11,21 @@ import type { FormState } from "@/lib/form";
 import { useMessages } from "@/i18n/client";
 import { createDocTypeAction, updateDocTypeAction } from "./actions";
 import { Select } from "@/components/ui/select";
+
+/** Every icon lucide ships comes with the picker, so it loads only when the form does. */
+const IconPicker = dynamic(() => import("@/components/ui/icon-picker").then((m) => m.IconPicker), {
+  ssr: false,
+  loading: () => <IconPickerLoading />,
+});
+
+function IconPickerLoading() {
+  const t = useMessages();
+  return (
+    <div className="flex h-10 items-center rounded-md border px-3 text-sm text-[var(--muted-foreground)]">
+      {t.admin.docTypes.loadingIcons}
+    </div>
+  );
+}
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -68,7 +84,7 @@ export function DocTypeForm({
       </Field>
 
       <Field id="icon" label={t.admin.docTypes.icon} error={fieldErrors.icon} hint={t.admin.docTypes.iconHint}>
-        <Input id="icon" name="icon" defaultValue={values.icon ?? ""} maxLength={64} />
+        <IconPicker id="icon" name="icon" defaultValue={values.icon} />
       </Field>
 
       <div>

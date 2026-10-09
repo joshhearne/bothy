@@ -29,9 +29,24 @@ describe("sanitizeRichText", () => {
 
   it("drops iframes, styles, and forms", () => {
     const out = sanitizeRichText(
-      '<iframe src="https://evil"></iframe><style>body{}</style><form><input/></form>',
+      '<iframe src="https://evil"></iframe><style>body{}</style><form><button>go</button></form>',
     );
-    expect(out).toBe("");
+    expect(out).toBe("go");
+  });
+
+  it("keeps a checklist box, and makes every input a disabled checkbox", () => {
+    expect(sanitizeRichText('<ul><li><input checked="" disabled="" type="checkbox"> done</li></ul>')).toBe(
+      '<ul><li><input type="checkbox" disabled checked /> done</li></ul>',
+    );
+    expect(sanitizeRichText('<input type="text" name="card" onfocus="steal()">')).toBe(
+      '<input type="checkbox" disabled />',
+    );
+  });
+
+  it("keeps the editor's own checklist markup", () => {
+    const html =
+      '<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><label><input type="checkbox" disabled checked /><span></span></label><div><p>done</p></div></li></ul>';
+    expect(sanitizeRichText(html)).toBe(html);
   });
 
   it("strips svg-based payloads", () => {

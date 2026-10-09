@@ -9,6 +9,7 @@ import { getCompany } from "@/server/services/companies";
 import { getDocumentDetail, listBacklinks } from "@/server/services/documents";
 import { getCompanyBranding } from "@/server/services/branding";
 import { BrandAccent, BrandLogo } from "@/components/brand";
+import { DocTypeIcon } from "@/components/doc-type-icon";
 import { renderFieldValue } from "@/server/fields/render";
 import { formatDateTime } from "@/i18n/format";
 import { getI18n } from "@/i18n/server";
@@ -128,6 +129,7 @@ export default async function DocumentPage({
               {company.name}
             </Link>
             {detail.location ? ` · ${detail.location.name}` : ""} ·{" "}
+            <DocTypeIcon name={detail.docType.icon} className="size-4 shrink-0" />
             {detail.docType.name}
           </p>
           <div className="flex flex-wrap items-center gap-2">

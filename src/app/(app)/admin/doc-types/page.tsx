@@ -7,6 +7,7 @@ import { getI18n } from "@/i18n/server";
 import { plural } from "@/i18n/format";
 import { listDocTypes } from "@/server/services/doc-types";
 import { unarchiveDocTypeAction } from "../actions";
+import { DocTypeIcon } from "@/components/doc-type-icon";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,7 @@ export default async function DocTypesPage({
               key={docType.id}
               className="flex flex-wrap items-center gap-3 rounded-md border px-4 py-3"
             >
+              <DocTypeIcon name={docType.icon} className="size-5 shrink-0 text-[var(--muted-foreground)]" />
               <div className="min-w-0 flex-1">
                 <Link href={`/admin/doc-types/${docType.id}`} className="font-medium hover:underline">
                   {docType.name}
