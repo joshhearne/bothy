@@ -19,3 +19,8 @@ playwright-report/
 .open-next/
 .wrangler/
 .dev.vars
+
+# host-local
+docker-compose.override.yml
+deploy/
+backups/
