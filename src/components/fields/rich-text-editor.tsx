@@ -12,9 +12,7 @@ import { useMessages } from "@/i18n/client";
 import type { Messages } from "@/i18n/en-US";
 
 /** tiptap-markdown adds this to editor.storage but ships no module augmentation. */
-type MarkdownStorage = {
-  markdown: { getMarkdown: () => string; parser: { parse: (markdown: string) => string } };
-};
+type MarkdownStorage = { markdown: { getMarkdown: () => string } };
 
 type Mode = "markdown" | "richtext";
 type View = "visual" | "source";
@@ -134,8 +132,8 @@ export function RichTextEditor({
     if (next === view) return;
     if (next === "visual" && editor) {
       // The source may have changed; the visual view starts from it again.
-      const storage = editor.storage as unknown as MarkdownStorage;
-      editor.commands.setContent(value === "" ? "" : storage.markdown.parser.parse(value));
+      // tiptap-markdown's setContent takes Markdown, so the source goes in as is.
+      editor.commands.setContent(value);
     }
     setView(next);
   }
